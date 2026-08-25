@@ -33,6 +33,7 @@ import { InboxView } from '@/components/InboxView';
 import { ContractsView } from '@/views/ContractsView';
 import { CentralView } from '@/views/CentralView';
 import { BankView } from '@/views/BankView';
+import { NetworkPlannerView } from '@/views/NetworkPlannerView';
 import { AdvertisingView } from '@/views/AdvertisingView';
 import { DealerView } from '@/views/DealerView';
 import { PlayerMarketView } from '@/views/PlayerMarketView';
@@ -242,6 +243,17 @@ import {
 } from '@/lib/achievements';
 import { isNewGameDay } from '@/lib/storage';
 import {
+  loadRouteNetworkState,
+  removeRoutePlan,
+  removeTimetableEntry,
+  saveRouteNetworkState,
+  upsertRoutePlan,
+  upsertTimetableEntry,
+  type RouteNetworkState,
+  type RoutePlan,
+  type TimetableEntry,
+} from '@/lib/routeNetwork';
+import {
   buildRecruit,
   completeDueTraining,
   ensureDailyJobBoard,
@@ -378,6 +390,7 @@ function App() {
   const [depot, setDepot] = useState<DepotState>(() => loadDepotState());
   const [insolvencyDismissed, setInsolvencyDismissed] = useState(false);
   const [networkAccess, setNetworkAccess] = useState<NetworkAccessState>(() => loadNetworkAccess());
+  const [routeNetwork, setRouteNetwork] = useState<RouteNetworkState>(() => loadRouteNetworkState());
   const [worldEvents, setWorldEvents] = useState<WorldEventState>(() =>
     loadWorldEvents(loadCompanyEconomy()?.lastTick ?? SEED_COMPANY.tick),
   );
@@ -410,6 +423,7 @@ function App() {
   const chargedTripsRef = useRef<string[]>(loadChargedTripIds());
   const ordersRef = useRef(orders);
   const networkRef = useRef(networkAccess);
+  const routeNetworkRef = useRef(routeNetwork);
   const eventsRef = useRef(worldEvents);
   const achievementsRef = useRef(achievements);
 
@@ -430,6 +444,7 @@ function App() {
   depotRef.current = depot;
   ordersRef.current = orders;
   networkRef.current = networkAccess;
+  routeNetworkRef.current = routeNetwork;
   eventsRef.current = worldEvents;
   achievementsRef.current = achievements;
 
@@ -521,6 +536,28 @@ function App() {
     setBank(next);
     saveBankState(next);
   }, []);
+
+  const persistRouteNetwork = useCallback((next: RouteNetworkState) => {
+    routeNetworkRef.current = next;
+    setRouteNetwork(next);
+    saveRouteNetworkState(next);
+  }, []);
+
+  const handleSaveRoutePlan = useCallback((plan: RoutePlan) => {
+    persistRouteNetwork(upsertRoutePlan(routeNetworkRef.current, plan));
+  }, [persistRouteNetwork]);
+
+  const handleDeleteRoutePlan = useCallback((routePlanId: string) => {
+    persistRouteNetwork(removeRoutePlan(routeNetworkRef.current, routePlanId));
+  }, [persistRouteNetwork]);
+
+  const handleSaveTimetableEntry = useCallback((entry: TimetableEntry) => {
+    persistRouteNetwork(upsertTimetableEntry(routeNetworkRef.current, entry));
+  }, [persistRouteNetwork]);
+
+  const handleDeleteTimetableEntry = useCallback((entryId: string) => {
+    persistRouteNetwork(removeTimetableEntry(routeNetworkRef.current, entryId));
+  }, [persistRouteNetwork]);
 
   useEffect(() => {
     if (loading) return;
@@ -991,7 +1028,7 @@ function App() {
   }, [loading, grantAchievements, persistCompany]);
 
   const trySpend = useCallback(
-    (amount: number, label: string): boolean => {
+    (amount: number, label: string, kind?: BankBookingKind): boolean => {
       const current = companyRef.current;
       if (!current) return false;
       if (!canSpend(current.balance, amount, bankRef.current.overdraftLimit)) {
@@ -1007,7 +1044,7 @@ function App() {
         return false;
       }
       persistCompany({ ...current, balance: current.balance - amount });
-      book(label, -amount);
+      book(label, -amount, undefined, kind);
       return true;
     },
     [book, persistCompany, pushNotifications],
@@ -1909,24 +1946,29 @@ function App() {
     if (!current) return false;
     if (amount > MAX_LOAN_PRINCIPAL) return false;
     if (!isLoanAmountUnlocked(amount, current.level)) return false;
-    const livePrincipal = (bankRef.current.loans ?? []).reduce((s, l) => s + (Number(l?.principal) || 0), 0);
+    const livePrincipal = (bankRef.current.loans ?? []).reduce((s, l) => s + (Number(l?.principalRemaining) || Number(l?.principal) || 0), 0);
     if (livePrincipal + amount > MAX_LOAN_PRINCIPAL) return false;
     const dailyPayment = loanDailyPayment(amount, termDays, annualPct);
+    const totalRepayment = dailyPayment * termDays;
+    const interestTotal = Math.max(0, totalRepayment - amount);
     persistCompany({ ...current, balance: current.balance + amount });
     persistAchievements(noteLoanTaken(achievementsRef.current));
     persistBank({
       ...pushBooking(bankRef.current, {
         tick: current.tick,
         createdAt: tickToIso(current.tick),
-        label: `Darlehen ${label}`,
+        label: `Kreditaufnahme ${label}`,
         amount,
+        kind: 'kreditaufnahme',
       }),
       loans: [
         ...bankRef.current.loans,
         {
           id: newNotificationId(),
           principal: amount,
-          remaining: dailyPayment * termDays,
+          remaining: totalRepayment,
+          principalRemaining: amount,
+          interestRemaining: interestTotal,
           termDays,
           dailyPayment,
           interestLabel: label,
@@ -1963,7 +2005,7 @@ function App() {
       return true;
     }
     const cost = INSURANCE_CATALOG[id].dailyCost;
-    if (!trySpend(cost, `Versicherung ${INSURANCE_CATALOG[id].name}`)) return false;
+    if (!trySpend(cost, `Versicherung ${INSURANCE_CATALOG[id].name}`, 'versicherung')) return false;
     persistBank({
       ...bankRef.current,
       insurances: { ...bankRef.current.insurances, [id]: true },
@@ -1976,10 +2018,38 @@ function App() {
     if (!current) return false;
     const loan = bankRef.current.loans.find((l) => l.id === loanId);
     if (!loan) return false;
-    if (!trySpend(loan.remaining, 'Sondertilgung Kredit')) return false;
+    if (!canSpend(current.balance, loan.remaining, bankRef.current.overdraftLimit)) {
+      pushNotifications([
+        {
+          type: 'warning',
+          title: 'Zahlung abgelehnt',
+          message: `Unzureichende Mittel für die Sondertilgung (${formatEuro(loan.remaining)}).`,
+          read: false,
+          created_at: tickToIso(current.tick),
+        },
+      ]);
+      return false;
+    }
+    persistCompany({ ...current, balance: current.balance - loan.remaining });
+    let nextBank = pushBooking(bankRef.current, {
+      tick: current.tick,
+      createdAt: tickToIso(current.tick),
+      label: `Sondertilgung (${loan.interestLabel})`,
+      amount: -loan.principalRemaining,
+      kind: 'tilgung',
+    });
+    if (loan.interestRemaining > 0) {
+      nextBank = pushBooking(nextBank, {
+        tick: current.tick,
+        createdAt: tickToIso(current.tick),
+        label: `Kreditzinsen Sondertilgung (${loan.interestLabel})`,
+        amount: -loan.interestRemaining,
+        kind: 'zinsen',
+      });
+    }
     persistBank({
-      ...bankRef.current,
-      loans: bankRef.current.loans.filter((l) => l.id !== loanId),
+      ...nextBank,
+      loans: nextBank.loans.filter((l) => l.id !== loanId),
     });
     persistAchievements(noteLoansPaidOff(achievementsRef.current, 1));
     const live = companyRef.current;
@@ -2049,7 +2119,7 @@ function App() {
     const buyOpts = how === 'leasing' ? { ...options, variant: 'revised' as const } : options;
     const quote = quoteLocoPurchase(offer, buyOpts.variant, stock, buyOpts.countries, buyOpts.equipment);
     const price = how === 'kauf' ? quote.total : quote.packages;
-    if (price > 0 && !trySpend(price, how === 'kauf' ? `Kauf ${offer.displayName}` : `Pakete ${offer.displayName}`)) {
+    if (price > 0 && !trySpend(price, how === 'kauf' ? `Kauf ${offer.displayName}` : `Pakete ${offer.displayName}`, 'investition')) {
       return false;
     }
     const loco = buildPurchasedLoco(
@@ -2117,7 +2187,7 @@ function App() {
       ]);
       return false;
     }
-    if (how === 'kauf' && !trySpend(quote.buyPrice, `Kauf ${quote.qty}× ${offer.type_code}`)) return false;
+    if (how === 'kauf' && !trySpend(quote.buyPrice, `Kauf ${quote.qty}× ${offer.type_code}`, 'investition')) return false;
     if (
       how === 'leasing' &&
       !canSpend(current.balance, quote.leaseDaily, bankRef.current.overdraftLimit)
@@ -2171,7 +2241,7 @@ function App() {
     persistCompany({ ...current, balance: current.balance + price });
     const live = companyRef.current;
     if (live) persistCompany(grantAchievements(live));
-    book(`Verkauf ${loco.name}`, price);
+    book(`Verkauf ${loco.name}`, price, undefined, 'investition');
     const nextLocos = locomotivesRef.current.filter((l) => l.id !== locoId);
     locomotivesRef.current = nextLocos;
     setLocomotives(nextLocos);
@@ -2202,7 +2272,7 @@ function App() {
     persistCompany({ ...current, balance: current.balance + price });
     const liveWagon = companyRef.current;
     if (liveWagon) persistCompany(grantAchievements(liveWagon));
-    book(`Verkauf ${wagon.count}× ${wagon.type_code}`, price);
+    book(`Verkauf ${wagon.count}× ${wagon.type_code}`, price, undefined, 'investition');
     const nextWagons = wagonsRef.current.filter((w) => w.id !== wagonId);
     wagonsRef.current = nextWagons;
     setWagons(nextWagons);
@@ -2265,7 +2335,7 @@ function App() {
       cost: quote.cost,
       overdueMalus: quote.overdueMalus,
     };
-    if (!trySpend(quote.cost, jobLabel(job))) return false;
+    if (!trySpend(quote.cost, jobLabel(job), 'betrieb')) return false;
     const nextJobs = [...workshopRef.current, job];
     workshopRef.current = nextJobs;
     setWorkshopJobs(nextJobs);
@@ -2297,7 +2367,7 @@ function App() {
       trainingFee > 0
         ? `Einstellung ${listing.personName} inkl. Baureihen-Nachschulung`
         : `Einstellung ${listing.personName}`;
-    if (!trySpend(total, spendLabel)) return false;
+    if (!trySpend(total, spendLabel, 'gehalt')) return false;
     const person = buildRecruit(listingAsOffer(listing), listing.personName);
     const nextDrivers = [...driversRef.current, person];
     driversRef.current = nextDrivers;
@@ -2334,7 +2404,7 @@ function App() {
       ]);
       return false;
     }
-    if (!trySpend(expansion.cost, `Depotausbau ${expansion.label}`)) return false;
+    if (!trySpend(expansion.cost, `Depotausbau ${expansion.label}`, 'investition')) return false;
     persistDepot(purchaseDepotExpansion(depotRef.current, expansion));
     const live = companyRef.current;
     if (live) persistCompany(grantAchievements(live));
@@ -2358,7 +2428,7 @@ function App() {
     if (meta.trainingUntilTick != null) return false;
     if ((meta.seriesIds ?? []).includes(seriesId)) return false;
     const quote = seriesTrainingQuote(seriesId);
-    if (!trySpend(quote.cost, `Schulung ${driver.name}`)) return false;
+    if (!trySpend(quote.cost, `Schulung ${driver.name}`, 'gehalt')) return false;
     const until = current.tick + quote.durationTicks;
     const nextMeta = {
       ...staffMetaRef.current,
@@ -2497,7 +2567,7 @@ function App() {
     if (!current) return false;
     if (networkRef.current.packages.includes(id)) return true;
     const price = countryPackagePrice(id);
-    if (price > 0 && !trySpend(price, `Netzzugang ${countryPackageLabel(id)}`)) return false;
+    if (price > 0 && !trySpend(price, `Netzzugang ${countryPackageLabel(id)}`, 'investition')) return false;
     const next = grantNetworkPackages(networkRef.current, [id]);
     networkRef.current = next;
     setNetworkAccess(next);
@@ -2716,6 +2786,21 @@ function App() {
               {view === 'tourenuebersicht' && (
                 <TourOverviewView assignments={assignments} onOpenDisposition={() => setView('disposition')} />
               )}
+              {view === 'streckennetz' && (
+                <NetworkPlannerView
+                  company={company}
+                  orders={orders}
+                  network={routeNetwork}
+                  onSaveRoutePlan={handleSaveRoutePlan}
+                  onDeleteRoutePlan={handleDeleteRoutePlan}
+                  onSaveTimetableEntry={handleSaveTimetableEntry}
+                  onDeleteTimetableEntry={handleDeleteTimetableEntry}
+                  onOpenDisposition={(order) => {
+                    setDispoPreselect(order);
+                    setView('disposition');
+                  }}
+                />
+              )}
               {view === 'fuhrpark' && (
                 <FleetView
                   locomotives={locomotives}
@@ -2790,7 +2875,11 @@ function App() {
                   orders={orders}
                   dailyFixed={dailyFixed}
                   bank={bank}
+                  locomotives={locomotives}
+                  wagons={wagons}
+                  dealer={dealer}
                   onEditCompany={openCompanyEditor}
+                  onOpenBank={() => setView('bank')}
                 />
               )}
               {view === 'personal' && (

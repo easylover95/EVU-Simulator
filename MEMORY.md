@@ -23,3 +23,26 @@ The final TypeScript check passed via `./node_modules/.bin/tsc --noEmit -p tscon
 ## Follow-up opportunities
 
 Future work can extract the growing personnel dialogs into dedicated components once more HR features are added. The build warning can be addressed separately with route-level dynamic imports for large map or 3D modules; it is unrelated to this UI iteration.
+
+
+---
+
+# Implementation Memory: Streckennetz, Fahrplan & Finanzmanagement
+
+## Delivered in this iteration
+
+The transport section now contains **Streckennetz & Fahrplan**. `routeNetwork.ts` converts the fixed canonical stations and trunk corridors into a validated graph, derives a shortest route, persists named route plans and stores noncommitted timetable entries. `NetworkPlannerView.tsx` renders the graph as an accessible SVG surface, presents a daily service strip and requires an explicit confirmation before any route or timetable state is saved or deleted. A timetable entry deliberately does not create an assignment; it opens the existing Disposition so all locomotive, crew, wagon, Brh, ETCS, rest-period and closure checks remain mandatory.
+
+The bank domain now distinguishes **loan drawdown**, **principal repayment**, **interest expense** and **investment cash flow**. New `BankLoan` records retain principal and interest remaining separately. Legacy loans are normalized on load. Daily credit service writes separate interest and repayment bookings. `financialStatements.ts` derives a management GuV, balance sheet, liquidity, debt, free credit room and debt service from the existing game state. The balance-sheet equity is the residual management-book equity, so the visible balance check is always a direct `assets − liabilities − equity` control.
+
+The Bank view now uses staged confirmation for loan drawdowns, overdraft changes, insurance status and special repayments. The Finance view has a liquidity / operating-result / debt / credit-room cockpit, 30-day GuV, separated financing and investment cashflow information, and an explicit management balance sheet. Fleet values are derived from the existing dealer catalogue; leased assets are excluded.
+
+## Validation
+
+The domain smoke test in `scripts/routeFinanceSmoke.ts` passed through the project TypeScript runtime. It validates a canonical route and timetable window, the split of daily debt service into principal and interest, exclusion of repayment from GuV net income, and a zero balance-sheet difference. The final `tsc --noEmit`, production Vite build and `git diff --check` also passed. The Vite build still emits the pre-existing large-main-chunk warning; it does not block the application.
+
+The isolated browser session could load the application, but its hierarchical navigation did not expose a stable testable subnavigation state after the local first-run profile bootstrap. No mutable operation was executed in the visual session, and no visual test artefact was retained. The source, domain smoke test, type check and production build are clean.
+
+## Known modeling boundaries
+
+The reports are **management accounting for the game**, not statutory accounting. There is no tax, receivables, depreciation schedule or historical opening-equity ledger in the existing simulation. The balance sheet therefore uses live cash, current dealer-derived owned fleet value, active principal debt, overdraft and residual management-book equity. This scope is intentional and documented in `STRUCTURE.md`.

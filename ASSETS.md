@@ -28,3 +28,24 @@ The reference image is an art-direction target, not a pixel-exact asset. The exi
 ## Notes
 
 The final UI must retain the existing application’s readable typography and accessible controls. Gold is reserved for navigation, primary actions and carefully scoped attention states; red and green remain semantic warning and success colours.
+
+
+## Streckennetz- und Finanz-Cockpit
+
+**Art direction addition:** The new operations workspace is a high-density but calm control-room surface. The network editor is a dark, simplified network graph rather than a geographic navigation map: deep navy map field, thin slate-blue corridor lines, cyan station nodes, amber route selection, and a single train marker only for an active assignment. The timetable is a compact 24-hour horizontal strip with bars that reflect planned dispatch windows. The finance cockpit uses four numeric metric cards, narrow statement tables, and an explicit balance-check indicator. Amber remains the only color for decisions and commitments; emerald, rose and cyan are purely semantic.
+
+| Asset | Use | File / source | Status |
+| --- | --- | --- | --- |
+| Route & finance cockpit reference | Visual QA target for the network editor, timetable and finance reporting | `assets/reference-route-finance-cockpit.png` | Generated — reference only |
+
+### Visual acceptance criteria: route & finance
+
+| Area | Criterion |
+| --- | --- |
+| Network editor | A player can identify the selected origin, destination, route nodes, total route distance and the route's expected duration at a glance. The route itself uses an amber corridor while nonselected paths stay subdued. |
+| Timetable | Active and planned services render as narrow horizontal bars on a single in-game-day scale. Each bar shows the order number and planned start/end without obscuring the dispatch controls. |
+| Financial cockpit | Liquidity, operating result, outstanding debt and free credit room are separated as top-level KPIs. Positive cash/result uses emerald; cost/debt uses rose. |
+| Statements | The GuV separates revenue, operating costs, personnel, financing and net result. The balance sheet presents assets, liabilities and equity with a visible **0 €** balance check. |
+| Confirmations | Creating, editing or deleting an owned route or timetable entry, taking a loan and making a special repayment requires a cost/status confirmation modal. |
+
+**Implementation constraint:** The generated screenshot is only an art-direction target and is not loaded by the game runtime. The actual visual graph is implemented as accessible TypeScript/HTML/CSS and is driven by the existing station data and local game state.

@@ -56,3 +56,68 @@ A semantic button owns each interactive tab, action and close control. The curre
 ## Data integrity rules
 
 The UI must never reimplement price calculations. Candidate Quick-Pay amounts use `hireNachschulungFee(missing.length)` and regular sessions use `seriesTrainingQuote(seriesId)`. Missing series are always resolved through `missingFleetSeries`, including any recognised text qualification. Displayed capability chips are cosmetic; `App.tsx` callbacks independently validate the commit before writing state.
+
+
+---
+
+# Architecture: Streckennetz, Fahrplan & Finanz-Cockpit
+
+## Ownership model
+
+The route and finance expansion keeps the existing **single mutation boundary**. `App.tsx` owns every persisted state transition; views own only selection, editing and modal state. Route plans are operational intentions. An assignment is still the only object that marks an order as dispatched, changes a locomotive/driver status or starts cost settlement. Financial statements are derived from the same bank state, company balance and fleet state already used by the simulation; they never create a second cash account.
+
+| Layer | New or extended owner | Responsibility |
+| --- | --- | --- |
+| Route graph & timetable persistence | `src/lib/routeNetwork.ts` | Define editable network edges, saved route plans and timetable entries; derive shortest paths across the existing canonical stations; persist local planning state. |
+| Network editor UI | `src/views/NetworkPlannerView.tsx` | Render the accessible SVG graph, select existing stations/edges, preview a route and manage noncommitted timetable entries through staged confirmation dialogs. |
+| Dispatch commit | `src/App.tsx` / existing `handleLocalAssign` | Remains the sole point that creates an assignment and changes fleet, personnel or order status. A timetable row may preselect an order but never bypasses the checks in `handleLocalAssign`. |
+| Debt and booking engine | `src/lib/bank.ts` | Classify loan drawdown, principal repayment and interest separately; process daily debt service; retain migration support for legacy loans. |
+| Financial statements | `src/lib/financialStatements.ts` | Calculate management GuV, balance sheet, liquidity and leverage KPIs from live game state. The balance-sheet difference is always exposed and must equal zero. |
+| Finance reporting UI | `src/views/FinanceView.tsx` | Render the management cockpit, GuV and balance sheet; contains no balance-changing action. |
+| Bank action UI | `src/views/BankView.tsx` | Preview credit, special repayment, overdraft or insurance effects and call an App callback only after a dedicated confirmation dialog. |
+
+## Route and timetable model
+
+The station list in `stations.ts` remains canonical. The editor starts from `TRUNK_CORRIDORS`; it does not allow arbitrary map drawing or geo-coordinate editing. This avoids orphan routes and keeps every player plan compatible with existing order origins, closures and tracking. A route plan consists of a list of canonical station keys and the corridor IDs connecting them. Its distance is calculated from the selected graph path, not manually entered.
+
+| Record | Key fields | Rule |
+| --- | --- | --- |
+| `RouteEdge` | `id`, `from`, `to`, `distanceKm`, `enabled` | Built from existing trunk corridors. Disabling an edge changes only the player planning layer, not the world event/closure engine. |
+| `RoutePlan` | `id`, `label`, `stationKeys`, `distanceKm`, `createdAtTick` | A saved route has at least two stations and only valid connected edges. |
+| `TimetableEntry` | `id`, `routePlanId`, `orderId`, `departureTick`, `arrivalTick`, `label` | A plan must point to an open order and have an end after its start. It is not an assignment and has no financial effect until dispatch. |
+| `RouteNetworkState` | `edges`, `plans`, `timetableEntries` | Stored under one local state key and migration-normalised on read. |
+
+The SVG editor provides a fixed, responsive graph projection. Clicking a node updates the candidate route. Saving, deleting or replacing a route/timetable row is always preceded by a confirmation modal, because these operations change operating status. A timetable entry can be opened in the existing Tourenplaner/Disposition, where all locomotive, crew, wagon, Brh, rest, ETCS and closure validations run unchanged.
+
+## Finance model
+
+The finance layer is a **management accounting view**, not tax or statutory accounting. Amounts are in whole euros and are aligned to the game tick. Loan drawdowns are financing cash inflows, principal repayments are financing cash outflows, and interest is a financing expense. Consequently, GuV never treats a complete loan instalment as interest expense.
+
+| Statement / metric | Source and treatment |
+| --- | --- |
+| GuV revenue | Bank bookings of type `fracht`. |
+| Operating costs | `betrieb`, `leasing`, `gehalt`, `standort`, `versicherung`, `strafe` and other operating bookings. |
+| Financing expense | Interest and overdraft interest only. Loan principal repayment is excluded from GuV. |
+| Cash / overdraft | Company balance. A positive value is cash; a negative value is a short-term liability. |
+| Fleet assets | Current owned locomotives and wagons valued through the existing dealer catalogue. Leased assets are excluded. |
+| Loan liability | The outstanding principal per active loan, not the remaining contractual cash payment. |
+| Equity | Net assets after liabilities, disclosed as management-book equity because historical opening equity and acquisition history predate this module. |
+| Balance check | `assets − liabilities − equity`; any non-zero result is a defect and is rendered as an alert. |
+
+## Debt-service and migration rule
+
+New loans carry `principalRemaining`, `interestRemaining` and total `remaining`. Each daily payment is split into principal and interest before bookings are written. Legacy loans are normalised on load by deriving the unallocated interest as `max(0, remaining − principal)` and treating the residual as principal. This preserves existing saves while allowing correct prospective GuV reporting. A drawdown adds a `kreditaufnahme` booking, principal service a `tilgung` booking and interest a `zinsen` booking.
+
+## Confirmation state machines
+
+| Flow | Preview state | Commit state | Commit callback |
+| --- | --- | --- | --- |
+| Save route plan | Route, nodes, distance | Confirm save / no monetary effect | `onSaveRoutePlan` |
+| Delete route/timetable | Affected name and dependent timetable entries | Confirm deletion | `onDeleteRoutePlan` / `onDeleteTimetableEntry` |
+| Schedule service | Route, order, departure, arrival | Confirm timetable entry | `onSaveTimetableEntry` |
+| Take loan | Principal, term, payment, interest, total repayment | Confirm credit drawdown | `onTakeLoan` |
+| Change overdraft | Old vs. new limit and rate | Confirm limit change | `onSetOverdraft` |
+| Special repayment | Loan, principal outstanding, cash effect | Confirm repayment | `onRepayLoan` |
+| Toggle insurance | Daily premium and activation/cancellation status | Confirm status change | `onToggleInsurance` |
+
+All confirmation dialogs use a scrim, explicit cancel button, concrete effect summary and a single highlighted commit action. No amount- or status-changing action is committed from the first click.

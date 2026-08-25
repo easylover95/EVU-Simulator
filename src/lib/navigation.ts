@@ -13,6 +13,7 @@ export type AppView =
   | 'spielerboerse'
   | 'tourenplaner'
   | 'tourenuebersicht'
+  | 'streckennetz'
   | 'haendler'
   | 'werkstatt'
   | 'bank'
@@ -52,6 +53,7 @@ export const NAV_CATEGORIES: NavCategoryDef[] = [
       { id: 'disposition', label: 'Disposition' },
       { id: 'tourenplaner', label: 'Tourenplaner' },
       { id: 'tourenuebersicht', label: 'Tourenübersicht' },
+      { id: 'streckennetz', label: 'Streckennetz & Fahrplan' },
     ],
   },
   {
@@ -98,6 +100,7 @@ const VIEW_CATEGORY: Record<AppView, NavCategory> = {
   disposition: 'transport',
   tourenplaner: 'transport',
   tourenuebersicht: 'transport',
+  streckennetz: 'transport',
   fuhrpark: 'fleet',
   wagenpark: 'fleet',
   haendler: 'fleet',
@@ -153,6 +156,7 @@ export function atmosphereForView(view: AppView): SubmenuAtmosphere | null {
     case 'spielerboerse':
     case 'tourenplaner':
     case 'tourenuebersicht':
+    case 'streckennetz':
       return 'yard';
     default:
       return 'office';

@@ -15,6 +15,9 @@ export type BankBookingKind =
   | 'standort'
   | 'versicherung'
   | 'zinsen'
+  | 'kreditaufnahme'
+  | 'tilgung'
+  | 'investition'
   | 'strafe'
   | 'sonstiges';
 
@@ -35,7 +38,10 @@ export function inferBookingKind(label: string, kind?: BankBookingKind): BankBoo
   if (/gehalt/.test(l)) return 'gehalt';
   if (/standort|standgeld|hallenmiete/.test(l)) return 'standort';
   if (/versicherung/.test(l)) return 'versicherung';
-  if (/dispozins|kredittilgung|darlehen/.test(l)) return 'zinsen';
+  if (/kreditaufnahme|darlehen.*auszahl/.test(l)) return 'kreditaufnahme';
+  if (/^kauf |^verkauf |pakete |depotausbau|netzzugang/.test(l)) return 'investition';
+  if (/sondertilgung|kredittilgung|kredit.*tilgung|darlehen.*tilgung/.test(l)) return 'tilgung';
+  if (/dispozins|kreditzins|zinsen/.test(l)) return 'zinsen';
   if (/p[öo]nale|bußgeld|bussgeld|eba|vertragsstrafe|strafe|sanktion/.test(l)) return 'strafe';
   if (/trasse|energie|diesel|pdl|betrieb|reparatur/.test(l)) return 'betrieb';
   return 'sonstiges';
@@ -57,6 +63,9 @@ export interface PnlSummary {
   depot: number;
   insurance: number;
   interest: number;
+  financingCashIn: number;
+  principalRepayments: number;
+  investmentCashFlow: number;
   penalties: number;
   other: number;
   totalCosts: number;
@@ -71,7 +80,10 @@ const PNL_LABELS: Record<BankBookingKind, string> = {
   gehalt: 'Gehälter',
   standort: 'Standort / Standgeld / Hallenmiete',
   versicherung: 'Versicherungen',
-  zinsen: 'Zinsen / Kredittilgung',
+  zinsen: 'Zinsaufwand',
+  kreditaufnahme: 'Kreditaufnahme (Finanzierung)',
+  tilgung: 'Kredittilgung (Finanzierung)',
+  investition: 'Investition / Anlagenverkauf (Cashflow)',
   strafe: 'Pönalen / Bußgelder',
   sonstiges: 'Sonstiges',
 };
@@ -85,6 +97,9 @@ export function summarizePnl(bookings: BankBooking[], fromTick: number, toTick: 
     standort: 0,
     versicherung: 0,
     zinsen: 0,
+    kreditaufnahme: 0,
+    tilgung: 0,
+    investition: 0,
     strafe: 0,
     sonstiges: 0,
   };
@@ -100,11 +115,14 @@ export function summarizePnl(bookings: BankBooking[], fromTick: number, toTick: 
   const depot = sums.standort;
   const insurance = sums.versicherung;
   const interest = sums.zinsen;
+  const financingCashIn = sums.kreditaufnahme;
+  const principalRepayments = sums.tilgung;
+  const investmentCashFlow = sums.investition;
   const penalties = sums.strafe;
   const other = sums.sonstiges;
   const totalCosts = operating + leasing + personnel + depot + insurance + interest + penalties + other;
   const net = revenue + totalCosts;
-  const lines: PnlLine[] = (Object.keys(PNL_LABELS) as BankBookingKind[]).map((id) => ({
+  const lines: PnlLine[] = (['fracht', 'betrieb', 'leasing', 'gehalt', 'standort', 'versicherung', 'zinsen', 'strafe', 'sonstiges'] as BankBookingKind[]).map((id) => ({
     id,
     label: PNL_LABELS[id],
     amount: sums[id],
@@ -119,6 +137,9 @@ export function summarizePnl(bookings: BankBooking[], fromTick: number, toTick: 
     depot,
     insurance,
     interest,
+    financingCashIn,
+    principalRepayments,
+    investmentCashFlow,
     penalties,
     other,
     totalCosts,
@@ -129,8 +150,14 @@ export function summarizePnl(bookings: BankBooking[], fromTick: number, toTick: 
 
 export interface BankLoan {
   id: string;
+  /** Original drawn principal. */
   principal: number;
+  /** Remaining contractual cash payment = principal + interest still due. */
   remaining: number;
+  /** Outstanding principal shown as a balance-sheet liability. */
+  principalRemaining: number;
+  /** Contractual interest still due; expensed only as it accrues. */
+  interestRemaining: number;
   termDays: number;
   dailyPayment: number;
   interestLabel: string;
@@ -462,6 +489,33 @@ export function seedBankBookings(balance: number, tick: number, createdAt: strin
   ];
 }
 
+function normalizeLoan(value: unknown): BankLoan | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Partial<BankLoan>;
+  const principal = Math.max(0, Number(raw.principal) || 0);
+  const statedRemaining = Math.max(0, Number(raw.remaining) || 0);
+  if (!Number.isFinite(statedRemaining) || statedRemaining <= 0) return null;
+  const principalRemaining = Number.isFinite(Number(raw.principalRemaining))
+    ? Math.min(principal, Math.max(0, Number(raw.principalRemaining)))
+    : Math.min(principal, statedRemaining);
+  const interestRemaining = Number.isFinite(Number(raw.interestRemaining))
+    ? Math.max(0, Number(raw.interestRemaining))
+    : Math.max(0, statedRemaining - principalRemaining);
+  const remaining = principalRemaining + interestRemaining;
+  if (remaining <= 0) return null;
+  return {
+    id: typeof raw.id === 'string' && raw.id ? raw.id : newNotificationId(),
+    principal,
+    remaining,
+    principalRemaining,
+    interestRemaining,
+    termDays: Math.max(1, Math.round(Number(raw.termDays) || 1)),
+    dailyPayment: Math.max(1, Math.round(Number(raw.dailyPayment) || remaining)),
+    interestLabel: typeof raw.interestLabel === 'string' && raw.interestLabel ? raw.interestLabel : 'Darlehen',
+    startedTick: Math.max(0, Math.round(Number(raw.startedTick) || 0)),
+  };
+}
+
 export function loadBankState(tick: number, balance: number, createdAt: string): BankState {
   const loaded = loadJson<BankState | null>(BANK_STATE_KEY, null);
   if (!loaded || !Array.isArray(loaded.bookings)) {
@@ -475,7 +529,7 @@ export function loadBankState(tick: number, balance: number, createdAt: string):
     overdraftLimit,
     overdraftDailyRate: overdraftRateForLimit(overdraftLimit),
     loans: Array.isArray(loaded.loans)
-      ? loaded.loans.filter((loan) => loan && typeof loan === 'object' && Number.isFinite(Number(loan.remaining)))
+      ? loaded.loans.map(normalizeLoan).filter((loan): loan is BankLoan => loan != null)
       : [],
     insurances: {
       gueterschaden: Boolean(loaded.insurances?.gueterschaden),
@@ -506,6 +560,25 @@ export function pushBooking(state: BankState, booking: Omit<BankBooking, 'id'>):
 export function loanDailyPayment(principal: number, termDays: number, annualPct: number): number {
   const interest = principal * (annualPct / 100) * (termDays / 360);
   return Math.round((principal + interest) / termDays);
+}
+
+export interface LoanPaymentBreakdown {
+  total: number;
+  principal: number;
+  interest: number;
+}
+
+/** Straight-line payment allocation over the remaining contractual cash service. */
+export function loanPaymentBreakdown(loan: BankLoan): LoanPaymentBreakdown {
+  const total = Math.max(0, Math.min(loan.dailyPayment, loan.remaining));
+  if (total <= 0) return { total: 0, principal: 0, interest: 0 };
+  const proportionalInterest = loan.remaining > 0 ? Math.round((total * loan.interestRemaining) / loan.remaining) : 0;
+  const minimumInterest = loan.interestRemaining > 0 ? 1 : 0;
+  let interest = Math.min(loan.interestRemaining, Math.max(minimumInterest, proportionalInterest));
+  let principal = Math.min(loan.principalRemaining, Math.max(0, total - interest));
+  const residual = total - principal - interest;
+  if (residual > 0) interest = Math.min(loan.interestRemaining, interest + residual);
+  return { total, principal, interest };
 }
 
 export function canSpend(balance: number, amount: number, overdraftLimit: number): boolean {
@@ -542,16 +615,29 @@ export function processBankTick(state: BankState, company: Company, nextTick: nu
 
   const remainingLoans: BankLoan[] = [];
   for (const loan of next.loans) {
-    const pay = Math.min(loan.dailyPayment, loan.remaining);
-    balance -= pay;
-    const remaining = loan.remaining - pay;
-    next = pushBooking(next, {
-      tick: nextTick,
-      createdAt,
-      label: `Kredittilgung (${loan.interestLabel})`,
-      amount: -pay,
-      kind: 'zinsen' as const,
-    });
+    const payment = loanPaymentBreakdown(loan);
+    balance -= payment.total;
+    if (payment.interest > 0) {
+      next = pushBooking(next, {
+        tick: nextTick,
+        createdAt,
+        label: `Kreditzinsen (${loan.interestLabel})`,
+        amount: -payment.interest,
+        kind: 'zinsen' as const,
+      });
+    }
+    if (payment.principal > 0) {
+      next = pushBooking(next, {
+        tick: nextTick,
+        createdAt,
+        label: `Kredittilgung (${loan.interestLabel})`,
+        amount: -payment.principal,
+        kind: 'tilgung' as const,
+      });
+    }
+    const principalRemaining = Math.max(0, loan.principalRemaining - payment.principal);
+    const interestRemaining = Math.max(0, loan.interestRemaining - payment.interest);
+    const remaining = principalRemaining + interestRemaining;
     if (remaining <= 0) {
       notifications.push({
         type: 'success',
@@ -561,7 +647,7 @@ export function processBankTick(state: BankState, company: Company, nextTick: nu
         created_at: createdAt,
       });
     } else {
-      remainingLoans.push({ ...loan, remaining });
+      remainingLoans.push({ ...loan, remaining, principalRemaining, interestRemaining });
     }
   }
   next = { ...next, loans: remainingLoans };
