@@ -1,5 +1,19 @@
 import { useMemo, useState } from 'react';
-import { User, Phone, Users, CheckCircle2, AlertCircle, Info, Stethoscope, Briefcase } from 'lucide-react';
+import {
+  AlertCircle,
+  Banknote,
+  Briefcase,
+  CheckCircle2,
+  Clock3,
+  GraduationCap,
+  Info,
+  Phone,
+  ShieldCheck,
+  Stethoscope,
+  User,
+  Users,
+  X,
+} from 'lucide-react';
 import type { Driver, Locomotive } from '@/lib/supabase';
 import { driverStatusWithRecovery, formatEuro, getDriverStatusConfig, getDriverPillClass } from '@/lib/status';
 import { QualificationBadge } from '@/components/Badges';
@@ -19,6 +33,8 @@ import {
   xpProgressToNextRank,
 } from '@/lib/personal';
 import { TICKS_PER_DAY } from '@/lib/storage';
+
+type HireMode = 'standard' | 'quickpay';
 
 interface PersonnelViewProps {
   drivers: Driver[];
@@ -50,21 +66,38 @@ export function PersonnelView({
   const { gameNow, tick } = useGameClock();
   const [detailId, setDetailId] = useState<string | null>(null);
   const [pendingHire, setPendingHire] = useState<JobListing | null>(null);
+  const [hireMode, setHireMode] = useState<HireMode | null>(null);
   const [trainDriverId, setTrainDriverId] = useState<string | null>(null);
-  const detailDriver = drivers.find((d) => d.id === detailId) ?? null;
-  const trainDriver = drivers.find((d) => d.id === trainDriverId) ?? null;
+  const [pendingTrainingSeriesId, setPendingTrainingSeriesId] = useState<string | null>(null);
+  const [pendingAttestDriverId, setPendingAttestDriverId] = useState<string | null>(null);
+
+  const detailDriver = drivers.find((driver) => driver.id === detailId) ?? null;
+  const trainDriver = drivers.find((driver) => driver.id === trainDriverId) ?? null;
+  const pendingAttestDriver = drivers.find((driver) => driver.id === pendingAttestDriverId) ?? null;
   const trainMeta = trainDriver ? staffMeta[trainDriver.id] : undefined;
   const trainOptions = trainMeta ? missingFleetSeries(trainMeta.seriesIds, locomotives) : [];
+  const fleetIds = useMemo(() => fleetSeriesIds(locomotives), [locomotives]);
 
   const stats = useMemo(() => {
     return {
       total: drivers.length,
-      verfuegbar: drivers.filter((d) => d.status === 'verfuegbar').length,
-      im_einsatz: drivers.filter((d) => d.status === 'im_einsatz').length,
-      nichtVerfuegbar: drivers.filter((d) => d.status === 'pause' || d.status === 'krank' || d.status === 'urlaub')
-        .length,
+      verfuegbar: drivers.filter((driver) => driver.status === 'verfuegbar').length,
+      imEinsatz: drivers.filter((driver) => driver.status === 'im_einsatz').length,
+      nichtVerfuegbar: drivers.filter(
+        (driver) => driver.status === 'pause' || driver.status === 'krank' || driver.status === 'urlaub',
+      ).length,
     };
   }, [drivers]);
+
+  const closeHireFlow = () => {
+    setHireMode(null);
+    setPendingHire(null);
+  };
+
+  const closeTrainingFlow = () => {
+    setPendingTrainingSeriesId(null);
+    setTrainDriverId(null);
+  };
 
   if (loading) {
     return (
@@ -84,118 +117,181 @@ export function PersonnelView({
     >
       {onRecruit && (
         <Card className="p-4" data-tutorial="tutorial-jobcenter">
-          <div className="mb-3 flex items-center gap-2 text-amber-400">
-            <Briefcase className="h-4 w-4" />
-            <h3 className="text-sm font-bold text-white">Jobbörse</h3>
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+            <div>
+              <div className="flex items-center gap-2 text-amber-400">
+                <Briefcase className="h-4 w-4" />
+                <h3 className="text-sm font-bold text-white">Jobbörse</h3>
+              </div>
+              <p className="mt-1.5 max-w-3xl text-xs leading-relaxed text-slate-400">
+                Täglich neue Kandidaten mit individuellen Gehältern, Rangstufen und Baureihen-Freigaben. Prüfe vor der
+                Einstellung den Fuhrpark-Fit und entscheide anschließend bewusst zwischen regulärer Einstellung und
+                Quick-Pay-Nachschulung.
+              </p>
+            </div>
+            <div className="personnel-security-note">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Jede Buchung wird bestätigt
+            </div>
           </div>
-          <p className="mb-3 text-xs text-slate-400">
-            Täglich neue Kandidaten (wie die Frachtbörse): zufällige Namen, Gehälter, Stufen und Baureihen-Freigaben.
-            Einstellung nur nach Bestätigung. Gehälter laufen täglich (Monatsgehalt / 30).
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {listings.map((listing) => {
               const locked = bekanntheit < listing.minBekanntheit;
+              const isTf = listing.role === 'tf';
+              const missing = isTf ? missingFleetSeries(listing.seriesIds, locomotives, listing.qualifications) : [];
+              const hasFleetFitContext = isTf && fleetIds.length > 0;
+              const quickPayFee = hireNachschulungFee(missing.length);
+              const quickPayTotal = listing.hiringCost + quickPayFee;
+              const canHire = canSpend(balance, listing.hiringCost, overdraftLimit);
+              const canQuickPay = canSpend(balance, quickPayTotal, overdraftLimit);
+
               return (
-                <div key={listing.id} className="app-glass-panel rounded-xl border border-amber-500/20 p-3">
-                  <div className="text-xs font-bold text-white">{listing.personName}</div>
-                  <div className="mt-0.5 text-[11px] font-semibold text-amber-300">{listing.roleLabel}</div>
-                  <div className="mt-1 text-[11px] text-slate-400">
-                    Qualifikation {listing.qualifications.filter((q) => !q.startsWith('BR') && !q.includes('·')).join(', ')}
-                  </div>
-                  {listing.seriesIds.length > 0 && (
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {listing.seriesIds.map((id) => (
-                        <span key={id} className="series-badge">
-                          {seriesLabel(id)}
-                        </span>
-                      ))}
+                <article key={listing.id} className="personnel-candidate">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-bold text-white">{listing.personName}</p>
+                      <p className="mt-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-300">
+                        {listing.roleLabel}
+                      </p>
                     </div>
-                  )}
-                  <div className="mt-1 text-[11px] text-slate-400">
-                    Gehalt {formatEuro(listing.salary)} / Monat
+                    {hasFleetFitContext && missing.length === 0 && (
+                      <span className="personnel-fit personnel-fit--good">
+                        <CheckCircle2 className="h-3 w-3" />
+                        passend
+                      </span>
+                    )}
                   </div>
-                  <div className="mt-0.5 text-[11px] font-semibold text-slate-300">
-                    Einstellungsgebühr {formatEuro(listing.hiringCost)}
+
+                  <div className="mt-3 space-y-2">
+                    <CandidateFact label="Qualifikation" value={listing.qualifications.filter((q) => !q.startsWith('BR') && !q.includes('·')).join(', ')} />
+                    {isTf && (
+                      <div>
+                        <p className="personnel-fact-label">Baureihen-Freigaben</p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {listing.seriesIds.length > 0 ? (
+                            listing.seriesIds.map((id) => (
+                              <span key={id} className="series-badge">
+                                {seriesLabel(id)}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[11px] text-slate-500">Keine Freigabe hinterlegt</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {hasFleetFitContext && missing.length > 0 && (
+                      <div className="personnel-fit personnel-fit--attention">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          Offen: {missing.map((id) => seriesLabel(id)).join(', ')}
+                          <strong> Quick-Pay: +{formatEuro(quickPayFee)}</strong>
+                        </span>
+                      </div>
+                    )}
+                    {isTf && !hasFleetFitContext && (
+                      <p className="text-[11px] leading-relaxed text-slate-500">
+                        Ohne eigene Lokomotive ist noch kein Baureihen-Fit zu prüfen.
+                      </p>
+                    )}
                   </div>
+
+                  <div className="personnel-candidate-costs">
+                    <span>Einstellung</span>
+                    <strong>{formatEuro(listing.hiringCost)}</strong>
+                    <span>Monatsgehalt</span>
+                    <strong>{formatEuro(listing.salary)}</strong>
+                  </div>
+
                   {locked ? (
-                    <div className="mt-2 text-[11px] text-amber-400">Ab Bekanntheit {listing.minBekanntheit}</div>
+                    <div className="mt-3 text-[11px] font-semibold text-amber-400">Ab Bekanntheit {listing.minBekanntheit}</div>
                   ) : (
-                    <Button className="mt-2 px-3 py-1.5" onClick={() => setPendingHire(listing)}>
-                      Einstellen
-                    </Button>
+                    <button
+                      type="button"
+                      className="btn-gold mt-3 w-full"
+                      disabled={!canHire && !(missing.length > 0 && canQuickPay)}
+                      onClick={() => setPendingHire(listing)}
+                    >
+                      Einstellung prüfen
+                    </button>
                   )}
-                </div>
+                </article>
               );
             })}
           </div>
         </Card>
       )}
 
-      {pendingHire && (
-        <HireConfirmModal
+      {pendingHire && !hireMode && (
+        <HireReviewModal
           listing={pendingHire}
           locomotives={locomotives}
           balance={balance}
           overdraftLimit={overdraftLimit}
-          onClose={() => setPendingHire(null)}
-          onConfirm={(withTraining) => {
-            const ok = onRecruit?.(pendingHire, withTraining) ?? false;
-            if (ok) setPendingHire(null);
+          onClose={closeHireFlow}
+          onChoose={setHireMode}
+        />
+      )}
+
+      {pendingHire && hireMode && (
+        <HireCommitModal
+          listing={pendingHire}
+          mode={hireMode}
+          locomotives={locomotives}
+          balance={balance}
+          overdraftLimit={overdraftLimit}
+          onBack={() => setHireMode(null)}
+          onClose={closeHireFlow}
+          onConfirm={() => {
+            const ok = onRecruit?.(pendingHire, hireMode === 'quickpay') ?? false;
+            if (ok) closeHireFlow();
           }}
         />
       )}
 
-      {trainDriver && trainMeta && (
-        <div
-          className="modal-scrim fixed inset-0 z-[70] flex items-center justify-center p-4"
-          onClick={() => setTrainDriverId(null)}
-        >
-          <div
-            className="app-glass w-full max-w-md rounded-xl border-amber-500/30 p-5 shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="text-sm font-bold text-white">Baureihen-Schulung · {trainDriver.name}</h3>
-            <p className="mt-2 text-[11px] text-slate-400">
-              Freigabe für eine Baureihe aus dem eigenen Fuhrpark. Der Tf ist während der Schulung nicht einsetzbar.
-            </p>
-            {trainOptions.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-300">Alle Baureihen im Bestand sind bereits geschult.</p>
-            ) : (
-              <div className="mt-3 space-y-2">
-                {trainOptions.map((id) => {
-                  const quote = seriesTrainingQuote(id);
-                  return (
-                    <button
-                      key={id}
-                      type="button"
-                      className="flex w-full items-center justify-between rounded-lg border border-amber-500/25 bg-slate-950/60 px-3 py-2 text-left text-xs text-white hover:border-amber-400"
-                      onClick={() => {
-                        const ok = onStartTraining?.(trainDriver.id, id) ?? false;
-                        if (ok) setTrainDriverId(null);
-                      }}
-                    >
-                      <span>{seriesLabel(id)}</span>
-                      <span className="text-amber-300">
-                        {formatEuro(quote.cost)} · {quote.durationDays} T.
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <div className="mt-4 flex justify-end">
-              <Button variant="secondary" onClick={() => setTrainDriverId(null)}>
-                Schließen
-              </Button>
-            </div>
-          </div>
-        </div>
+      {trainDriver && trainMeta && !pendingTrainingSeriesId && (
+        <TrainingSelectionModal
+          driver={trainDriver}
+          options={trainOptions}
+          balance={balance}
+          overdraftLimit={overdraftLimit}
+          onClose={closeTrainingFlow}
+          onSelect={(seriesId) => setPendingTrainingSeriesId(seriesId)}
+        />
+      )}
+
+      {trainDriver && trainMeta && pendingTrainingSeriesId && (
+        <TrainingCommitModal
+          driver={trainDriver}
+          seriesId={pendingTrainingSeriesId}
+          balance={balance}
+          overdraftLimit={overdraftLimit}
+          onBack={() => setPendingTrainingSeriesId(null)}
+          onClose={closeTrainingFlow}
+          onConfirm={() => {
+            const ok = onStartTraining?.(trainDriver.id, pendingTrainingSeriesId) ?? false;
+            if (ok) closeTrainingFlow();
+          }}
+        />
+      )}
+
+      {pendingAttestDriver && (
+        <ErsatzattestConfirmModal
+          driver={pendingAttestDriver}
+          onClose={() => setPendingAttestDriverId(null)}
+          onConfirm={() => {
+            onGesundmelden?.(pendingAttestDriver.id);
+            setPendingAttestDriverId(null);
+          }}
+        />
       )}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KPICard label="Gesamt" value={stats.total} icon={<Users className="h-4 w-4" />} color="text-slate-300" />
         <KPICard label="Verfügbar" value={stats.verfuegbar} icon={<CheckCircle2 className="h-4 w-4" />} color="text-emerald-400" />
-        <KPICard label="Im Einsatz" value={stats.im_einsatz} icon={<User className="h-4 w-4" />} color="text-sky-400" />
+        <KPICard label="Im Einsatz" value={stats.imEinsatz} icon={<User className="h-4 w-4" />} color="text-sky-400" />
         <KPICard label="Nicht verfügbar" value={stats.nichtVerfuegbar} icon={<AlertCircle className="h-4 w-4" />} color="text-rose-400" />
       </div>
 
@@ -236,6 +332,11 @@ export function PersonnelView({
                 meta?.role === 'tf' &&
                 meta.trainingUntilTick == null &&
                 missingFleetSeries(meta.seriesIds, locomotives).length > 0;
+              const daysLeft =
+                meta?.trainingUntilTick != null && meta.trainingUntilTick > tick
+                  ? Math.max(1, Math.ceil((meta.trainingUntilTick - tick) / TICKS_PER_DAY))
+                  : 0;
+
               return (
                 <tr key={driver.id}>
                   <td>
@@ -243,7 +344,7 @@ export function PersonnelView({
                       <span className="flex h-7 w-7 items-center justify-center rounded-sm border border-slate-600 bg-slate-800 text-[10px] font-bold text-slate-400">
                         {driver.name
                           .split(' ')
-                          .map((n) => n[0])
+                          .map((name) => name[0])
                           .join('')
                           .slice(0, 2)}
                       </span>
@@ -258,8 +359,8 @@ export function PersonnelView({
                   </td>
                   <td>
                     <div className="flex flex-wrap gap-1">
-                      {driver.qualifications.map((q) => (
-                        <QualificationBadge key={q} qual={q} />
+                      {driver.qualifications.map((qualification) => (
+                        <QualificationBadge key={qualification} qual={qualification} />
                       ))}
                       {(meta?.seriesIds ?? []).map((id) => (
                         <span key={id} className="series-badge">
@@ -276,20 +377,15 @@ export function PersonnelView({
                   </td>
                   <td className="tabular-nums text-slate-300">{shiftHours !== null ? `${shiftHours}h` : '—'}</td>
                   <td className="text-[11px] text-slate-300">
-                    {(() => {
-                      if (!meta) return '—';
-                      const daysLeft =
-                        meta.trainingUntilTick != null && meta.trainingUntilTick > tick
-                          ? Math.max(1, Math.ceil((meta.trainingUntilTick - tick) / TICKS_PER_DAY))
-                          : 0;
-                      const training =
-                        daysLeft > 0
-                          ? ` · Schulung ${daysLeft} T.${meta.trainingSeriesId ? ` ${seriesLabel(meta.trainingSeriesId)}` : ''}`
-                          : '';
-                      return `${
-                        meta.role === 'tf' ? 'Tf' : meta.role === 'azf' ? 'AZF/RB' : 'Wp'
-                      } ${meta.rank} · ${meta.xp ?? 0} XP · ${formatEuro(meta.salary)}${training}`;
-                    })()}
+                    {meta
+                      ? `${meta.role === 'tf' ? 'Tf' : meta.role === 'azf' ? 'AZF/RB' : 'Wp'} ${meta.rank} · ${meta.xp ?? 0} XP · ${formatEuro(meta.salary)}`
+                      : '—'}
+                    {daysLeft > 0 && (
+                      <span className="mt-1 flex items-center gap-1 font-semibold text-sky-300">
+                        <Clock3 className="h-3 w-3" />
+                        Schulung {daysLeft} T.{meta?.trainingSeriesId ? ` · ${seriesLabel(meta.trainingSeriesId)}` : ''}
+                      </span>
+                    )}
                   </td>
                   <td>
                     {driver.phone ? (
@@ -303,16 +399,12 @@ export function PersonnelView({
                   </td>
                   <td>
                     <div className="flex flex-wrap gap-1">
-                      <button onClick={() => setDetailId(driver.id)} className="btn-action btn-action-detail">
+                      <button type="button" onClick={() => setDetailId(driver.id)} className="btn-action btn-action-detail">
                         <Info className="h-3 w-3" /> Details
                       </button>
                       {canTrain && (
-                        <button
-                          type="button"
-                          onClick={() => setTrainDriverId(driver.id)}
-                          className="btn-action btn-action-dispo"
-                        >
-                          Schulung
+                        <button type="button" onClick={() => setTrainDriverId(driver.id)} className="btn-action btn-action-dispo">
+                          <GraduationCap className="h-3 w-3" /> Schulung
                         </button>
                       )}
                     </div>
@@ -331,7 +423,14 @@ export function PersonnelView({
           locomotives={locomotives}
           gameNow={gameNow}
           onClose={() => setDetailId(null)}
-          onGesundmelden={onGesundmelden}
+          onRequestGesundmelden={
+            onGesundmelden
+              ? () => {
+                  setDetailId(null);
+                  setPendingAttestDriverId(detailDriver.id);
+                }
+              : undefined
+          }
           onOpenTraining={
             onStartTraining && staffMeta[detailDriver.id]?.role === 'tf'
               ? () => {
@@ -346,101 +445,390 @@ export function PersonnelView({
   );
 }
 
-function HireConfirmModal({
+function CandidateFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="personnel-fact-label">{label}</p>
+      <p className="mt-0.5 text-[11px] font-medium text-slate-300">{value || '—'}</p>
+    </div>
+  );
+}
+
+function HireReviewModal({
   listing,
   locomotives,
   balance,
   overdraftLimit,
   onClose,
-  onConfirm,
+  onChoose,
 }: {
   listing: JobListing;
   locomotives: Locomotive[];
   balance: number;
   overdraftLimit: number;
   onClose: () => void;
-  onConfirm: (withFleetTraining: boolean) => void;
+  onChoose: (mode: HireMode) => void;
 }) {
   const fleetIds = fleetSeriesIds(locomotives);
   const isTf = listing.role === 'tf';
   const missing = isTf ? missingFleetSeries(listing.seriesIds, locomotives, listing.qualifications) : [];
-  const showFit = isTf && fleetIds.length > 0 && missing.length === 0;
-  const trainingFee = hireNachschulungFee(missing.length);
-  const hireTotal = listing.hiringCost + trainingFee;
-  const canHireTrained = canSpend(balance, hireTotal, overdraftLimit);
-  const shortfall = Math.max(0, hireTotal - (balance + overdraftLimit));
+  const quickPayFee = hireNachschulungFee(missing.length);
+  const quickPayTotal = listing.hiringCost + quickPayFee;
+  const baseAffordable = canSpend(balance, listing.hiringCost, overdraftLimit);
+  const quickPayAffordable = canSpend(balance, quickPayTotal, overdraftLimit);
+  const fit = isTf && fleetIds.length > 0 && missing.length === 0;
 
   return (
-    <div className="modal-scrim fixed inset-0 z-[70] flex items-center justify-center p-4" onClick={onClose}>
-      <div
-        className="app-glass w-full max-w-md rounded-xl border-amber-500/30 p-5 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h3 className="text-sm font-bold text-white">Einstellung bestätigen</h3>
-        <p className="mt-3 text-sm leading-relaxed text-slate-300">
-          Möchtest du {listing.personName} wirklich einstellen?
-        </p>
-        <p className="mt-2 text-[11px] text-slate-400">
-          {listing.roleLabel} · Einstellungsgebühr {formatEuro(listing.hiringCost)}
-        </p>
-        {listing.seriesIds.length > 0 && (
-          <p className="mt-1 text-[11px] text-slate-400">
-            Baureihen: {listing.seriesIds.map((id) => seriesLabel(id)).join(', ')}
-          </p>
+    <ModalShell title="Kandidat prüfen" onClose={onClose} labelledBy="hire-review-title">
+      <div className="personnel-modal-profile">
+        <div>
+          <p className="text-sm font-bold text-white">{listing.personName}</p>
+          <p className="mt-0.5 text-[11px] font-semibold text-amber-300">{listing.roleLabel}</p>
+        </div>
+        {fit && (
+          <span className="personnel-fit personnel-fit--good">
+            <CheckCircle2 className="h-3.5 w-3.5" /> Fuhrpark-Fit
+          </span>
         )}
-        <p className="mt-1 text-[11px] text-slate-500">
-          Danach {formatEuro(listing.salary)} Gehalt / Monat ({staffRoleLabel(listing.role)} Rang {listing.rank}).
-        </p>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <ModalFact label="Einstellungsgebühr" value={formatEuro(listing.hiringCost)} emphasis />
+        <ModalFact label="Monatsgehalt" value={formatEuro(listing.salary)} />
+        {isTf && (
+          <div className="personnel-modal-block">
+            <p className="personnel-fact-label">Vorhandene Baureihen-Freigaben</p>
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {listing.seriesIds.map((id) => (
+                <span key={id} className="series-badge">
+                  {seriesLabel(id)}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
         {missing.length > 0 && (
-          <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-950/40 px-3 py-2">
-            <div className="flex items-start gap-2 text-amber-200">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="text-xs font-bold">Fehlende Baureihen-Berechtigung für deinen Fuhrpark</p>
-                <p className="mt-1 text-[11px] text-amber-100/90">
-                  {missing.map((id) => seriesLabel(id)).join(', ')}
-                </p>
-              </div>
+          <div className="personnel-modal-warning">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="text-xs font-bold">Fehlende Freigaben im eigenen Fuhrpark</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-amber-100/90">
+                {missing.map((id) => seriesLabel(id)).join(', ')}
+              </p>
             </div>
           </div>
         )}
-        {showFit && (
-          <div className="mt-3 rounded-lg border border-emerald-500/35 bg-emerald-950/30 px-3 py-2">
-            <div className="flex items-center gap-2 text-emerald-300">
-              <CheckCircle2 className="h-4 w-4 shrink-0" />
-              <p className="text-xs font-semibold">passt zum Fuhrpark</p>
-            </div>
-          </div>
+        {isTf && fleetIds.length === 0 && (
+          <p className="text-[11px] leading-relaxed text-slate-500">Ohne eigenen Fuhrpark ist noch kein Baureihen-Fit erforderlich.</p>
         )}
-        <div className="mt-4 flex flex-col gap-2">
+      </div>
+
+      <div className="mt-5 border-t border-amber-500/15 pt-4">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Einstellungsweg wählen</p>
+        <div className="mt-2 grid gap-2">
+          <button
+            type="button"
+            className="personnel-choice-card"
+            disabled={!baseAffordable}
+            onClick={() => onChoose('standard')}
+          >
+            <span>
+              <strong>Regulär einstellen</strong>
+              <small>{missing.length > 0 ? 'Freigaben später einzeln schulen' : 'Kandidat passt zur aktuellen Auswahl'}</small>
+            </span>
+            <b>{formatEuro(listing.hiringCost)}</b>
+          </button>
           {missing.length > 0 && (
-            <>
-              <Button
-                className="w-full whitespace-normal py-2 text-left text-[12px] leading-snug"
-                disabled={!canHireTrained}
-                onClick={() => onConfirm(true)}
-              >
-                Direkt inkl. Baureihen-Nachschulung einstellen (Aufpreis: {formatEuro(trainingFee)})
-              </Button>
-              {!canHireTrained && (
-                <p className="text-[11px] text-rose-400">
-                  Fehlbetrag {formatEuro(shortfall)} (Einstellungsgebühr + Nachschulung{' '}
-                  {formatEuro(hireTotal)}).
-                </p>
-              )}
-            </>
+            <button
+              type="button"
+              className="personnel-choice-card personnel-choice-card--quickpay"
+              disabled={!quickPayAffordable}
+              onClick={() => onChoose('quickpay')}
+            >
+              <span>
+                <strong>Inkl. Quick-Pay-Nachschulung</strong>
+                <small>{missing.length} fehlende {missing.length === 1 ? 'Klasse' : 'Klassen'} sofort freigeben</small>
+              </span>
+              <b>{formatEuro(quickPayTotal)}</b>
+            </button>
           )}
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={onClose}>
-              Abbrechen
-            </Button>
-            <Button onClick={() => onConfirm(false)}>
-              Bestätigen
-            </Button>
-          </div>
+        </div>
+        {!baseAffordable && !quickPayAffordable && (
+          <p className="mt-2 text-[11px] font-semibold text-rose-400">Für diese Einstellung reicht der verfügbare Rahmen nicht aus.</p>
+        )}
+      </div>
+      <div className="mt-4 flex justify-end">
+        <Button variant="secondary" onClick={onClose}>
+          Abbrechen
+        </Button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function HireCommitModal({
+  listing,
+  mode,
+  locomotives,
+  balance,
+  overdraftLimit,
+  onBack,
+  onClose,
+  onConfirm,
+}: {
+  listing: JobListing;
+  mode: HireMode;
+  locomotives: Locomotive[];
+  balance: number;
+  overdraftLimit: number;
+  onBack: () => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const missing =
+    listing.role === 'tf' ? missingFleetSeries(listing.seriesIds, locomotives, listing.qualifications) : [];
+  const includesQuickPay = mode === 'quickpay' && missing.length > 0;
+  const quickPayFee = includesQuickPay ? hireNachschulungFee(missing.length) : 0;
+  const total = listing.hiringCost + quickPayFee;
+  const affordable = canSpend(balance, total, overdraftLimit);
+
+  return (
+    <ModalShell title="Einstellung verbindlich bestätigen" onClose={onClose} labelledBy="hire-commit-title" elevated>
+      <div className="personnel-confirm-heading">
+        <Banknote className="h-5 w-5" />
+        <div>
+          <p className="text-sm font-bold text-white">{listing.personName} einstellen?</p>
+          <p className="mt-0.5 text-[11px] text-slate-400">Diese Entscheidung bucht Kosten und entfernt den Kandidaten aus der heutigen Börse.</p>
         </div>
       </div>
+      <div className="mt-4 space-y-2">
+        <CostLine label="Einstellungsgebühr" value={listing.hiringCost} />
+        {includesQuickPay && <CostLine label={`Quick-Pay · ${missing.length} Baureihen`} value={quickPayFee} />}
+        <div className="flex items-center justify-between border-t border-amber-500/20 pt-2 text-sm font-bold text-white">
+          <span>Einmalige Gesamtkosten</span>
+          <span className="fi-gold">{formatEuro(total)}</span>
+        </div>
+      </div>
+      <div className="mt-4 rounded-lg border border-sky-500/25 bg-sky-950/25 p-3 text-[11px] leading-relaxed text-sky-100">
+        {includesQuickPay
+          ? `Direkte Wirkung: ${listing.personName} wird eingestellt und erhält sofort die Freigaben für ${missing.map((id) => seriesLabel(id)).join(', ')}.`
+          : `Direkte Wirkung: ${listing.personName} wird mit den vorhandenen Qualifikationen in den Dienstplan aufgenommen.`}
+      </div>
+      {!affordable && <p className="mt-3 text-[11px] font-semibold text-rose-400">Der verfügbare Rahmen reicht für diese Buchung nicht aus.</p>}
+      <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <Button variant="secondary" onClick={onBack}>
+          Zurück
+        </Button>
+        <Button variant="secondary" onClick={onClose}>
+          Abbrechen
+        </Button>
+        <Button disabled={!affordable} onClick={onConfirm}>
+          Verbindlich einstellen
+        </Button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function TrainingSelectionModal({
+  driver,
+  options,
+  balance,
+  overdraftLimit,
+  onClose,
+  onSelect,
+}: {
+  driver: Driver;
+  options: string[];
+  balance: number;
+  overdraftLimit: number;
+  onClose: () => void;
+  onSelect: (seriesId: string) => void;
+}) {
+  return (
+    <ModalShell title={`Baureihen-Schulung · ${driver.name}`} onClose={onClose} labelledBy="training-select-title">
+      <p className="text-[11px] leading-relaxed text-slate-400">
+        Wähle eine fehlende Baureihe aus dem eigenen Fuhrpark. Die reguläre Schulung bindet den Tf für die angegebene Dauer;
+        die Buchung wird im nächsten Schritt separat bestätigt.
+      </p>
+      {options.length === 0 ? (
+        <p className="mt-4 text-sm text-slate-300">Alle Baureihen im Bestand sind bereits freigegeben.</p>
+      ) : (
+        <div className="mt-4 space-y-2">
+          {options.map((seriesId) => {
+            const quote = seriesTrainingQuote(seriesId);
+            const affordable = canSpend(balance, quote.cost, overdraftLimit);
+            return (
+              <button
+                key={seriesId}
+                type="button"
+                className="personnel-training-option"
+                disabled={!affordable}
+                onClick={() => onSelect(seriesId)}
+              >
+                <span>
+                  <strong>{seriesLabel(seriesId)}</strong>
+                  <small>
+                    <Clock3 className="h-3 w-3" /> {quote.durationDays} {quote.durationDays === 1 ? 'Tag' : 'Tage'} nicht einsetzbar
+                  </small>
+                </span>
+                <b>{formatEuro(quote.cost)}</b>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <div className="mt-4 flex justify-end">
+        <Button variant="secondary" onClick={onClose}>
+          Schließen
+        </Button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function TrainingCommitModal({
+  driver,
+  seriesId,
+  balance,
+  overdraftLimit,
+  onBack,
+  onClose,
+  onConfirm,
+}: {
+  driver: Driver;
+  seriesId: string;
+  balance: number;
+  overdraftLimit: number;
+  onBack: () => void;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const quote = seriesTrainingQuote(seriesId);
+  const affordable = canSpend(balance, quote.cost, overdraftLimit);
+
+  return (
+    <ModalShell title="Nachschulung bestätigen" onClose={onClose} labelledBy="training-commit-title" elevated>
+      <div className="personnel-confirm-heading">
+        <GraduationCap className="h-5 w-5" />
+        <div>
+          <p className="text-sm font-bold text-white">{seriesLabel(seriesId)} freigeben?</p>
+          <p className="mt-0.5 text-[11px] text-slate-400">Reguläre Nachschulung für {driver.name}.</p>
+        </div>
+      </div>
+      <div className="mt-4 space-y-2">
+        <CostLine label="Schulungskosten" value={quote.cost} />
+        <div className="flex items-center justify-between text-xs text-slate-300">
+          <span>Dauer</span>
+          <span className="font-semibold text-amber-300">{quote.durationDays} {quote.durationDays === 1 ? 'Tag' : 'Tage'}</span>
+        </div>
+        <div className="flex items-center justify-between text-xs text-slate-300">
+          <span>Status während der Schulung</span>
+          <span className="font-semibold text-rose-300">Nicht einsetzbar</span>
+        </div>
+      </div>
+      <div className="mt-4 rounded-lg border border-amber-500/25 bg-amber-950/25 p-3 text-[11px] leading-relaxed text-amber-100">
+        Nach Bestätigung wird der Betrag sofort gebucht. Die Baureihen-Freigabe wird automatisch nach Abschluss der Schulung
+        in der Personalakte hinterlegt.
+      </div>
+      {!affordable && <p className="mt-3 text-[11px] font-semibold text-rose-400">Der verfügbare Rahmen reicht für diese Schulung nicht aus.</p>}
+      <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <Button variant="secondary" onClick={onBack}>
+          Zurück
+        </Button>
+        <Button variant="secondary" onClick={onClose}>
+          Abbrechen
+        </Button>
+        <Button disabled={!affordable} onClick={onConfirm}>
+          Schulung verbindlich starten
+        </Button>
+      </div>
+    </ModalShell>
+  );
+}
+
+function ModalShell({
+  title,
+  children,
+  onClose,
+  labelledBy,
+  elevated = false,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+  labelledBy: string;
+  elevated?: boolean;
+}) {
+  return (
+    <div className={`modal-scrim fixed inset-0 ${elevated ? 'z-[76]' : 'z-[70]'} flex items-center justify-center p-4`} onClick={onClose}>
+      <section
+        className="app-glass w-full max-w-md rounded-xl border-amber-500/30 p-5 shadow-2xl"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+      >
+        <div className="flex items-center justify-between gap-3">
+          <h3 id={labelledBy} className="text-sm font-bold text-white">
+            {title}
+          </h3>
+          <button type="button" onClick={onClose} className="rounded-md p-1 text-slate-500 hover:bg-white/5 hover:text-white" aria-label="Dialog schließen">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        {children}
+      </section>
     </div>
+  );
+}
+
+function ModalFact({ label, value, emphasis = false }: { label: string; value: string; emphasis?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-xs">
+      <span className="text-slate-400">{label}</span>
+      <span className={emphasis ? 'fi-gold font-bold' : 'font-semibold text-slate-200'}>{value}</span>
+    </div>
+  );
+}
+
+function CostLine({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between text-xs text-slate-300">
+      <span>{label}</span>
+      <span className="font-semibold">{formatEuro(value)}</span>
+    </div>
+  );
+}
+
+function ErsatzattestConfirmModal({
+  driver,
+  onClose,
+  onConfirm,
+}: {
+  driver: Driver;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <ModalShell title="Ersatzattest bestätigen" onClose={onClose} labelledBy="ersatzattest-confirm-title" elevated>
+      <div className="personnel-confirm-heading">
+        <Stethoscope className="h-5 w-5" />
+        <div>
+          <p className="text-sm font-bold text-white">{driver.name} gesundmelden?</p>
+          <p className="mt-0.5 text-[11px] text-slate-400">Diese Statusänderung ist nur für einen kurzfristigen Ersatz attestiert.</p>
+        </div>
+      </div>
+      <div className="mt-4 rounded-lg border border-emerald-500/25 bg-emerald-950/25 p-3 text-[11px] leading-relaxed text-emerald-100">
+        Direkte Wirkung: Der Tf wird wieder als verfügbar geführt. Ruhezeit und Schichtbeginn werden auf den aktuellen Spielzeitpunkt zurückgesetzt.
+      </div>
+      <div className="mt-5 flex flex-wrap justify-end gap-2">
+        <Button variant="secondary" onClick={onClose}>
+          Abbrechen
+        </Button>
+        <Button onClick={onConfirm}>Status verbindlich ändern</Button>
+      </div>
+    </ModalShell>
   );
 }
 
@@ -450,7 +838,7 @@ function DriverDetailModal({
   locomotives,
   gameNow,
   onClose,
-  onGesundmelden,
+  onRequestGesundmelden,
   onOpenTraining,
 }: {
   driver: Driver;
@@ -458,7 +846,7 @@ function DriverDetailModal({
   locomotives: Locomotive[];
   gameNow: Date;
   onClose: () => void;
-  onGesundmelden?: (driverId: string) => void;
+  onRequestGesundmelden?: () => void;
   onOpenTraining?: () => void;
 }) {
   const cfg = getDriverStatusConfig(driver.status);
@@ -474,14 +862,14 @@ function DriverDetailModal({
 
   return (
     <div className="modal-scrim fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="fi-card max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+      <section className="fi-card w-full max-w-md" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="driver-detail-title">
         <div className="fi-card-header flex items-center justify-between">
-          <span className="flex items-center gap-2">
+          <span id="driver-detail-title" className="flex items-center gap-2">
             <User className="h-3.5 w-3.5 text-amber-500" />
             {driver.name}
           </span>
-          <button onClick={onClose} className="text-slate-500 hover:text-white">
-            ✕
+          <button type="button" onClick={onClose} className="text-slate-500 hover:text-white" aria-label="Personalakte schließen">
+            <X className="h-4 w-4" />
           </button>
         </div>
         <div className="space-y-3 p-4">
@@ -497,17 +885,14 @@ function DriverDetailModal({
             <DetailRow label="Schicht" value={shiftHours !== null ? `seit ${shiftHours}h` : '—'} />
             <DetailRow label="Telefon" value={driver.phone ?? '—'} />
             <DetailRow label="Erfahrung" value={`${xp} XP · Stufe ${rank}`} />
-            <DetailRow
-              label="Effizienz"
-              value={`+${staffEfficiencyPct(xp, rank).toLocaleString('de-DE')} % Fahrplan`}
-            />
+            <DetailRow label="Effizienz" value={`+${staffEfficiencyPct(xp, rank).toLocaleString('de-DE')} % Fahrplan`} />
           </div>
           <p className="text-[11px] text-slate-400">{progress.label}</p>
           <div>
             <div className="text-[10px] font-bold uppercase text-slate-500">Qualifikationen</div>
             <div className="mt-1 flex flex-wrap gap-1">
-              {driver.qualifications.map((q) => (
-                <QualificationBadge key={q} qual={q} />
+              {driver.qualifications.map((qualification) => (
+                <QualificationBadge key={qualification} qual={qualification} />
               ))}
             </div>
           </div>
@@ -523,23 +908,19 @@ function DriverDetailModal({
                 ))}
               </div>
               {missing.length > 0 && (
-                <p className="mt-1 text-[11px] text-amber-300">
-                  Offen im Fuhrpark: {missing.map((id) => seriesLabel(id)).join(', ')}
-                </p>
+                <p className="mt-1 text-[11px] text-amber-300">Offen im Fuhrpark: {missing.map((id) => seriesLabel(id)).join(', ')}</p>
               )}
             </div>
           )}
           {onOpenTraining && meta?.role === 'tf' && missing.length > 0 && meta.trainingUntilTick == null && (
             <Button className="w-full" onClick={onOpenTraining}>
-              Schulung (Baureihe nachrüsten)
+              <GraduationCap className="h-3.5 w-3.5" /> Schulung prüfen
             </Button>
           )}
           {showErsatzattest && (
             <button
               type="button"
-              onClick={() => {
-                onGesundmelden?.(driver.id);
-              }}
+              onClick={onRequestGesundmelden}
               className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-emerald-600 bg-emerald-900/30 px-3 py-2 text-xs font-bold uppercase text-emerald-300 hover:bg-emerald-800/50"
             >
               <Stethoscope className="h-3.5 w-3.5" />
@@ -547,7 +928,7 @@ function DriverDetailModal({
             </button>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

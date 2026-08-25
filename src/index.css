@@ -1307,3 +1307,374 @@ body,
 }
 
 
+
+/* Categorised handbook: desktop rail, mobile tab strip, and premium decision cards. */
+.help-handbook-layout {
+  display: grid;
+  grid-template-columns: minmax(10.75rem, 12.5rem) minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.help-handbook-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  overflow-y: auto;
+  padding: 0.75rem 0.5rem;
+  border-right: 1px solid rgba(255, 193, 7, 0.14);
+  background: rgba(8, 10, 14, 0.36);
+}
+
+.help-handbook-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  padding: 0.65rem 0.72rem;
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+  transition: color 0.18s ease, background-color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.help-handbook-nav-item:hover {
+  border-color: rgba(251, 191, 36, 0.2);
+  background: rgba(251, 191, 36, 0.06);
+  color: #fde68a;
+}
+
+.help-handbook-nav-item.is-active {
+  border-color: rgba(251, 191, 36, 0.4);
+  background: linear-gradient(90deg, rgba(180, 83, 9, 0.42), rgba(251, 191, 36, 0.12));
+  color: #fde68a;
+  box-shadow: inset 3px 0 0 #fbbf24, 0 0 16px rgba(251, 191, 36, 0.08);
+}
+
+.help-handbook-content {
+  min-width: 0;
+}
+
+.help-handbook-hero {
+  display: flex;
+  gap: 0.8rem;
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  border-radius: 0.85rem;
+  padding: 0.9rem;
+  background:
+    linear-gradient(120deg, rgba(180, 83, 9, 0.18), rgba(18, 22, 31, 0.48)),
+    rgba(18, 22, 31, 0.55);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.help-handbook-hero-icon,
+.help-handbook-topic-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  color: #fcd34d;
+}
+
+.help-handbook-hero-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(251, 191, 36, 0.42);
+  border-radius: 0.65rem;
+  background: rgba(120, 53, 15, 0.28);
+}
+
+.help-handbook-topic {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0.8rem;
+  padding: 0.85rem;
+  background: rgba(8, 10, 14, 0.28);
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.help-handbook-topic:hover {
+  border-color: rgba(251, 191, 36, 0.28);
+  background: rgba(251, 191, 36, 0.045);
+}
+
+.help-handbook-topic-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.help-handbook-decision-map {
+  margin-top: 0.9rem;
+  border: 1px solid rgba(56, 189, 248, 0.26);
+  border-radius: 0.8rem;
+  padding: 0.85rem;
+  background: linear-gradient(120deg, rgba(8, 47, 73, 0.32), rgba(18, 22, 31, 0.34));
+}
+
+.help-handbook-decision-step {
+  position: relative;
+  min-height: 5.75rem;
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 0.65rem;
+  padding: 0.65rem 0.65rem 0.65rem 2.15rem;
+  background: rgba(8, 10, 14, 0.22);
+}
+
+.help-handbook-decision-step span {
+  position: absolute;
+  top: 0.65rem;
+  left: 0.65rem;
+  color: #7dd3fc;
+  font-size: 0.64rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.help-handbook-decision-step strong {
+  display: block;
+  color: #e2e8f0;
+  font-size: 0.69rem;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+
+.help-handbook-decision-step p {
+  margin-top: 0.22rem;
+  color: #94a3b8;
+  font-size: 0.67rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+  .help-handbook-layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .help-handbook-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 0.5rem;
+    border-right: 0;
+    border-bottom: 1px solid rgba(255, 193, 7, 0.14);
+  }
+
+  .help-handbook-nav-item {
+    width: auto;
+    flex: 0 0 auto;
+    padding: 0.5rem 0.62rem;
+    font-size: 0.64rem;
+  }
+
+  .help-handbook-nav-item.is-active {
+    box-shadow: inset 0 -2px 0 #fbbf24, 0 0 14px rgba(251, 191, 36, 0.08);
+  }
+}
+
+/* Personnel: candidate-fit decision cards and guarded transaction dialogs. */
+.personnel-security-note {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 999px;
+  padding: 0.35rem 0.55rem;
+  background: rgba(8, 47, 73, 0.28);
+  color: #7dd3fc;
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.personnel-candidate {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border: 1px solid rgba(255, 193, 7, 0.18);
+  border-radius: 0.85rem;
+  padding: 0.85rem;
+  background: linear-gradient(145deg, rgba(18, 22, 31, 0.72), rgba(8, 10, 14, 0.42));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.personnel-candidate:hover {
+  border-color: rgba(251, 191, 36, 0.38);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transform: translateY(-1px);
+}
+
+.personnel-fact-label {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.personnel-fit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  border: 1px solid;
+  border-radius: 999px;
+  padding: 0.2rem 0.42rem;
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.personnel-fit--good {
+  border-color: rgba(52, 211, 153, 0.46);
+  background: rgba(6, 78, 59, 0.28);
+  color: #6ee7b7;
+}
+
+.personnel-fit--attention {
+  align-items: flex-start;
+  border-color: rgba(251, 191, 36, 0.35);
+  border-radius: 0.5rem;
+  padding: 0.46rem 0.5rem;
+  background: rgba(120, 53, 15, 0.18);
+  color: #fde68a;
+}
+
+.personnel-fit--attention strong {
+  display: block;
+  margin-top: 0.16rem;
+  color: #fbbf24;
+}
+
+.personnel-candidate-costs {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.32rem 0.75rem;
+  margin-top: auto;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  font-size: 0.68rem;
+}
+
+.personnel-candidate-costs strong {
+  color: #e2e8f0;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.personnel-modal-profile,
+.personnel-confirm-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.personnel-confirm-heading {
+  justify-content: flex-start;
+  color: #fbbf24;
+}
+
+.personnel-modal-block {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 0.6rem;
+  padding: 0.68rem;
+  background: rgba(8, 10, 14, 0.22);
+}
+
+.personnel-modal-warning {
+  display: flex;
+  gap: 0.55rem;
+  border: 1px solid rgba(251, 191, 36, 0.42);
+  border-radius: 0.65rem;
+  padding: 0.7rem;
+  background: rgba(120, 53, 15, 0.22);
+  color: #fde68a;
+}
+
+.personnel-choice-card,
+.personnel-training-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  width: 100%;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 0.68rem;
+  padding: 0.75rem;
+  background: rgba(8, 10, 14, 0.34);
+  color: #e2e8f0;
+  text-align: left;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.personnel-choice-card:hover:not(:disabled),
+.personnel-training-option:hover:not(:disabled) {
+  border-color: rgba(251, 191, 36, 0.48);
+  background: rgba(251, 191, 36, 0.07);
+  box-shadow: 0 0 16px rgba(251, 191, 36, 0.08);
+}
+
+.personnel-choice-card--quickpay {
+  border-color: rgba(251, 191, 36, 0.44);
+  background: linear-gradient(100deg, rgba(120, 53, 15, 0.32), rgba(8, 10, 14, 0.34));
+}
+
+.personnel-choice-card:disabled,
+.personnel-training-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
+}
+
+.personnel-choice-card span,
+.personnel-training-option span {
+  display: grid;
+  min-width: 0;
+  gap: 0.22rem;
+}
+
+.personnel-choice-card strong,
+.personnel-training-option strong {
+  color: #f8fafc;
+  font-size: 0.71rem;
+  font-weight: 800;
+}
+
+.personnel-choice-card small,
+.personnel-training-option small {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #94a3b8;
+  font-size: 0.65rem;
+  line-height: 1.35;
+}
+
+.personnel-choice-card b,
+.personnel-training-option b {
+  flex: 0 0 auto;
+  color: #fbbf24;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .personnel-security-note {
+    align-self: flex-start;
+  }
+}
