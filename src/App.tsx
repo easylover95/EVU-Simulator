@@ -33,7 +33,6 @@ import { InboxView } from '@/components/InboxView';
 import { ContractsView } from '@/views/ContractsView';
 import { CentralView } from '@/views/CentralView';
 import { BankView } from '@/views/BankView';
-import { NetworkPlannerView } from '@/views/NetworkPlannerView';
 import { AdvertisingView } from '@/views/AdvertisingView';
 import { DealerView } from '@/views/DealerView';
 import { PlayerMarketView } from '@/views/PlayerMarketView';
@@ -243,17 +242,6 @@ import {
 } from '@/lib/achievements';
 import { isNewGameDay } from '@/lib/storage';
 import {
-  loadRouteNetworkState,
-  removeRoutePlan,
-  removeTimetableEntry,
-  saveRouteNetworkState,
-  upsertRoutePlan,
-  upsertTimetableEntry,
-  type RouteNetworkState,
-  type RoutePlan,
-  type TimetableEntry,
-} from '@/lib/routeNetwork';
-import {
   buildRecruit,
   completeDueTraining,
   ensureDailyJobBoard,
@@ -390,7 +378,6 @@ function App() {
   const [depot, setDepot] = useState<DepotState>(() => loadDepotState());
   const [insolvencyDismissed, setInsolvencyDismissed] = useState(false);
   const [networkAccess, setNetworkAccess] = useState<NetworkAccessState>(() => loadNetworkAccess());
-  const [routeNetwork, setRouteNetwork] = useState<RouteNetworkState>(() => loadRouteNetworkState());
   const [worldEvents, setWorldEvents] = useState<WorldEventState>(() =>
     loadWorldEvents(loadCompanyEconomy()?.lastTick ?? SEED_COMPANY.tick),
   );
@@ -423,7 +410,6 @@ function App() {
   const chargedTripsRef = useRef<string[]>(loadChargedTripIds());
   const ordersRef = useRef(orders);
   const networkRef = useRef(networkAccess);
-  const routeNetworkRef = useRef(routeNetwork);
   const eventsRef = useRef(worldEvents);
   const achievementsRef = useRef(achievements);
 
@@ -444,7 +430,6 @@ function App() {
   depotRef.current = depot;
   ordersRef.current = orders;
   networkRef.current = networkAccess;
-  routeNetworkRef.current = routeNetwork;
   eventsRef.current = worldEvents;
   achievementsRef.current = achievements;
 
@@ -536,28 +521,6 @@ function App() {
     setBank(next);
     saveBankState(next);
   }, []);
-
-  const persistRouteNetwork = useCallback((next: RouteNetworkState) => {
-    routeNetworkRef.current = next;
-    setRouteNetwork(next);
-    saveRouteNetworkState(next);
-  }, []);
-
-  const handleSaveRoutePlan = useCallback((plan: RoutePlan) => {
-    persistRouteNetwork(upsertRoutePlan(routeNetworkRef.current, plan));
-  }, [persistRouteNetwork]);
-
-  const handleDeleteRoutePlan = useCallback((routePlanId: string) => {
-    persistRouteNetwork(removeRoutePlan(routeNetworkRef.current, routePlanId));
-  }, [persistRouteNetwork]);
-
-  const handleSaveTimetableEntry = useCallback((entry: TimetableEntry) => {
-    persistRouteNetwork(upsertTimetableEntry(routeNetworkRef.current, entry));
-  }, [persistRouteNetwork]);
-
-  const handleDeleteTimetableEntry = useCallback((entryId: string) => {
-    persistRouteNetwork(removeTimetableEntry(routeNetworkRef.current, entryId));
-  }, [persistRouteNetwork]);
 
   useEffect(() => {
     if (loading) return;
@@ -2785,21 +2748,6 @@ function App() {
               )}
               {view === 'tourenuebersicht' && (
                 <TourOverviewView assignments={assignments} onOpenDisposition={() => setView('disposition')} />
-              )}
-              {view === 'streckennetz' && (
-                <NetworkPlannerView
-                  company={company}
-                  orders={orders}
-                  network={routeNetwork}
-                  onSaveRoutePlan={handleSaveRoutePlan}
-                  onDeleteRoutePlan={handleDeleteRoutePlan}
-                  onSaveTimetableEntry={handleSaveTimetableEntry}
-                  onDeleteTimetableEntry={handleDeleteTimetableEntry}
-                  onOpenDisposition={(order) => {
-                    setDispoPreselect(order);
-                    setView('disposition');
-                  }}
-                />
               )}
               {view === 'fuhrpark' && (
                 <FleetView

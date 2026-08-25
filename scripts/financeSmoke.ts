@@ -1,25 +1,8 @@
 import assert from 'node:assert/strict';
-import { createTimetableEntry, buildRoutePlan, plannedTravelTicks } from '../src/lib/routeNetwork';
 import { processBankTick, summarizePnl, type BankState } from '../src/lib/bank';
 import { computeBalanceSheet } from '../src/lib/financialStatements';
 import { TICKS_PER_DAY } from '../src/lib/storage';
 import type { Company } from '../src/lib/supabase';
-
-const route = buildRoutePlan('West–Süd', 'duisburg', 'muenchen', 12);
-assert(route, 'Die kanonische Route Duisburg–München muss konstruiert werden können.');
-assert(route.stationKeys.length >= 2, 'Eine Route benötigt mindestens zwei Knoten.');
-assert(route.distanceKm > 0, 'Eine Route benötigt eine positive Distanz.');
-assert(plannedTravelTicks(route.distanceKm) >= 2, 'Eine Route benötigt eine positive Mindestfahrzeit.');
-
-const timetable = createTimetableEntry({
-  routePlan: route,
-  orderId: 'order-1',
-  orderNumber: 'FI-0001',
-  label: 'Testlauf',
-  departureTick: 8,
-  tick: 12,
-});
-assert(timetable && timetable.arrivalTick > timetable.departureTick, 'Der Fahrplan muss ein gültiges Zeitfenster speichern.');
 
 const company: Company = {
   id: 1,
@@ -69,4 +52,4 @@ const balanceSheet = computeBalanceSheet({ company: afterTick.company, bank: aft
 assert.equal(balanceSheet.difference, 0, 'Die Managementbilanz muss rechnerisch ausgeglichen sein.');
 assert.equal(balanceSheet.loanPrincipal, loanAfter.principalRemaining, 'Die Bilanz muss die offene Kreditrestschuld verwenden.');
 
-console.log('route-finance-smoke: ok');
+console.log('finance-smoke: ok');

@@ -46,3 +46,8 @@ The isolated browser session could load the application, but its hierarchical na
 ## Known modeling boundaries
 
 The reports are **management accounting for the game**, not statutory accounting. There is no tax, receivables, depreciation schedule or historical opening-equity ledger in the existing simulation. The balance sheet therefore uses live cash, current dealer-derived owned fleet value, active principal debt, overdraft and residual management-book equity. This scope is intentional and documented in `STRUCTURE.md`.
+
+
+## Decommission note: Streckennetz & Fahrplan
+
+The player-facing **Streckennetz & Fahrplan** area was removed after product review because its stored route and timetable intentions did not cause a direct operational effect and therefore added avoidable interface complexity. `src/lib/routeNetwork.ts`, `src/views/NetworkPlannerView.tsx`, the related `App.tsx` persistence/callback layer and the navigation item were removed. Existing Disposition, Tourenplaner and Leaflet live tracking continue to own operational assignment and location visibility.
