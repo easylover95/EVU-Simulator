@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "simulate": "tsx --tsconfig tsconfig.scripts.json scripts/simulateBalancing.ts",
+    "simulate:freight-year": "tsx --tsconfig tsconfig.app.json simulation/runFreightYear365.ts",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"

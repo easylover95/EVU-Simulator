@@ -1,0 +1,59 @@
+{
+  "scenario": "starter-freight-baseline-365-v1",
+  "days": 365,
+  "startCapital": 210000,
+  "endCapital": 1435459,
+  "netCashChange": 1225459,
+  "lowestBalance": 182382,
+  "firstNegativeDay": null,
+  "financiallyStable": true,
+  "finalLevel": 7,
+  "finalReputation": 48,
+  "totalRevenue": 4005169,
+  "totalCosts": 2779710,
+  "operatingProfitBeforeFixedCosts": 2503924,
+  "operatingResultAfterAllCosts": 1225459,
+  "transport": {
+    "completedTrips": 730,
+    "contractTrips": 365,
+    "spotTrips": 365,
+    "contractRenewals": 18,
+    "totalTkm": 42267000,
+    "totalTonsMoved": 423400
+  },
+  "costs": {
+    "contractRevenue": 1670260,
+    "spotRevenue": 2334909,
+    "pathEnergy": 1501245,
+    "payroll": 185420,
+    "depot": 1040250,
+    "insurance": 31025,
+    "maintenance": 12000,
+    "wagonRevision": 5120,
+    "quickPay": 2200,
+    "hiring": 2450
+  },
+  "maintenance": {
+    "scheduledFJobs": 8,
+    "wagonRevisionJobs": 4,
+    "externalFJobCost": 1500,
+    "wagonRevisionUnitCost": 1280
+  },
+  "series": [
+    {
+      "seriesId": "BR 218",
+      "contribution": 2503924
+    }
+  ],
+  "routes": [
+    {
+      "route": "BR 218 · Eanos-Spotverkehr",
+      "contribution": 1283709
+    },
+    {
+      "route": "BR 218 · Coil-Rahmenvertrag",
+      "contribution": 1220215
+    }
+  ],
+  "reconciliation": 1435459
+}
