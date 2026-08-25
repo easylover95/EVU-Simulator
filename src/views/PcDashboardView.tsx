@@ -12,9 +12,13 @@ import {
   Boxes,
   Megaphone,
   Wrench,
+  AlertTriangle,
+  ShieldCheck,
+  CircleAlert,
 } from 'lucide-react';
 import type { Driver, Locomotive } from '@/lib/supabase';
 import type { AppView } from '@/lib/navigation';
+import type { AdvisorAlert } from '@/lib/economyAdvisor';
 
 export type PcNavigate = (view: AppView) => void;
 
@@ -23,6 +27,7 @@ interface PcDashboardViewProps {
   locomotives: Locomotive[];
   drivers: Driver[];
   unreadCount: number;
+  advisorAlerts: AdvisorAlert[];
   onNavigate: PcNavigate;
   children?: ReactNode;
 }
@@ -45,6 +50,7 @@ export function PcDashboardView({
   locomotives,
   drivers,
   unreadCount,
+  advisorAlerts,
   onNavigate,
   children,
 }: PcDashboardViewProps) {
@@ -115,7 +121,7 @@ export function PcDashboardView({
 
         <div className="pc-main-body">
           {isHome ? (
-            <PcDesktopHome onNavigate={onNavigate} unreadCount={unreadCount} />
+            <PcDesktopHome onNavigate={onNavigate} unreadCount={unreadCount} advisorAlerts={advisorAlerts} />
           ) : (
             children
           )}
@@ -125,10 +131,14 @@ export function PcDashboardView({
   );
 }
 
-function PcDesktopHome({ onNavigate, unreadCount }: { onNavigate: PcNavigate; unreadCount: number }) {
+function PcDesktopHome({ onNavigate, unreadCount, advisorAlerts }: { onNavigate: PcNavigate; unreadCount: number; advisorAlerts: AdvisorAlert[] }) {
   return (
     <div className="space-y-6">
-      <h1 className="pc-home-title">Was möchtest du verwalten?</h1>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h1 className="pc-home-title">Was möchtest du verwalten?</h1>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80">EVU-Berater aktiv</span>
+      </div>
+      <EvuAdvisorPanel alerts={advisorAlerts} onOpenBank={() => onNavigate('bank')} />
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <AppCard
           icon={<Landmark className="h-6 w-6" />}
@@ -201,6 +211,37 @@ function PcDesktopHome({ onNavigate, unreadCount }: { onNavigate: PcNavigate; un
         />
       </div>
     </div>
+  );
+}
+
+function EvuAdvisorPanel({ alerts, onOpenBank }: { alerts: AdvisorAlert[]; onOpenBank: () => void }) {
+  const tones = {
+    safe: { panel: 'border-emerald-500/30 bg-emerald-950/20', title: 'text-emerald-300', Icon: ShieldCheck },
+    caution: { panel: 'border-amber-500/35 bg-amber-950/20', title: 'text-amber-200', Icon: CircleAlert },
+    critical: { panel: 'border-rose-500/40 bg-rose-950/30', title: 'text-rose-200', Icon: AlertTriangle },
+  } as const;
+  return (
+    <section className="border border-slate-700/80 bg-slate-950/40 p-3">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Entscheidungsradar</div>
+          <div className="text-sm font-bold text-white">EVU-Berater</div>
+        </div>
+        <button type="button" onClick={onOpenBank} className="text-[10px] font-bold uppercase tracking-wide text-amber-300 hover:text-amber-200">Bank & Vorsorge öffnen</button>
+      </div>
+      <div className="grid gap-2 lg:grid-cols-3">
+        {alerts.map((alert) => {
+          const tone = tones[alert.tone];
+          const Icon = tone.Icon;
+          return (
+            <article key={alert.id} className={`border p-3 ${tone.panel}`}>
+              <div className={`flex items-center gap-2 text-xs font-bold ${tone.title}`}><Icon className="h-3.5 w-3.5" />{alert.title}</div>
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-300">{alert.message}</p>
+            </article>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

@@ -18,6 +18,7 @@ export type BankBookingKind =
   | 'kreditaufnahme'
   | 'tilgung'
   | 'investition'
+  | 'ruecklage'
   | 'strafe'
   | 'sonstiges';
 
@@ -40,6 +41,7 @@ export function inferBookingKind(label: string, kind?: BankBookingKind): BankBoo
   if (/versicherung/.test(l)) return 'versicherung';
   if (/kreditaufnahme|darlehen.*auszahl/.test(l)) return 'kreditaufnahme';
   if (/^kauf |^verkauf |pakete |depotausbau|netzzugang/.test(l)) return 'investition';
+  if (/instandhaltungs-?fonds|wartungsr[üu]cklage|risikovorsorge/.test(l)) return 'ruecklage';
   if (/sondertilgung|kredittilgung|kredit.*tilgung|darlehen.*tilgung/.test(l)) return 'tilgung';
   if (/dispozins|kreditzins|zinsen/.test(l)) return 'zinsen';
   if (/p[öo]nale|bußgeld|bussgeld|eba|vertragsstrafe|strafe|sanktion/.test(l)) return 'strafe';
@@ -66,6 +68,7 @@ export interface PnlSummary {
   financingCashIn: number;
   principalRepayments: number;
   investmentCashFlow: number;
+  maintenanceFundTransfers: number;
   penalties: number;
   other: number;
   totalCosts: number;
@@ -84,6 +87,7 @@ const PNL_LABELS: Record<BankBookingKind, string> = {
   kreditaufnahme: 'Kreditaufnahme (Finanzierung)',
   tilgung: 'Kredittilgung (Finanzierung)',
   investition: 'Investition / Anlagenverkauf (Cashflow)',
+  ruecklage: 'Instandhaltungs-Fonds (Umbuchung)',
   strafe: 'Pönalen / Bußgelder',
   sonstiges: 'Sonstiges',
 };
@@ -100,6 +104,7 @@ export function summarizePnl(bookings: BankBooking[], fromTick: number, toTick: 
     kreditaufnahme: 0,
     tilgung: 0,
     investition: 0,
+    ruecklage: 0,
     strafe: 0,
     sonstiges: 0,
   };
@@ -118,11 +123,12 @@ export function summarizePnl(bookings: BankBooking[], fromTick: number, toTick: 
   const financingCashIn = sums.kreditaufnahme;
   const principalRepayments = sums.tilgung;
   const investmentCashFlow = sums.investition;
+  const maintenanceFundTransfers = sums.ruecklage;
   const penalties = sums.strafe;
   const other = sums.sonstiges;
   const totalCosts = operating + leasing + personnel + depot + insurance + interest + penalties + other;
   const net = revenue + totalCosts;
-  const lines: PnlLine[] = (['fracht', 'betrieb', 'leasing', 'gehalt', 'standort', 'versicherung', 'zinsen', 'strafe', 'sonstiges'] as BankBookingKind[]).map((id) => ({
+  const lines: PnlLine[] = (['fracht', 'betrieb', 'leasing', 'gehalt', 'standort', 'versicherung', 'zinsen', 'ruecklage', 'strafe', 'sonstiges'] as BankBookingKind[]).map((id) => ({
     id,
     label: PNL_LABELS[id],
     amount: sums[id],
@@ -140,6 +146,7 @@ export function summarizePnl(bookings: BankBooking[], fromTick: number, toTick: 
     financingCashIn,
     principalRepayments,
     investmentCashFlow,
+    maintenanceFundTransfers,
     penalties,
     other,
     totalCosts,

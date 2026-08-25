@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Fuel, Globe, Handshake, Train, Zap } from 'lucide-react';
 import type { Company, CountryPackage, ExtraEquipment, Locomotive, Wagon } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
+import type { DailyFixedCosts } from '@/lib/dailyFixedCosts';
+import type { MaintenanceFundState } from '@/lib/maintenanceFund';
+import { forecastLocoPurchase, forecastWagonPurchase, type InvestmentForecast } from '@/lib/economyAdvisor';
 import { Button, Card, CardFlush, CardHeader } from '@/components/ui';
 import { DealerAcquireModal } from '@/components/DealerAcquireModal';
 import { SectionShell, freeYardBerths, yardBerthCap } from '@/components/SectionShell';
@@ -77,6 +80,8 @@ interface DealerViewProps {
   highlightNetwork?: CountryPackage | null;
   workshopDiscountPct?: number;
   achievements?: AchievementState | null;
+  dailyFixed: DailyFixedCosts;
+  maintenanceFund: MaintenanceFundState;
 }
 
 export function DealerView({
@@ -102,6 +107,8 @@ export function DealerView({
   highlightNetwork = null,
   workshopDiscountPct = 0,
   achievements = null,
+  dailyFixed,
+  maintenanceFund,
 }: DealerViewProps) {
   const { tick } = useGameClock();
   const [rentWagonId, setRentWagonId] = useState<string | null>(null);
@@ -119,6 +126,8 @@ export function DealerView({
     options?: LocoAcquireOptions;
     lines?: { label: string; amount: number }[];
     footnote?: string;
+    dueNow?: number;
+    forecast?: InvestmentForecast;
   } | null>(null);
   const confirmLock = useRef(false);
   const rentWagon = rentWagonId ? wagons.find((w) => w.id === rentWagonId) ?? null : null;
@@ -177,8 +186,38 @@ export function DealerView({
       }
     }
     const warning = blockers.length > 0 ? blockers.join(' ') : null;
+    const recurringDailyCost = how === 'leasing' ? price : 0;
+    const forecast = kind === 'loco'
+      ? (() => {
+        const offer = LOCO_OFFERS.find((row) => row.id === offerId);
+        return offer ? forecastLocoPurchase({
+          company,
+          dailyFixed,
+          currentLocoCount: locomotives.length,
+          currentWagonUnits: wagonUsed,
+          offer,
+          dueNow,
+          maintenanceFund,
+          recurringDailyCost,
+        }) : undefined;
+      })()
+      : (() => {
+        const offer = WAGON_OFFERS.find((row) => row.id === offerId);
+        const qty = extra?.qty ?? 1;
+        return offer ? forecastWagonPurchase({
+          company,
+          dailyFixed,
+          currentLocoCount: locomotives.length,
+          currentWagonUnits: wagonUsed,
+          offer,
+          quantity: qty,
+          dueNow,
+          maintenanceFund,
+          recurringDailyCost,
+        }) : undefined;
+      })();
     setAcquireError(warning);
-    setPending({ kind, offerId, how, name, price, warning, ...extra });
+    setPending({ kind, offerId, how, name, price, warning, dueNow, forecast, ...extra });
   }
 
   function cancelAcquire() {
@@ -519,6 +558,7 @@ export function DealerView({
           lines={pending.lines}
           footnote={pending.footnote}
           warning={pending.warning}
+          forecast={pending.forecast}
           confirmDisabled={Boolean(pending.warning)}
           wagonQty={pending.kind === 'wagon' ? pending.qty : undefined}
           wagonGattung={pending.wagonGattung}

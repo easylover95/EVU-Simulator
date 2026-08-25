@@ -193,6 +193,7 @@ import {
   ensureMaintenance,
   isHuValid,
   isLocoDeployable,
+  locoHasFault,
   syncLocoStatus,
   jobLabel,
   loadLocoMaintPatches,
@@ -269,7 +270,16 @@ import {
 } from '@/lib/personal';
 import { applyEconomy, loadCompanyEconomy, saveCompanyEconomy } from '@/lib/economy';
 import { computeDailyFixedCosts, processDepotTick } from '@/lib/dailyFixedCosts';
+import {
+  coverRepairFromMaintenanceFund,
+  depositMaintenanceFund,
+  loadMaintenanceFund,
+  saveMaintenanceFund,
+  withdrawMaintenanceFund,
+  type MaintenanceFundState,
+} from '@/lib/maintenanceFund';
 import { calcOrderOperatingCosts } from '@/lib/operatingCosts';
+import { buildAdvisorAlerts } from '@/lib/economyAdvisor';
 import { autoAzfChoice, isBaugleisOrder, pdlAzfDailyRate } from '@/lib/pdl';
 import { grandfatherAktivTrips, loadChargedTripIds, markTripCharged, saveChargedTripIds } from '@/lib/tripCosts';
 import { formatEuro } from '@/lib/status';
@@ -378,6 +388,7 @@ function App() {
   const [rentals, setRentals] = useState<RentalState>(() => loadRentalState(SEED_COMPANY.tick));
   const [deployments, setDeployments] = useState<BaugleisDeployment[]>(() => loadBaugleisDeployments());
   const [depot, setDepot] = useState<DepotState>(() => loadDepotState());
+  const [maintenanceFund, setMaintenanceFund] = useState<MaintenanceFundState>(() => loadMaintenanceFund());
   const [insolvencyDismissed, setInsolvencyDismissed] = useState(false);
   const [networkAccess, setNetworkAccess] = useState<NetworkAccessState>(() => loadNetworkAccess());
   const [worldEvents, setWorldEvents] = useState<WorldEventState>(() =>
@@ -409,6 +420,7 @@ function App() {
   const rentalsRef = useRef(rentals);
   const deploymentsRef = useRef(deployments);
   const depotRef = useRef(depot);
+  const maintenanceFundRef = useRef(maintenanceFund);
   const chargedTripsRef = useRef<string[]>(loadChargedTripIds());
   const ordersRef = useRef(orders);
   const networkRef = useRef(networkAccess);
@@ -430,6 +442,7 @@ function App() {
   rentalsRef.current = rentals;
   deploymentsRef.current = deployments;
   depotRef.current = depot;
+  maintenanceFundRef.current = maintenanceFund;
   ordersRef.current = orders;
   networkRef.current = networkAccess;
   eventsRef.current = worldEvents;
@@ -522,6 +535,12 @@ function App() {
     bankRef.current = next;
     setBank(next);
     saveBankState(next);
+  }, []);
+
+  const persistMaintenanceFund = useCallback((next: MaintenanceFundState) => {
+    maintenanceFundRef.current = next;
+    setMaintenanceFund(next);
+    saveMaintenanceFund(next);
   }, []);
 
   useEffect(() => {
@@ -1408,6 +1427,12 @@ function App() {
       }),
     [company, bank, dealer, staffMeta, locomotives, wagons],
   );
+  const advisorAlerts = useMemo(() => {
+    const fleetValue = fleetBookValue(locomotives, wagons, dealer);
+    const loanDebt = (bank.loans ?? []).reduce((sum, loan) => sum + Math.max(0, Number(loan.principalRemaining) || 0), 0);
+    const equity = Math.max(0, company?.balance ?? 0) + fleetValue - loanDebt - Math.max(0, -(company?.balance ?? 0));
+    return buildAdvisorAlerts({ company, bank, dailyFixed, maintenanceFund, equity });
+  }, [company, bank, dailyFixed, maintenanceFund, locomotives, wagons, dealer]);
   const backToZentrale = useCallback(() => setView('zentrale'), []);
 
   const flushLocalSave = useCallback(() => {
@@ -1424,6 +1449,7 @@ function App() {
     persistDepot(depotRef.current);
     persistBank(bankRef.current);
     persistRentals(rentalsRef.current);
+    persistMaintenanceFund(maintenanceFundRef.current);
     savePersistedOrders(ordersRef.current);
     saveWorldEvents(eventsRef.current);
     saveNetworkAccess(networkRef.current);
@@ -1961,6 +1987,40 @@ function App() {
     return true;
   }
 
+  function handleDepositMaintenanceFund(amount: number): boolean {
+    const current = companyRef.current;
+    const deposit = Math.max(0, Math.round(Number(amount) || 0));
+    if (!current || deposit <= 0 || deposit > current.balance) return false;
+    persistCompany({ ...current, balance: current.balance - deposit });
+    persistMaintenanceFund(depositMaintenanceFund(maintenanceFundRef.current, deposit, current.tick));
+    book('Instandhaltungs-Fonds: Zuführung', -deposit, current.tick, 'ruecklage');
+    pushNotifications([{
+      type: 'success',
+      title: 'Risikovorsorge gebildet',
+      message: `${formatEuro(deposit)} wurden in den Instandhaltungs-Fonds verschoben.`,
+      read: false,
+      created_at: tickToIso(current.tick),
+    }]);
+    return true;
+  }
+
+  function handleWithdrawMaintenanceFund(amount: number): boolean {
+    const current = companyRef.current;
+    const withdrawal = Math.min(Math.max(0, Math.round(Number(amount) || 0)), maintenanceFundRef.current.balance);
+    if (!current || withdrawal <= 0) return false;
+    persistMaintenanceFund(withdrawMaintenanceFund(maintenanceFundRef.current, withdrawal, current.tick));
+    persistCompany({ ...current, balance: current.balance + withdrawal });
+    book('Instandhaltungs-Fonds: Freigabe', withdrawal, current.tick, 'ruecklage');
+    pushNotifications([{
+      type: 'success',
+      title: 'Rücklage freigegeben',
+      message: `${formatEuro(withdrawal)} stehen wieder als Betriebsmittel zur Verfügung.`,
+      read: false,
+      created_at: tickToIso(current.tick),
+    }]);
+    return true;
+  }
+
   function handleSetOverdraft(limit: number): boolean {
     const current = companyRef.current;
     if (!current) return false;
@@ -2317,7 +2377,28 @@ function App() {
       cost: quote.cost,
       overdueMalus: quote.overdueMalus,
     };
-    if (!trySpend(quote.cost, jobLabel(job), 'betrieb')) return false;
+    const fundEligible = kind === 'reparatur' && locoHasFault(ready);
+    const coverage = fundEligible
+      ? coverRepairFromMaintenanceFund(maintenanceFundRef.current, quote.cost, current.tick)
+      : { state: maintenanceFundRef.current, covered: 0, cashDue: quote.cost };
+    if (!canSpend(current.balance, coverage.cashDue, bankRef.current.overdraftLimit)) {
+      pushNotifications([{
+        type: 'warning',
+        title: 'Zahlung abgelehnt',
+        message: `Unzureichende Mittel für ${jobLabel(job)} nach Fondsdeckung (${formatEuro(coverage.cashDue)} Restzahlung).`,
+        read: false,
+        created_at: tickToIso(current.tick),
+      }]);
+      return false;
+    }
+    if (coverage.covered > 0) {
+      persistMaintenanceFund(coverage.state);
+      book('Instandhaltungs-Fonds deckt Lokschaden', -coverage.covered, current.tick, 'ruecklage');
+    }
+    if (coverage.cashDue > 0) {
+      persistCompany({ ...current, balance: current.balance - coverage.cashDue });
+    }
+    book(jobLabel(job), -quote.cost, current.tick, 'betrieb');
     const nextJobs = [...workshopRef.current, job];
     workshopRef.current = nextJobs;
     setWorkshopJobs(nextJobs);
@@ -2669,6 +2750,7 @@ function App() {
                   locomotives={locomotives}
                   drivers={drivers}
                   unreadCount={unreadCount}
+                  advisorAlerts={advisorAlerts}
                   onNavigate={setView}
                 />
               )}
@@ -2823,6 +2905,8 @@ function App() {
                   highlightNetwork={dealerNetworkHighlight}
                   workshopDiscountPct={wsDiscount}
                   achievements={achievements}
+                  dailyFixed={dailyFixed}
+                  maintenanceFund={maintenanceFund}
                 />
               )}
               {view === 'bank' && (
@@ -2835,6 +2919,9 @@ function App() {
                   onRepayLoan={handleRepayLoan}
                   dailyFixed={dailyFixed}
                   fleetBookValue={fleetBookValue(locomotives, wagons, dealer)}
+                  maintenanceFund={maintenanceFund}
+                  onDepositMaintenanceFund={handleDepositMaintenanceFund}
+                  onWithdrawMaintenanceFund={handleWithdrawMaintenanceFund}
                 />
               )}
               {view === 'finanzen' && (

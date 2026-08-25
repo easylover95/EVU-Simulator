@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Landmark, Lock, Shield, Wallet, Percent, AlertTriangle, Banknote, X } from 'lucide-react';
+import { Landmark, Lock, Shield, Wallet, Percent, AlertTriangle, Banknote, X, Wrench } from 'lucide-react';
 import type { Company } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import { Button, Card, CardFlush, CardHeader } from '@/components/ui';
@@ -33,11 +33,14 @@ import {
 import { formatTickLabel } from '@/lib/gameTime';
 import { DailyFixedCostsCard } from '@/components/DailyFixedCostsCard';
 import type { DailyFixedCosts } from '@/lib/dailyFixedCosts';
+import { maintenanceFundTarget, type MaintenanceFundState } from '@/lib/maintenanceFund';
+import { forecastLiquidityBuffer, type LiquidityBuffer } from '@/lib/economyAdvisor';
 
 type PendingBankAction =
   | { kind: 'loan'; amount: LoanAmount; termDays: number; annualPct: number; label: string; dailyPayment: number }
   | { kind: 'overdraft'; limit: number }
   | { kind: 'insurance'; id: InsuranceId; activating: boolean; dailyCost: number }
+  | { kind: 'fund'; direction: 'deposit' | 'withdraw'; amount: number }
   | { kind: 'repay'; loan: BankLoan };
 
 interface BankViewProps {
@@ -49,6 +52,9 @@ interface BankViewProps {
   onRepayLoan: (loanId: string) => boolean;
   dailyFixed?: DailyFixedCosts;
   fleetBookValue: number;
+  maintenanceFund: MaintenanceFundState;
+  onDepositMaintenanceFund: (amount: number) => boolean;
+  onWithdrawMaintenanceFund: (amount: number) => boolean;
 }
 
 export function BankView({
@@ -60,11 +66,15 @@ export function BankView({
   onRepayLoan,
   dailyFixed,
   fleetBookValue,
+  maintenanceFund,
+  onDepositMaintenanceFund,
+  onWithdrawMaintenanceFund,
 }: BankViewProps) {
   const [amount, setAmount] = useState<LoanAmount>(25_000);
   const [offerIdx, setOfferIdx] = useState(1);
   const [draftOverdraft, setDraftOverdraft] = useState(() => normalizeOverdraftLimit(bank.overdraftLimit));
   const [pendingAction, setPendingAction] = useState<PendingBankAction | null>(null);
+  const [fundAmount, setFundAmount] = useState(10_000);
   const offer = LOAN_OFFERS[offerIdx];
   const daily = loanDailyPayment(amount, offer.termDays, offer.annualPct);
   const balance = company?.balance ?? 0;
@@ -85,6 +95,9 @@ export function BankView({
     overdraftUsed: usedOverdraft,
   });
   const loanAvailable = amountUnlocked && creditCheck.approved;
+  const dailyFixedAfterLoan = (dailyFixed?.total ?? 0) + daily;
+  const loanLiquidity = forecastLiquidityBuffer(balance + amount, dailyFixedAfterLoan);
+  const fundTarget = maintenanceFundTarget(dailyFixed?.total ?? 0);
 
   useEffect(() => setDraftOverdraft(normalizeOverdraftLimit(bank.overdraftLimit)), [bank.overdraftLimit]);
 
@@ -102,6 +115,9 @@ export function BankView({
     if (pendingAction.kind === 'loan') committed = onTakeLoan(pendingAction.amount, pendingAction.termDays, pendingAction.annualPct, pendingAction.label);
     if (pendingAction.kind === 'overdraft') committed = onSetOverdraft(pendingAction.limit);
     if (pendingAction.kind === 'insurance') committed = onToggleInsurance(pendingAction.id);
+    if (pendingAction.kind === 'fund') committed = pendingAction.direction === 'deposit'
+      ? onDepositMaintenanceFund(pendingAction.amount)
+      : onWithdrawMaintenanceFund(pendingAction.amount);
     if (pendingAction.kind === 'repay') committed = onRepayLoan(pendingAction.loan.id);
     if (committed) setPendingAction(null);
   }
@@ -348,6 +364,41 @@ export function BankView({
         </CardFlush>
       </div>
 
+      <CardFlush>
+        <CardHeader>
+          <span className="inline-flex items-center gap-2">
+            <Wrench className="h-3.5 w-3.5 text-sky-300" /> Instandhaltungs-Fonds
+          </span>
+        </CardHeader>
+        <div className="grid gap-3 p-4 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="app-glass-panel rounded-xl border border-sky-400/20 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-bold text-white">Gebundene Risikovorsorge</div>
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-400">Bei ungeplanten Lokschäden deckt der Fonds die Reparatur zuerst. Nur der ungedeckte Rest belastet anschließend Konto oder Dispo.</p>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-sky-300">{formatEuro(maintenanceFund.balance)}</div>
+                <div className="text-[10px] text-slate-500">Zielwert: {formatEuro(fundTarget)}</div>
+              </div>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-800">
+              <div className={`h-full rounded-full ${maintenanceFund.balance >= fundTarget ? 'bg-emerald-400' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, fundTarget > 0 ? (maintenanceFund.balance / fundTarget) * 100 : 0)}%` }} />
+            </div>
+          </div>
+          <div className="app-glass-panel rounded-xl border border-slate-700/70 p-4">
+            <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              Betrag
+              <input type="number" min={1_000} step={1_000} value={fundAmount} onChange={(event) => setFundAmount(Math.max(0, Math.round(Number(event.target.value) || 0)))} className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 px-2 py-1.5 text-sm text-white" />
+            </label>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button onClick={() => setPendingAction({ kind: 'fund', direction: 'deposit', amount: fundAmount })} disabled={fundAmount <= 0 || fundAmount > balance}>In Fonds verschieben</Button>
+              <Button variant="secondary" onClick={() => setPendingAction({ kind: 'fund', direction: 'withdraw', amount: fundAmount })} disabled={fundAmount <= 0 || fundAmount > maintenanceFund.balance}>Freigeben</Button>
+            </div>
+          </div>
+        </div>
+      </CardFlush>
+
       {(bank.loans ?? []).length > 0 && (
         <CardFlush>
           <CardHeader>Aktive Darlehen</CardHeader>
@@ -422,7 +473,7 @@ export function BankView({
         </div>
       </CardFlush>
 
-      {pendingAction && <BankConfirmModal pending={pendingAction} currentTier={currentTier} onCancel={() => setPendingAction(null)} onConfirm={confirmPendingAction} />}
+      {pendingAction && <BankConfirmModal pending={pendingAction} currentTier={currentTier} currentBalance={balance} maintenanceFundBalance={maintenanceFund.balance} loanLiquidity={loanLiquidity} dailyFixedAfterLoan={dailyFixedAfterLoan} onCancel={() => setPendingAction(null)} onConfirm={confirmPendingAction} />}
 
       <CardFlush>
         <CardHeader>Buchungshistorie</CardHeader>
@@ -465,11 +516,19 @@ export function BankView({
 function BankConfirmModal({
   pending,
   currentTier,
+  currentBalance,
+  maintenanceFundBalance,
+  loanLiquidity,
+  dailyFixedAfterLoan,
   onCancel,
   onConfirm,
 }: {
   pending: PendingBankAction;
   currentTier: number;
+  currentBalance: number;
+  maintenanceFundBalance: number;
+  loanLiquidity: LiquidityBuffer;
+  dailyFixedAfterLoan: number;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -480,13 +539,18 @@ function BankConfirmModal({
       ? 'Dispo-Rahmen ändern'
       : pending.kind === 'insurance'
         ? pending.activating ? 'Versicherung abschließen' : 'Versicherung kündigen'
-        : 'Sondertilgung bestätigen';
+        : pending.kind === 'fund'
+          ? pending.direction === 'deposit' ? 'Rücklage verbindlich bilden' : 'Rücklage freigeben'
+          : 'Sondertilgung bestätigen';
   const body = pending.kind === 'loan'
     ? <ConfirmRows rows={[
       ['Auszahlung', formatEuro(pending.amount)],
       ['Laufzeit', `${pending.termDays} Spieltage`],
       ['Tagesrate', formatEuro(pending.dailyPayment)],
       ['Gesamtrückzahlung', formatEuro(pending.dailyPayment * pending.termDays)],
+      ['Liquidität danach', formatEuro(currentBalance + pending.amount)],
+      ['Fixkosten inkl. Tagesrate', formatEuro(dailyFixedAfterLoan)],
+      ['Betriebspuffer', loanLiquidity.daysCovered == null ? '—' : `${loanLiquidity.daysCovered.toFixed(1).replace('.', ',')} Tage · Ziel ${formatEuro(loanLiquidity.recommendedReserve)}`],
       ['Finanzwirkung', `Liquidität +${formatEuro(pending.amount)} · Kreditrestschuld steigt`],
     ]} />
     : pending.kind === 'overdraft'
@@ -503,7 +567,14 @@ function BankConfirmModal({
           ['Status', pending.activating ? 'Wird aktiviert' : 'Wird gekündigt'],
           ['Finanzwirkung', pending.activating ? `Einmalige Aktivierung ${formatEuro(pending.dailyCost)}; danach täglich` : 'Keine Rückzahlung; künftige Tagesprämien entfallen'],
         ]} />
-        : <ConfirmRows rows={[
+        : pending.kind === 'fund'
+          ? <ConfirmRows rows={[
+            ['Betrag', formatEuro(pending.amount)],
+            ['Fonds danach', formatEuro(pending.direction === 'deposit' ? maintenanceFundBalance + pending.amount : maintenanceFundBalance - pending.amount)],
+            ['Kontowirkung', pending.direction === 'deposit' ? `−${formatEuro(pending.amount)} · keine GuV-Kosten` : `+${formatEuro(pending.amount)} · Rücklage wird freigegeben`],
+            ['Schadenlogik', 'Gemeldete Lokschäden werden künftig zuerst aus diesem Fonds gedeckt.'],
+          ]} />
+          : <ConfirmRows rows={[
           ['Kondition', pending.loan.interestLabel],
           ['Restschuld', formatEuro(pending.loan.principalRemaining)],
           ['Restzinsen', formatEuro(pending.loan.interestRemaining)],
@@ -525,6 +596,11 @@ function BankConfirmModal({
               : 'Bitte prüfe die ausgewiesene Finanz- und Statusfolge vor dem verbindlichen Abschluss.'}
         </p>
         <div className="mt-4">{body}</div>
+        {pending.kind === 'loan' && (
+          <p className={`mt-3 text-xs font-semibold ${loanLiquidity.tone === 'critical' ? 'text-rose-300' : loanLiquidity.tone === 'caution' ? 'text-amber-300' : 'text-emerald-300'}`}>
+            {loanLiquidity.message}
+          </p>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <Button variant="secondary" onClick={onCancel}><X className="h-3.5 w-3.5" /> Abbrechen</Button>
           <Button variant={destructive ? 'danger' : 'primary'} onClick={onConfirm}>{destructive ? 'Verbindlich ausführen' : 'Jetzt bestätigen'}</Button>

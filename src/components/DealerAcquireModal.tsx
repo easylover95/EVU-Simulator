@@ -2,6 +2,7 @@ import { Handshake } from 'lucide-react';
 import { formatEuro } from '@/lib/status';
 import { Button } from '@/components/ui';
 import type { Acquisition } from '@/lib/dealer';
+import type { InvestmentForecast } from '@/lib/economyAdvisor';
 
 export function DealerAcquireModal({
   name,
@@ -14,6 +15,7 @@ export function DealerAcquireModal({
   confirmDisabled = false,
   wagonQty,
   wagonGattung,
+  forecast,
   onCancel,
   onConfirm,
 }: {
@@ -27,6 +29,7 @@ export function DealerAcquireModal({
   confirmDisabled?: boolean;
   wagonQty?: number;
   wagonGattung?: string;
+  forecast?: InvestmentForecast;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
@@ -40,7 +43,7 @@ export function DealerAcquireModal({
       onClick={busy ? undefined : onCancel}
     >
       <div
-        className="fi-card w-full max-w-md overflow-hidden shadow-[0_0_40px_rgba(251,191,36,0.12)]"
+        className="fi-card w-full max-w-xl overflow-hidden shadow-[0_0_40px_rgba(251,191,36,0.12)]"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -82,6 +85,7 @@ export function DealerAcquireModal({
               </li>
             </ul>
           )}
+          {forecast && <InvestmentForecastPanel forecast={forecast} />}
           {footnote && <p className="text-[11px] text-slate-500">{footnote}</p>}
           {warning && (
             <p className="rounded-lg border border-rose-500/50 bg-rose-950/50 px-3 py-2 text-sm font-bold leading-relaxed text-rose-200">
@@ -99,5 +103,42 @@ export function DealerAcquireModal({
         </div>
       </div>
     </div>
+  );
+}
+
+function InvestmentForecastPanel({ forecast }: { forecast: InvestmentForecast }) {
+  const tone = forecast.liquidity.tone === 'critical'
+    ? { border: 'border-rose-500/45', title: 'text-rose-200', number: 'text-rose-300' }
+    : forecast.liquidity.tone === 'caution'
+      ? { border: 'border-amber-500/45', title: 'text-amber-200', number: 'text-amber-300' }
+      : { border: 'border-emerald-500/35', title: 'text-emerald-200', number: 'text-emerald-300' };
+  const contribution = forecast.dailyContribution;
+  return (
+    <section className={`rounded-lg border ${tone.border} bg-slate-950/45 p-3 text-[11px]`}>
+      <div className={`font-bold uppercase tracking-wide ${tone.title}`}>Investitions-Prognose vor Bindung</div>
+      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
+        <div>
+          <dt className="text-slate-500">Fixkosten / Tag</dt>
+          <dd className="font-semibold text-white">{formatEuro(forecast.dailyFixedBefore)} → {formatEuro(forecast.dailyFixedAfter)}</dd>
+          <dd className={forecast.additionalDailyFixed > 0 ? 'text-amber-300' : 'text-slate-400'}>+{formatEuro(forecast.additionalDailyFixed)} / Tag</dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Liquidität nach Erwerb</dt>
+          <dd className={`font-semibold ${tone.number}`}>{formatEuro(forecast.liquidity.afterCash)}</dd>
+          <dd className="text-slate-400">Reserve-Ziel {formatEuro(forecast.liquidity.recommendedReserve)}</dd>
+        </div>
+        {contribution != null ? (
+          <div className="col-span-2 border-t border-slate-700/70 pt-2">
+            <dt className="text-slate-500">Geschätzter Deckungsbeitrag / zusätzlichem Tageslauf</dt>
+            <dd className={contribution >= 0 ? 'font-semibold text-emerald-300' : 'font-semibold text-rose-300'}>
+              {formatEuro(contribution)} <span className="font-normal text-slate-400">aus {formatEuro(forecast.dailyRevenue ?? 0)} Erlös − {formatEuro(forecast.dailyOperatingCost ?? 0)} Trasse/Energie</span>
+            </dd>
+          </div>
+        ) : (
+          <div className="col-span-2 border-t border-slate-700/70 pt-2 text-slate-400">{forecast.operationalLabel}</div>
+        )}
+        <div className="col-span-2 text-slate-400">Instandhaltungs-Fonds: {formatEuro(forecast.maintenanceFundBalance)} · {forecast.liquidity.message}</div>
+      </dl>
+    </section>
   );
 }
