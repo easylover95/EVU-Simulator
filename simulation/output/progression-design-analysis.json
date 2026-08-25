@@ -1,0 +1,320 @@
+{
+  "assumptions": {
+    "model": "Softcap bei Kernstufe 20, danach Meilenstein-/Zertifizierungssystem ohne Reset",
+    "XP_NEXT_GROWTH": 1.45,
+    "proposedFinancialSoftcapLevel": 10,
+    "proposedOverdraftFinancialCap": 175000,
+    "purchaseLockUtilization": 0.6,
+    "progressiveDailyRates": {
+      "utilizationUpTo50Pct": 0.00035,
+      "utilization50To85Pct": 0.00055,
+      "utilizationAbove85Pct": 0.0008
+    },
+    "note": "Szenarien verwenden lokale illustrative Netto-Cashflows nach operativer Leistung. Sie sind keine reale Finanzmarktprognose."
+  },
+  "xpCurve": [
+    {
+      "level": 1,
+      "xpForNext": 1000,
+      "cumulativeXpFromStart": 0
+    },
+    {
+      "level": 2,
+      "xpForNext": 1450,
+      "cumulativeXpFromStart": 1000
+    },
+    {
+      "level": 3,
+      "xpForNext": 2103,
+      "cumulativeXpFromStart": 2450
+    },
+    {
+      "level": 5,
+      "xpForNext": 4421,
+      "cumulativeXpFromStart": 7602
+    },
+    {
+      "level": 10,
+      "xpForNext": 28337,
+      "cumulativeXpFromStart": 60749
+    },
+    {
+      "level": 15,
+      "xpForNext": 181636,
+      "cumulativeXpFromStart": 401410
+    },
+    {
+      "level": 20,
+      "xpForNext": 1164237,
+      "cumulativeXpFromStart": 2584968
+    },
+    {
+      "level": 21,
+      "xpForNext": 1688144,
+      "cumulativeXpFromStart": 3749205
+    },
+    {
+      "level": 25,
+      "xpForNext": 7462451,
+      "cumulativeXpFromStart": 16580999
+    }
+  ],
+  "overdraftCurve": [
+    {
+      "level": 1,
+      "stage": "early",
+      "currentLimit": 20000,
+      "proposedCeiling": 25000,
+      "purchaseLockAt": 15000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 2,
+      "stage": "early",
+      "currentLimit": 45000,
+      "proposedCeiling": 35000,
+      "purchaseLockAt": 21000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 3,
+      "stage": "early",
+      "currentLimit": 70000,
+      "proposedCeiling": 50000,
+      "purchaseLockAt": 30000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 4,
+      "stage": "mid",
+      "currentLimit": 95000,
+      "proposedCeiling": 65000,
+      "purchaseLockAt": 39000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 5,
+      "stage": "mid",
+      "currentLimit": 120000,
+      "proposedCeiling": 80000,
+      "purchaseLockAt": 48000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 6,
+      "stage": "mid",
+      "currentLimit": 145000,
+      "proposedCeiling": 100000,
+      "purchaseLockAt": 60000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 7,
+      "stage": "mid",
+      "currentLimit": 170000,
+      "proposedCeiling": 120000,
+      "purchaseLockAt": 72000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 8,
+      "stage": "late",
+      "currentLimit": 200000,
+      "proposedCeiling": 140000,
+      "purchaseLockAt": 84000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 9,
+      "stage": "late",
+      "currentLimit": 225000,
+      "proposedCeiling": 155000,
+      "purchaseLockAt": 93000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 10,
+      "stage": "late",
+      "currentLimit": 250000,
+      "proposedCeiling": 175000,
+      "purchaseLockAt": 105000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 11,
+      "stage": "late",
+      "currentLimit": 250000,
+      "proposedCeiling": 175000,
+      "purchaseLockAt": 105000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 12,
+      "stage": "late",
+      "currentLimit": 250000,
+      "proposedCeiling": 175000,
+      "purchaseLockAt": 105000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 13,
+      "stage": "late",
+      "currentLimit": 250000,
+      "proposedCeiling": 175000,
+      "purchaseLockAt": 105000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 14,
+      "stage": "late",
+      "currentLimit": 250000,
+      "proposedCeiling": 175000,
+      "purchaseLockAt": 105000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 15,
+      "stage": "late",
+      "currentLimit": 250000,
+      "proposedCeiling": 175000,
+      "purchaseLockAt": 105000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 16,
+      "stage": "late",
+      "currentLimit": 250000,
+      "proposedCeiling": 175000,
+      "purchaseLockAt": 105000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 17,
+      "stage": "late",
+      "currentLimit": 250000,
+      "proposedCeiling": 175000,
+      "purchaseLockAt": 105000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 18,
+      "stage": "late",
+      "currentLimit": 250000,
+      "proposedCeiling": 175000,
+      "purchaseLockAt": 105000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 19,
+      "stage": "late",
+      "currentLimit": 250000,
+      "proposedCeiling": 175000,
+      "purchaseLockAt": 105000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    },
+    {
+      "level": 20,
+      "stage": "late",
+      "currentLimit": 250000,
+      "proposedCeiling": 175000,
+      "purchaseLockAt": 105000,
+      "dailyRateAtHalfOrLess": 0.00035,
+      "dailyRateAtHighUse": 0.00055,
+      "dailyRateAtCriticalUse": 0.0008
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "fruehspiel_defekt",
+      "level": 2,
+      "days": 21,
+      "openingBalance": 3000,
+      "dailyOperatingCashflow": 1800,
+      "shockDay": 3,
+      "shockCost": 18000,
+      "ceiling": 35000,
+      "finalBalance": 22789,
+      "interestPaid": 11,
+      "peakDispoUsed": 9603,
+      "peakUtilization": 0.27437142857142854,
+      "daysNegative": 6,
+      "dayRecovered": 9,
+      "investmentLockDays": 0,
+      "insolvent": false
+    },
+    {
+      "id": "mittelspiel_werkstatt",
+      "level": 6,
+      "days": 30,
+      "openingBalance": 12000,
+      "dailyOperatingCashflow": 3500,
+      "shockDay": 5,
+      "shockCost": 52000,
+      "ceiling": 100000,
+      "finalBalance": 64970,
+      "interestPaid": 30,
+      "peakDispoUsed": 22508,
+      "peakUtilization": 0.22508,
+      "daysNegative": 7,
+      "dayRecovered": 12,
+      "investmentLockDays": 0,
+      "insolvent": false
+    },
+    {
+      "id": "spaetspiel_flottenausfall",
+      "level": 10,
+      "days": 45,
+      "openingBalance": 18000,
+      "dailyOperatingCashflow": 6500,
+      "shockDay": 3,
+      "shockCost": 145000,
+      "ceiling": 175000,
+      "finalBalance": 165090,
+      "interestPaid": 410,
+      "peakDispoUsed": 107559,
+      "peakUtilization": 0.6146228571428571,
+      "daysNegative": 17,
+      "dayRecovered": 20,
+      "investmentLockDays": 1,
+      "insolvent": false
+    }
+  ]
+}

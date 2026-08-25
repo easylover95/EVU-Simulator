@@ -14,6 +14,7 @@
     "simulate:freight-year:dynamic": "tsx --tsconfig tsconfig.app.json simulation/runDynamicFreightYear365.ts",
     "analyze:freight-pricing": "tsx --tsconfig tsconfig.app.json simulation/analyzeFreightPricing.ts && tsx --tsconfig tsconfig.app.json simulation/renderFreightPricingReport.ts",
     "analyze:market-sizing": "tsx --tsconfig tsconfig.app.json simulation/analyzeMarketSizing.ts",
+    "analyze:progression-design": "tsx --tsconfig tsconfig.app.json simulation/analyzeProgressionDesign.ts",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
