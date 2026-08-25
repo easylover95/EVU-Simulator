@@ -1357,6 +1357,22 @@ body,
 }
 
 @media (max-width: 420px) {
+  .office-hotspot {
+    min-width: 3.2rem;
+    min-height: 2.8rem;
+  }
+  .office-hotspot-chip {
+    max-width: min(9rem, 42vw);
+    padding: 0.42rem 0.58rem;
+    font-size: 8px;
+    line-height: 1.15;
+    white-space: normal;
+    text-align: center;
+  }
+  .office-hotspot-icon {
+    height: 0.8rem;
+    width: 0.8rem;
+  }
   .modal-scrim {
     align-items: flex-start;
     overflow-y: auto;

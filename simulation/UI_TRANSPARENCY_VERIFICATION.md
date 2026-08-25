@@ -36,3 +36,7 @@ Der Preview-Link wurde nach dem Build erneut geladen. Die visuelle Prüfung fand
 Die Hauptnavigation wurde auf 390 × 844 px durch eine feste, kontrastreiche Bottom-Bar mit fünf gleich großen Touch-Zielen ergänzt. Die Bereiche erscheinen als kurze, verständliche Labels „Home“, „Fracht“, „Flotte“, „Bank“ und „Firma“ mit Icons. Im Startdialog bleibt die Bottom-Bar sichtbar, ohne die Eingabefelder oder den primären Gründungsbutton zu überdecken; der Inhaltsbereich erhält dafür zusätzlichen unteren Sicherheitsabstand.
 
 Die lange Kategorienavigation am oberen Rand bleibt für breitere mobile Geräte erhalten, wird auf sehr schmalen Displays ausgeblendet und durch die Bottom-Bar ersetzt. Dadurch muss der Nutzer nicht mehr nach rechts wischen, um „Finanzen & Bank“ oder „Firma & Personal“ zu finden. Der Portrait-Screenshot bestätigt, dass die fünf Bereiche gleichzeitig sichtbar und mit ausreichend großen Touch-Flächen erreichbar sind.
+
+## Mobile-Usability-Finalprüfung
+
+Der finale Portrait-Build wurde mit 390 × 844 px geprüft. Die Bottom-Bar bleibt mit den fünf Bereichen „Home“, „Fracht“, „Flotte“, „Bank“ und „Firma“ am unteren Rand sichtbar und wird nicht vom Gründungsdialog verdeckt. Der Startdialog bleibt vollständig lesbar und bedienbar. Die zentralen Büro-Hotspots erhalten auf sehr schmalen Displays größere Mindest-Touchflächen und kompaktere, umbrechende Labels.
