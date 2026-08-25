@@ -69,6 +69,8 @@ export function OrderCostBreakdown({
   const period = daily
     ? 'Täglich während des Einsatzes (parallel zum Tageserlös)'
     : 'Abbuchung beim Start der Fahrt · Erlös bei Abschluss';
+  const tkmRevenue = Math.max(0, Number(order.tkm_revenue) || 0);
+  const baseRevenue = daily ? 0 : Math.max(0, diesel.grossYield - tkmRevenue);
 
   return (
     <div className={`app-glass-panel rounded-sm border border-amber-500/25 ${compact ? 'p-2.5' : 'p-3'}`}>
@@ -81,10 +83,32 @@ export function OrderCostBreakdown({
       </div>
 
       <div className="space-y-1.5">
+        {!daily && (
+          <>
+            <MoneyRow
+              label="Sockelpauschale"
+              amount={baseRevenue}
+              hint="Disposition, Bereitstellung und Zugvorlauf"
+              tone="gross"
+            />
+            <MoneyRow
+              label="Tonnenkilometer-Anteil"
+              amount={tkmRevenue}
+              hint={`${Math.round(Number(order.weight_t) || 0).toLocaleString('de-DE')} t × ${Math.round(Number(order.distance_km) || 0).toLocaleString('de-DE')} km · ${Number(order.eur_per_tkm || 0).toFixed(3).replace('.', ',')} €/tkm effektiv`}
+              tone="gross"
+            />
+          </>
+        )}
         <MoneyRow
           label={daily ? 'Brutto-Erlös (Tagespauschale)' : 'Brutto-Erlös'}
           amount={diesel.grossYield}
-          hint={daily && order.deployment_days ? `${order.deployment_days} Tage Vertrag` : undefined}
+          hint={
+            daily && order.deployment_days
+              ? `${order.deployment_days} Tage Vertrag · Kostenbasis plus Einsatzmarge`
+              : !daily
+                ? 'Sockelpauschale + distanzproportionaler Tonnenkilometer-Anteil'
+                : undefined
+          }
           tone="gross"
         />
         <MoneyRow

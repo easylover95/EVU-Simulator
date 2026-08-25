@@ -1,0 +1,57 @@
+{
+  "model": "rebalanced-proportional",
+  "standing": {
+    "level": 1,
+    "reputation": 0
+  },
+  "spot": [
+    {
+      "id": "duisburg-dortmund-55km",
+      "distanceKm": 55,
+      "weightT": 1000,
+      "grossYield": 4394,
+      "tkm": 55000,
+      "eurPerTkm": 0.0799,
+      "operatingCost": 1468,
+      "netProfit": 2926
+    },
+    {
+      "id": "bayreuth-regensburg-120km",
+      "distanceKm": 120,
+      "weightT": 1000,
+      "grossYield": 7436,
+      "tkm": 120000,
+      "eurPerTkm": 0.062,
+      "operatingCost": 3204,
+      "netProfit": 4232
+    }
+  ],
+  "baugleis": [
+    {
+      "id": "baugleis-120km",
+      "distanceKm": 120,
+      "weightT": 1000,
+      "dailyRate": 5469,
+      "operatingCostPerDay": 3383,
+      "netProfitPerDay": 2086,
+      "pathCost": 1112,
+      "energyCost": 1493,
+      "pdlCost": 778,
+      "formulaOperatingBaseline": 3375,
+      "formulaOperatingMargin": 2094
+    },
+    {
+      "id": "baugleis-285km",
+      "distanceKm": 285,
+      "weightT": 1400,
+      "dailyRate": 10299,
+      "operatingCostPerDay": 7325,
+      "netProfitPerDay": 2974,
+      "pathCost": 2929,
+      "energyCost": 3546,
+      "pdlCost": 850,
+      "formulaOperatingBaseline": 7325,
+      "formulaOperatingMargin": 2974
+    }
+  ]
+}

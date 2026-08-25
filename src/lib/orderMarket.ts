@@ -30,14 +30,24 @@ export function isMarketRefreshAvailable(lastDay: string | null, tick: number, e
   return lastDay !== marketRefreshDayKey(tick, extraMinutes);
 }
 
-/** Spot / industrial trip bands (€ per Güterzug). Long+heavy interpolates to max, short+light to min. */
+/** Freight revenue is a transparent combination of preparation fee and ton-kilometre rate. */
 export type FreightPriceBand = 'intermodal' | 'block' | 'bulk';
 
-/** Mature (Level 6+) bands. Short trips sit near min; Level 1–3 apply ~45–50 % cut on top. */
-export const SPOT_YIELD_BANDS: Record<FreightPriceBand, { min: number; max: number }> = {
-  intermodal: { min: 7_000, max: 38_000 },
-  block: { min: 5_600, max: 28_000 },
-  bulk: { min: 4_400, max: 22_000 },
+export interface FreightRevenueRate {
+  /** Mature (Level 6+) compensation for disposition, wagon provision and readiness. */
+  baseFee: number;
+  /** Mature (Level 6+) compensation per transported tonne-kilometre. */
+  eurPerTkm: number;
+}
+
+/**
+ * No distance cap is applied: longer routes gain revenue proportionally with their transport work.
+ * The player-level multiplier is applied to both components equally and is intentionally visible in the order notes.
+ */
+export const SPOT_REVENUE_RATES: Record<FreightPriceBand, FreightRevenueRate> = {
+  intermodal: { baseFee: 4_800, eurPerTkm: 0.11 },
+  block: { baseFee: 4_000, eurPerTkm: 0.1 },
+  bulk: { baseFee: 3_500, eurPerTkm: 0.09 },
 };
 
 export interface CommercialStanding {
@@ -112,18 +122,37 @@ export function allowedEinsatzDays(level: number): BaugleisDuration[] {
 
 export const BAUGLEIS_MIN_DRIVERS = 2;
 
-/** Daily lump sum while loco + both Tf are exclusive on site (independent of duration). */
-export const BAUGLEIS_DAILY_MIN = 4_500;
-export const BAUGLEIS_DAILY_MAX = 8_500;
+/**
+ * Baugleis deployments are charged per day. The rate covers a default daily operating-cost baseline
+ * (route path, diesel and an external AZF allowance) plus a route-/load-sensitive margin for the
+ * exclusive locomotive and two-driver capacity.
+ */
+export const BAUGLEIS_DAILY_FLOOR = 1_200;
+/** Safety limit only; regular generated offers stay far below it and are not commercially capped. */
+export const BAUGLEIS_DAILY_SAFETY_CEILING = 25_000;
+export const BAUGLEIS_SITE_MARGIN_BASE = 1_600;
+export const BAUGLEIS_SITE_MARGIN_EUR_PER_KM = 7;
+export const BAUGLEIS_SITE_MARGIN_EUR_PER_100T = 55;
+export const BAUGLEIS_RISK_BUFFER = 180;
 
-export const BAUGLEIS_INTERP = {
-  tMin: 400,
-  tMax: 1400,
-  kmMin: 35,
-  kmMax: 285,
-  tWeight: 0.7,
-  kmWeight: 0.3,
-} as const;
+/** Mirrors the default operating-cost parameters without importing the higher layer and creating a circular dependency. */
+export const BAUGLEIS_BASE_PATH_EUR_PER_TRAIN_KM = 9.6 * 1.08;
+export const BAUGLEIS_BASE_PATH_EUR_PER_100T_KM = 0.36 * 1.08;
+export const BAUGLEIS_PATH_FACTOR = 0.65;
+export const BAUGLEIS_DIESEL_EUR_PER_KM = 4.8 * 2.4 * 1.08;
+export const BAUGLEIS_PDL_DAILY_MIN = 650;
+export const BAUGLEIS_PDL_DAILY_MAX = 850;
+
+export interface BaugleisRateBreakdown {
+  dailyRate: number;
+  estimatedOperatingCost: number;
+  estimatedPathCost: number;
+  estimatedEnergyCost: number;
+  estimatedPdlCost: number;
+  operatingMargin: number;
+  baseMargin: number;
+}
+
 
 export type FreightCustomerCategory = 'gleisbau' | 'stahl' | 'chemie' | 'energie' | 'intermodal';
 
@@ -447,9 +476,9 @@ export function freightTkmRate(
 }
 
 /**
- * Spot / industrial trip revenue (mature band, then level/reputation multiplier).
- * factor = 0.55·clamp01((km−50)/750) + 0.45·clamp01((t−400)/1200)
- * yield  = round((band.min + factor·(band.max−band.min)) × multiplier)
+ * Spot / industrial trip revenue with transparent, proportional scaling.
+ * gross = (band base fee + tkm × band €/tkm) × player standing multiplier.
+ * Unlike the previous interpolation, no route-length ceiling can make a longer run less profitable than a short run.
  */
 export function computeSpotYield(
   type: OrderType,
@@ -462,22 +491,20 @@ export function computeSpotYield(
   const tons = Math.max(0, weightT);
   const tkm = km * tons;
   const band = freightPriceBand(category, type);
-  const { min, max } = SPOT_YIELD_BANDS[band];
-  const { factor, fKm } = interpolateLoadFactor(km, tons);
-  const mature = min + factor * (max - min);
-  const scaled = mature * freightRevenueMultiplier(standing);
-  const yieldAmt = Math.round(Math.max(400, Math.min(max, scaled)));
-  const tkmShare = Math.round((max - min) * SPOT_INTERP.kmWeight * fKm * freightRevenueMultiplier(standing));
-  const tkmRevenue = Math.max(0, Math.min(yieldAmt - Math.round(min * freightRevenueMultiplier(standing)), tkmShare));
+  const rate = SPOT_REVENUE_RATES[band];
+  const multiplier = freightRevenueMultiplier(standing);
+  const baseRevenue = Math.round(rate.baseFee * multiplier);
+  const tkmRevenue = Math.round(tkm * rate.eurPerTkm * multiplier);
+  const yieldAmt = Math.round(Math.max(400, baseRevenue + tkmRevenue));
   const eurPerTkm = tkm > 0 ? yieldAmt / tkm : 0;
   return {
     yield: yieldAmt,
     tkm,
     eurPerTkm,
     tkmRevenue,
-    baseRevenue: yieldAmt - tkmRevenue,
+    baseRevenue,
     band,
-    factor,
+    factor: 1,
   };
 }
 
@@ -500,20 +527,48 @@ export function requiredDriversFor(order: Order): number {
 }
 
 /**
- * Baugleis-Einsatz daily lump sum (duration does not change the day rate).
- * factor = 0.7·clamp01((t−400)/1000) + 0.3·clamp01((km−35)/250)
- * daily  = round((4500 + factor·4000) × baugleis multiplier), floor 1.200 €.
+ * Baugleis day rate = estimated daily operating-cost baseline + commercial capacity margin.
+ * It responds directly to distance and mass instead of stopping at a fixed revenue cap.
  */
-export function baugleisDailyRate(_days: number, siteKm = 80, weightT = 900, standing?: CommercialStanding | null): number {
-  const { factor } = interpolateLoadFactor(siteKm, weightT, BAUGLEIS_INTERP);
-  const mature = BAUGLEIS_DAILY_MIN + factor * (BAUGLEIS_DAILY_MAX - BAUGLEIS_DAILY_MIN);
-  const scaled = mature * baugleisRevenueMultiplier(standing);
-  return Math.round(Math.max(1_200, Math.min(BAUGLEIS_DAILY_MAX, scaled)));
+export function computeBaugleisDailyRate(
+  _days: number,
+  siteKm = 80,
+  weightT = 900,
+  standing?: CommercialStanding | null,
+): BaugleisRateBreakdown {
+  const km = Math.max(0, siteKm);
+  const tons = Math.max(0, weightT);
+  const pathRate = (BAUGLEIS_BASE_PATH_EUR_PER_TRAIN_KM + BAUGLEIS_BASE_PATH_EUR_PER_100T_KM * (tons / 100)) * BAUGLEIS_PATH_FACTOR;
+  const estimatedPathCost = Math.round(pathRate * km);
+  const estimatedEnergyCost = Math.round(BAUGLEIS_DIESEL_EUR_PER_KM * km);
+  const pdlLoad = clamp01((tons - 400) / 1000);
+  const estimatedPdlCost = Math.round(BAUGLEIS_PDL_DAILY_MIN + pdlLoad * (BAUGLEIS_PDL_DAILY_MAX - BAUGLEIS_PDL_DAILY_MIN));
+  const estimatedOperatingCost = estimatedPathCost + estimatedEnergyCost + estimatedPdlCost;
+  const matureMargin =
+    BAUGLEIS_SITE_MARGIN_BASE +
+    km * BAUGLEIS_SITE_MARGIN_EUR_PER_KM +
+    (tons / 100) * BAUGLEIS_SITE_MARGIN_EUR_PER_100T;
+  const baseMargin = Math.max(1_400, matureMargin * baugleisRevenueMultiplier(standing));
+  const operatingMargin = Math.round(baseMargin + BAUGLEIS_RISK_BUFFER);
+  const dailyRate = clampBaugleisDailyRate(estimatedOperatingCost + operatingMargin);
+  return {
+    dailyRate,
+    estimatedOperatingCost,
+    estimatedPathCost,
+    estimatedEnergyCost,
+    estimatedPdlCost,
+    operatingMargin,
+    baseMargin: Math.round(baseMargin),
+  };
+}
+
+export function baugleisDailyRate(days: number, siteKm = 80, weightT = 900, standing?: CommercialStanding | null): number {
+  return computeBaugleisDailyRate(days, siteKm, weightT, standing).dailyRate;
 }
 
 export function clampBaugleisDailyRate(rate: number): number {
-  if (!Number.isFinite(rate)) return 1_200;
-  return Math.round(Math.max(1_200, Math.min(BAUGLEIS_DAILY_MAX, rate)));
+  if (!Number.isFinite(rate)) return BAUGLEIS_DAILY_FLOOR;
+  return Math.round(Math.max(BAUGLEIS_DAILY_FLOOR, Math.min(BAUGLEIS_DAILY_SAFETY_CEILING, rate)));
 }
 
 export function dayOfYear(date: Date): number {
@@ -729,7 +784,7 @@ function buildSpotOrder(
     penalty: type === 'baugleis' ? scaleLegacyAmount(randInt(2800, 5200)) : scaleLegacyAmount(randInt(180, 800)),
     deadline,
     status: 'offen',
-    notes: `${customer.name} · ${need.count}× ${wagonType} · ${priced.tkm.toLocaleString('de-DE')} tkm · ${priced.eurPerTkm.toFixed(3).replace('.', ',')} €/tkm (${priced.tkmRevenue.toLocaleString('de-DE')} € Distanzanteil)`,
+    notes: `${customer.name} · ${need.count}× ${wagonType} · ${priced.tkm.toLocaleString('de-DE')} tkm · ${priced.eurPerTkm.toFixed(3).replace('.', ',')} €/tkm (Sockel ${priced.baseRevenue.toLocaleString('de-DE')} € + ${priced.tkmRevenue.toLocaleString('de-DE')} € tkm-Anteil)`,
     min_brh: clampOrderMinBrh(type, type === 'baugleis' ? randInt(50, 65) : randInt(60, 75)),
     required_wagon_type: wagonType,
     required_wagon_count: need.count,
@@ -783,7 +838,7 @@ function buildEinsatzOrder(
     penalty: scaleLegacyAmount(mega ? 28_000 : 12_000),
     deadline: new Date(gameDate.getTime() + days * 24 * 60 * 60 * 1000).toISOString(),
     status: 'offen',
-    notes: `${customer.name} bindet 1 Diesellok (BR 218 / V 90 / BR 290 o. ä.) plus ${BAUGLEIS_MIN_DRIVERS} Tf im Schichtwechsel für ${days} Tage. Tagespauschale ${daily.toLocaleString('de-DE')} €. ${cargo}, ${need.count}× ${wagonType}.`,
+    notes: `${customer.name} bindet 1 Diesellok (BR 218 / V 90 / BR 290 o. ä.) plus ${BAUGLEIS_MIN_DRIVERS} Tf im Schichtwechsel für ${days} Tage. Tagespauschale ${daily.toLocaleString('de-DE')} € deckt Trasse, Energie und AZF/PDL-Basis plus Einsatzmarge. ${cargo}, ${need.count}× ${wagonType}.`,
     min_brh: clampOrderMinBrh('baugleis', randInt(50, 62)),
     required_wagon_type: wagonType,
     required_wagon_count: need.count,
