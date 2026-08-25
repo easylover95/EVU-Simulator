@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="24" fill="#0f172a"/>
+  <rect x="8" y="8" width="112" height="112" rx="18" fill="none" stroke="#f59e0b" stroke-width="4"/>
+  <text x="64" y="78" text-anchor="middle" font-family="Arial, sans-serif" font-size="42" font-weight="700" fill="#fbbf24">EVU</text>
+</svg>

@@ -1,0 +1,176 @@
+import type { RefObject } from 'react';
+import { Mail, Pause, Play, Settings, Star, Train, Users } from 'lucide-react';
+import type { Company } from '@/lib/supabase';
+import { formatEuro } from '@/lib/status';
+import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
+import { NAV_CATEGORIES, categoryDef, categoryForView, showsSubnav, type AppView } from '@/lib/navigation';
+
+export interface AppTopbarProps {
+  headerRef: RefObject<HTMLElement | null>;
+  view: AppView;
+  company: Company | null;
+  fleetCount: number;
+  personnelCount: number;
+  clockRunning: boolean;
+  clockSpeed: ClockSpeed;
+  gameNow: Date;
+  unreadCount: number;
+  onSetView: (view: AppView) => void;
+  onSetClockRunning: (running: boolean) => void;
+  onSetClockSpeed: (speed: ClockSpeed) => void;
+  onOpenInbox: () => void;
+  onEditCompany: () => void;
+  onHelp: () => void;
+  onLogout: () => void;
+}
+
+export function AppTopbar({
+  headerRef,
+  view,
+  company,
+  fleetCount,
+  personnelCount,
+  clockRunning,
+  clockSpeed,
+  gameNow,
+  unreadCount,
+  onSetView,
+  onSetClockRunning,
+  onSetClockSpeed,
+  onOpenInbox,
+  onEditCompany,
+  onHelp,
+  onLogout,
+}: AppTopbarProps) {
+  const cat = categoryForView(view);
+  const def = categoryDef(cat);
+  const subnav = showsSubnav(view);
+
+  return (
+    <header ref={headerRef as RefObject<HTMLElement>} className="app-topbar">
+      <div className="app-topbar-status">
+        <div className="app-topbar-brand">
+          <span className="app-topbar-mark" aria-hidden>
+            EVU
+          </span>
+          <div className="min-w-0">
+            <div className="app-topbar-company">{company?.name ?? 'AixRail GmbH'}</div>
+            <div className="app-topbar-meta">
+              <span>{company?.hq_location?.trim() || 'Aachen'}</span>
+              <span className="app-topbar-dot" />
+              <span data-tutorial="tutorial-level">Lvl {company?.level ?? 1}</span>
+              <span className="app-topbar-dot" />
+              <Train className="h-3 w-3 text-amber-400/80" />
+              <span className="tabular-nums">{fleetCount}</span>
+              <Users className="h-3 w-3 text-amber-400/80" />
+              <span className="tabular-nums">{personnelCount}</span>
+              <Star className="h-3 w-3 text-amber-400/80" />
+              <span className="tabular-nums text-amber-300">{company?.reputation ?? 0}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="app-topbar-clock">
+          <button
+            type="button"
+            title="Pause"
+            onClick={() => onSetClockRunning(false)}
+            className={`app-topbar-ctrl ${!clockRunning ? 'is-on is-pause' : ''}`}
+          >
+            <Pause className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Play"
+            onClick={() => onSetClockRunning(true)}
+            className={`app-topbar-ctrl ${clockRunning ? 'is-on is-play' : ''}`}
+          >
+            <Play className="h-3.5 w-3.5" />
+          </button>
+          <div className="app-topbar-speeds">
+            {CLOCK_SPEEDS.map((speed) => (
+              <button
+                key={speed}
+                type="button"
+                onClick={() => onSetClockSpeed(speed)}
+                className={clockSpeed === speed ? 'is-on' : ''}
+              >
+                {speed}x
+              </button>
+            ))}
+          </div>
+          <span
+            className={`app-topbar-live ${clockRunning ? 'is-running' : ''}`}
+            aria-hidden
+          />
+          <span className="fi-tick app-topbar-time">{formatGameDateTime(gameNow)}</span>
+        </div>
+
+        <div className="app-topbar-actions">
+          <div className="app-topbar-konto" data-tutorial="tutorial-konto">
+            <span>Konto</span>
+            <strong>{formatEuro(company?.balance ?? 0)}</strong>
+          </div>
+          <button
+            type="button"
+            title="Firma bearbeiten"
+            onClick={onEditCompany}
+            className="app-topbar-ctrl"
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Posteingang"
+            onClick={onOpenInbox}
+            className={`app-topbar-ctrl relative ${view === 'posteingang' ? 'is-on is-pause' : ''}`}
+          >
+            <Mail className="h-3.5 w-3.5" />
+            {unreadCount > 0 && (
+              <span className="app-topbar-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+            )}
+          </button>
+          <button type="button" onClick={onHelp} className="app-topbar-text-btn" title="Handbuch">
+            Hilfe
+          </button>
+          <button type="button" onClick={onLogout} className="app-topbar-text-btn" title="Zum Hauptmenü">
+            Logout
+          </button>
+        </div>
+      </div>
+
+      <div className="app-topbar-tabs-row">
+        <nav className="app-nav-tabs no-scrollbar" aria-label="Hauptnavigation">
+          {NAV_CATEGORIES.map((item) => {
+            const active = cat === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSetView(item.defaultView)}
+                className={`app-nav-tab ${active ? 'is-active' : ''}`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {subnav && (
+        <nav className="app-topbar-sub no-scrollbar" aria-label="Untermenü">
+          {def.items.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onSetView(item.id)}
+              className={`app-sub-tab ${view === item.id ? 'is-active' : ''}`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      )}
+    </header>
+  );
+}

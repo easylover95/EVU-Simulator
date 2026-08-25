@@ -1,0 +1,10 @@
+# EVU Simulator
+
+Das Projekt ist eine realistische Hardcore-Eisenbahn-Wirtschaftssimulation (EVU).
+
+## Logische Kettenreaktionen
+
+Achte bei jeder Code-Änderung streng auf logische Kettenreaktionen:
+
+- Wenn sich Start-Bedingungen, Kapazitäten (z. B. Wagen-Stellplätze), Dispo-Stufen oder Level-Grenzen ändern, müssen alle verknüpften UI-Ansichten (Fuhrpark, Händler, Bank, Personal) automatisch proportional angepasst werden.
+- Keine harten Limits, die den Spieler blockieren (z. B. Wagen-Stellplätze müssen immer ausreichen, um mindestens einen Standard-Ganzzug zu fassen).

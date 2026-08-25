@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+  <defs>
+    <linearGradient id="railFade" x1="960" y1="400" x2="960" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#94a3b8" stop-opacity="0"/>
+      <stop offset="0.28" stop-color="#cbd5e1" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#e2e8f0" stop-opacity="0.55"/>
+    </linearGradient>
+    <linearGradient id="sleeperFade" x1="960" y1="420" x2="960" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#94a3b8" stop-opacity="0"/>
+      <stop offset="0.4" stop-color="#64748b" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#94a3b8" stop-opacity="0.5"/>
+    </linearGradient>
+    <linearGradient id="wireFade" x1="960" y1="200" x2="960" y2="900" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c9a85c" stop-opacity="0.04"/>
+      <stop offset="1" stop-color="#e2e8f0" stop-opacity="0.28"/>
+    </linearGradient>
+  </defs>
+
+  <ellipse cx="960" cy="428" rx="640" ry="70" fill="#64748b" opacity="0.07"/>
+
+  <!-- outer tracks -->
+  <path d="M80 1080 L890 458" fill="none" stroke="url(#railFade)" stroke-width="1.4" opacity="0.55"/>
+  <path d="M230 1080 L908 458" fill="none" stroke="url(#railFade)" stroke-width="1.4" opacity="0.55"/>
+  <path d="M1840 1080 L1030 458" fill="none" stroke="url(#railFade)" stroke-width="1.4" opacity="0.55"/>
+  <path d="M1690 1080 L1012 458" fill="none" stroke="url(#railFade)" stroke-width="1.4" opacity="0.55"/>
+
+  <!-- main track rails -->
+  <path d="M742 1080 L946 438" fill="none" stroke="url(#railFade)" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M790 1080 L952 442" fill="none" stroke="url(#railFade)" stroke-width="1.8"/>
+  <path d="M1130 1080 L968 442" fill="none" stroke="url(#railFade)" stroke-width="1.8"/>
+  <path d="M1178 1080 L974 438" fill="none" stroke="url(#railFade)" stroke-width="3.2" stroke-linecap="round"/>
+
+  <!-- sleepers (perspective) -->
+  <g stroke="url(#sleeperFade)" stroke-linecap="round" fill="none">
+    <line x1="932" y1="486" x2="988" y2="486" stroke-width="2"/>
+    <line x1="922" y1="518" x2="998" y2="518" stroke-width="2.1"/>
+    <line x1="910" y1="556" x2="1010" y2="556" stroke-width="2.2"/>
+    <line x1="896" y1="600" x2="1024" y2="600" stroke-width="2.4"/>
+    <line x1="880" y1="650" x2="1040" y2="650" stroke-width="2.6"/>
+    <line x1="862" y1="706" x2="1058" y2="706" stroke-width="2.8"/>
+    <line x1="842" y1="768" x2="1078" y2="768" stroke-width="3"/>
+    <line x1="820" y1="836" x2="1100" y2="836" stroke-width="3.2"/>
+    <line x1="796" y1="910" x2="1124" y2="910" stroke-width="3.4"/>
+    <line x1="770" y1="990" x2="1150" y2="990" stroke-width="3.6"/>
+    <line x1="748" y1="1058" x2="1172" y2="1058" stroke-width="3.8"/>
+  </g>
+
+  <!-- catenary poles -->
+  <g fill="none" stroke="url(#wireFade)" stroke-linecap="round">
+    <path d="M620 980 L620 620 M560 628 L680 628 M620 628 L620 648" stroke-width="2"/>
+    <path d="M1300 980 L1300 620 M1240 628 L1360 628 M1300 628 L1300 648" stroke-width="2"/>
+    <path d="M540 1080 L540 700 M470 710 L610 710 M540 710 L540 736" stroke-width="2.2"/>
+    <path d="M1380 1080 L1380 700 M1310 710 L1450 710 M1380 710 L1380 736" stroke-width="2.2"/>
+    <path d="M700 820 L700 560 M650 568 L750 568" stroke-width="1.5"/>
+    <path d="M1220 820 L1220 560 M1170 568 L1270 568" stroke-width="1.5"/>
+    <!-- contact wire / messenger -->
+    <path d="M540 710 C 760 640, 1160 640, 1380 710" stroke-width="1.6"/>
+    <path d="M540 736 C 760 668, 1160 668, 1380 736" stroke-width="1.2"/>
+    <path d="M620 648 C 820 590, 1100 590, 1300 648" stroke-width="1.3"/>
+    <path d="M700 568 C 880 530, 1040 530, 1220 568" stroke-width="1.1"/>
+  </g>
+</svg>

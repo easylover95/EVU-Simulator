@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" fill="none">
+  <rect width="640" height="220" fill="#1a2332"/>
+  <ellipse cx="320" cy="198" rx="280" ry="10" fill="#0b1018" opacity=".45"/>
+  <g transform="translate(40 48)">
+    <rect x="16" y="86" width="528" height="10" rx="2" fill="#3f2a2a"/>
+    <rect x="24" y="28" width="512" height="62" rx="8" fill="#9b1c1c"/>
+    <rect x="24" y="22" width="512" height="12" rx="4" fill="#b91c1c"/>
+    <rect x="36" y="36" width="70" height="32" rx="3" fill="#7dd3fc" opacity=".85"/>
+    <rect x="454" y="36" width="70" height="32" rx="3" fill="#7dd3fc" opacity=".85"/>
+    <rect x="128" y="40" width="304" height="36" rx="4" fill="#7f1d1d"/>
+    <rect x="140" y="48" width="44" height="20" rx="2" fill="#fbbf24" opacity=".35"/>
+    <rect x="196" y="48" width="44" height="20" rx="2" fill="#fbbf24" opacity=".35"/>
+    <rect x="252" y="48" width="44" height="20" rx="2" fill="#fbbf24" opacity=".35"/>
+    <rect x="308" y="48" width="44" height="20" rx="2" fill="#fbbf24" opacity=".35"/>
+    <rect x="364" y="48" width="44" height="20" rx="2" fill="#fbbf24" opacity=".35"/>
+    <rect x="24" y="88" width="512" height="8" fill="#1f2937"/>
+    <circle cx="70" cy="112" r="18" fill="#111827"/><circle cx="70" cy="112" r="10" fill="#6b7280"/>
+    <circle cx="118" cy="112" r="18" fill="#111827"/><circle cx="118" cy="112" r="10" fill="#6b7280"/>
+    <circle cx="260" cy="112" r="18" fill="#111827"/><circle cx="260" cy="112" r="10" fill="#6b7280"/>
+    <circle cx="308" cy="112" r="18" fill="#111827"/><circle cx="308" cy="112" r="10" fill="#6b7280"/>
+    <circle cx="450" cy="112" r="18" fill="#111827"/><circle cx="450" cy="112" r="10" fill="#6b7280"/>
+    <circle cx="498" cy="112" r="18" fill="#111827"/><circle cx="498" cy="112" r="10" fill="#6b7280"/>
+    <text x="280" y="74" text-anchor="middle" fill="#fee2e2" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700">DIESEL</text>
+  </g>
+</svg>

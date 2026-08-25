@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 220" fill="none">
+  <rect width="640" height="220" fill="#1a2332"/>
+  <ellipse cx="320" cy="198" rx="280" ry="10" fill="#0b1018" opacity=".45"/>
+  <g transform="translate(48 52)">
+    <rect x="12" y="82" width="520" height="10" rx="2" fill="#3f3a2a"/>
+    <path d="M40 30h80l18-16h268l18 16h80v62H40V30z" fill="#ea580c"/>
+    <rect x="40" y="46" width="496" height="46" fill="#1e3a5f"/>
+    <rect x="52" y="36" width="72" height="28" rx="3" fill="#7dd3fc" opacity=".9"/>
+    <rect x="452" y="36" width="72" height="28" rx="3" fill="#7dd3fc" opacity=".9"/>
+    <rect x="148" y="54" width="268" height="26" rx="3" fill="#0f172a"/>
+    <rect x="40" y="84" width="496" height="8" fill="#111827"/>
+    <circle cx="86" cy="108" r="18" fill="#111827"/><circle cx="86" cy="108" r="10" fill="#9ca3af"/>
+    <circle cx="148" cy="108" r="18" fill="#111827"/><circle cx="148" cy="108" r="10" fill="#9ca3af"/>
+    <circle cx="286" cy="108" r="18" fill="#111827"/><circle cx="286" cy="108" r="10" fill="#9ca3af"/>
+    <circle cx="348" cy="108" r="18" fill="#111827"/><circle cx="348" cy="108" r="10" fill="#9ca3af"/>
+    <circle cx="430" cy="108" r="18" fill="#111827"/><circle cx="430" cy="108" r="10" fill="#9ca3af"/>
+    <circle cx="492" cy="108" r="18" fill="#111827"/><circle cx="492" cy="108" r="10" fill="#9ca3af"/>
+    <text x="282" y="72" text-anchor="middle" fill="#fed7aa" font-family="Segoe UI, sans-serif" font-size="16" font-weight="700">DIESEL</text>
+  </g>
+</svg>
