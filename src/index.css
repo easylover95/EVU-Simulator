@@ -1179,6 +1179,71 @@ body,
   box-shadow: 0 0 28px rgba(251, 191, 36, 0.08);
 }
 @media (max-width: 768px) {
+  :root {
+    --app-header-h: 4.75rem;
+  }
+  .app-topbar-status {
+    min-height: 2.05rem;
+    gap: 0.35rem;
+    padding: 0.24rem 0.55rem 0.16rem;
+  }
+  .app-topbar-mark {
+    height: 1.45rem;
+    width: 1.45rem;
+    font-size: 7px;
+  }
+  .app-topbar-company {
+    max-width: 8.5rem;
+    font-size: 11px;
+  }
+  .app-topbar-meta {
+    display: none;
+  }
+  .app-topbar-clock {
+    gap: 0.18rem;
+  }
+  .app-topbar-ctrl {
+    height: 1.45rem;
+    width: 1.45rem;
+  }
+  .app-topbar-speeds button {
+    padding: 0.18rem 0.32rem;
+    font-size: 9px;
+  }
+  .app-topbar-time {
+    font-size: 9px;
+  }
+  .app-topbar-konto {
+    margin-right: 0;
+  }
+  .app-topbar-konto strong {
+    font-size: 11px;
+  }
+  .app-topbar-text-btn {
+    display: none;
+  }
+  .app-topbar-tabs-row {
+    justify-content: flex-start;
+    padding: 0.25rem 0.45rem 0.2rem;
+  }
+  .app-nav-tabs {
+    width: 100%;
+    border-radius: 0.55rem;
+  }
+  .app-nav-tab {
+    min-height: 2rem;
+    padding: 0.42rem 0.62rem;
+    font-size: 9px;
+  }
+  .app-topbar-sub {
+    justify-content: flex-start;
+    padding: 0 0.45rem 0.25rem;
+  }
+  .app-sub-tab {
+    min-height: 1.8rem;
+    padding: 0.3rem 0.58rem;
+    font-size: 9px;
+  }
   .pc-shell {
     grid-template-columns: 1fr;
     min-height: calc(100vh - var(--app-header-h) - 2.5rem);
@@ -1196,9 +1261,68 @@ body,
     box-shadow: inset 0 -2px 0 #fbbf24;
   }
   .pc-main-body {
-    padding: 14px;
+    padding: 12px;
+  }
+  .pc-main-bar {
+    padding: 8px 12px;
+  }
+  .pc-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  }
+  .pc-sidebar > div:first-child {
+    display: none;
+  }
+  .pc-sidebar-nav {
+    scrollbar-width: none;
+  }
+  .pc-sidebar-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .pc-sidebar-item {
+    min-height: 2.4rem;
+    padding: 9px 12px;
+    font-size: 10px;
+  }
+  .pc-home-title {
+    font-size: 1.55rem;
+  }
+  .pc-app-card {
+    padding: 13px;
   }
 }
+
+@media (max-width: 420px) {
+  .modal-scrim {
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: 0.75rem;
+  }
+  .modal-scrim > div {
+    max-height: calc(100dvh - 1.5rem);
+    overflow-y: auto;
+  }
+  .app-topbar-company {
+    max-width: 6.5rem;
+  }
+  .app-topbar-clock {
+    display: none;
+  }
+  .app-topbar-actions {
+    gap: 0.2rem;
+  }
+  .app-nav-tab {
+    padding-left: 0.52rem;
+    padding-right: 0.52rem;
+  }
+  .pc-main-body {
+    padding: 9px;
+  }
+  .pc-home-title {
+    font-size: 1.35rem;
+  }
+}
+
 
 .office-hotspot--gallery {
   /* Same rectangular interaction frame as the Firma tile; position is defined in OfficeHQView. */

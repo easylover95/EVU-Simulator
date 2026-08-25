@@ -22,3 +22,11 @@ Die BR-232-Leasingvorschau wurde im Händler geöffnet, ohne die verbindliche Tr
 - Geschätzter Deckungsbeitrag pro zusätzlichem Tageslauf: 1.288 €, aus zusätzlichem Erlös abzüglich Trasse/Energie.
 - Fondsbestand: 0 €; der Berater weist deshalb auf fehlenden Betriebspuffer hin.
 - Der Leasingkauf wurde wegen voller Lok-Stellplätze korrekt blockiert; das Modal zeigt dennoch die Entscheidungsprognose und den Ausbauhinweis.
+
+## Mobile-Portrait-Prüfung
+
+Der aktuelle Produktionsbuild wurde zusätzlich mit einer simulierten Gerätebreite von 390 × 844 px geladen. Der Startdialog „Unternehmen gründen“ bleibt vollständig innerhalb des Viewports, die Eingabefelder und der primäre Button sind ohne horizontales Überlaufen sichtbar. Das Leitstellenbild bleibt als Hintergrund erhalten.
+
+Der neue Mobile-Breakpoint reduziert den Topbar-Platzbedarf, macht die Hauptnavigation horizontal scrollbar, verkleinert Touch-Ziele kontrolliert und blendet sekundäre Metadaten aus. Der Desktop-Dashboardbereich wechselt auf ein einspaltiges Layout; der EVU-Berater und die Bank-/Vorsorgekarten können untereinander gelesen werden. Dialoge erhalten auf sehr schmalen Displays eigenes vertikales Scrolling, sodass Kredit-, Fonds- und Investitionsmodale nicht aus dem Viewport laufen.
+
+Der Preview-Link wurde nach dem Build erneut geladen. Die visuelle Prüfung fand ohne verbindliche Finanzbuchung statt.
