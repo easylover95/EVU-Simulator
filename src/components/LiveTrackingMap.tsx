@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Gauge, Train, User, Wrench, X } from 'lucide-react';
+import { CircleDot, Gauge, RadioTower, Train, User, Wrench, X } from 'lucide-react';
 import type { AssignmentWithDetails, Locomotive, Wagon } from '@/lib/supabase';
 import { RAIL_STATIONS, lookupStation, TRUNK_CORRIDORS } from '@/lib/stations';
 import { buildTrackedTrains, locoMarkerId, type TrackedTrain } from '@/lib/tracking';
@@ -33,6 +33,7 @@ function trainIcon(kind: 'live' | 'planned' | 'parked' | 'maint', selected: bool
   return L.divIcon({
     className: 'fi-train-marker',
     html: `<div class="fi-train-glyph ${cls}${selected ? ' is-selected' : ''}">
+      <span class="fi-train-beacon"></span>
       <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2">
         <rect x="4" y="5" width="16" height="11" rx="2"/>
         <circle cx="8" cy="18" r="1.6"/>
@@ -43,6 +44,22 @@ function trainIcon(kind: 'live' | 'planned' | 'parked' | 'maint', selected: bool
     iconSize: [28, 28],
     iconAnchor: [14, 14],
   });
+}
+
+function trackedRouteStyle(status: 'aktiv' | 'geplant', selected: boolean) {
+  const live = status === 'aktiv';
+  const color = live ? '#f59e0b' : '#38bdf8';
+  return {
+    glow: { color, weight: live ? 12 : 8, opacity: live ? 0.26 : 0.16, lineCap: 'round' as const, lineJoin: 'round' as const },
+    core: {
+      color: selected ? '#fde68a' : color,
+      weight: live ? 3.4 : 2.2,
+      opacity: live ? 0.96 : 0.78,
+      dashArray: live ? undefined : '5 7',
+      lineCap: 'round' as const,
+      lineJoin: 'round' as const,
+    },
+  };
 }
 
 interface ParkedLoco {
@@ -67,7 +84,7 @@ export function LiveTrackingMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
-  const linesRef = useRef<Map<string, L.Polyline>>(new Map());
+  const linesRef = useRef<Map<string, L.LayerGroup>>(new Map());
   const tracksRef = useRef<TrackedTrain[]>([]);
   const parkedRef = useRef<ParkedLoco[]>([]);
   const [internalSelected, setInternalSelected] = useState<string | null>(null);
@@ -122,36 +139,44 @@ export function LiveTrackingMap({
       attributionControl: true,
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CARTO',
       subdomains: 'abcd',
       maxZoom: 18,
     }).addTo(map);
 
+    const corridorPane = map.createPane('fi-corridors');
+    corridorPane.style.zIndex = '330';
     for (const [fromKey, toKey] of TRUNK_CORRIDORS) {
       const from = RAIL_STATIONS[fromKey];
       const to = RAIL_STATIONS[toKey];
-      L.polyline(
-        [
-          [from.lat, from.lng],
-          [to.lat, to.lng],
-        ],
-        { color: '#1e3a5f', weight: 2, opacity: 0.7 },
-      ).addTo(map);
+      const corridor: L.LatLngExpression[] = [[from.lat, from.lng], [to.lat, to.lng]];
+      L.polyline(corridor, { pane: 'fi-corridors', color: '#0b2d57', weight: 9, opacity: 0.34, lineCap: 'round' }).addTo(map);
+      L.polyline(corridor, { pane: 'fi-corridors', color: '#1760a6', weight: 2.1, opacity: 0.82, lineCap: 'round' }).addTo(map);
     }
 
     for (const station of Object.values(RAIL_STATIONS)) {
       L.circleMarker([station.lat, station.lng], {
-        radius: 4,
-        color: '#38bdf8',
-        fillColor: '#0b0f19',
-        fillOpacity: 0.95,
-        weight: 1.5,
+        radius: 8,
+        color: '#0ea5e9',
+        fillColor: '#0ea5e9',
+        fillOpacity: 0.16,
+        opacity: 0,
+        weight: 0,
+      }).addTo(map);
+      L.circleMarker([station.lat, station.lng], {
+        radius: 4.6,
+        color: '#7dd3fc',
+        fillColor: '#082f49',
+        fillOpacity: 1,
+        weight: 1.7,
       })
         .bindTooltip(station.label, {
-          className: 'fi-map-tooltip',
-          direction: 'top',
-          offset: [0, -6],
+          className: 'fi-map-tooltip fi-station-tooltip',
+          direction: 'right',
+          offset: [8, 0],
+          permanent: true,
+          opacity: 1,
         })
         .addTo(map);
     }
@@ -207,12 +232,18 @@ export function LiveTrackingMap({
         [train.lat, train.lng],
         [train.to.lat, train.to.lng],
       ];
+      const style = trackedRouteStyle(train.status === 'aktiv' ? 'aktiv' : 'geplant', selectedId === train.id);
       let line = linesRef.current.get(train.id);
       if (!line) {
-        line = L.polyline(route, { color: '#38bdf8', weight: 2.5, opacity: 0.85, dashArray: '6 6' }).addTo(map);
+        line = L.layerGroup([
+          L.polyline(route, style.glow),
+          L.polyline(route, style.core),
+        ]).addTo(map);
         linesRef.current.set(train.id, line);
       } else {
-        line.setLatLngs(route);
+        const layers = line.getLayers().filter((layer): layer is L.Polyline => layer instanceof L.Polyline);
+        layers[0]?.setLatLngs(route).setStyle(style.glow);
+        layers[1]?.setLatLngs(route).setStyle(style.core);
       }
     }
 
@@ -295,7 +326,16 @@ export function LiveTrackingMap({
 
   const mapBlock = (
     <div className="relative h-full min-h-[360px] w-full">
-      <div ref={containerRef} className={variant === 'fill' ? 'h-full min-h-[420px] w-full' : 'h-[440px] w-full'} />
+      <div ref={containerRef} className={`${variant === 'fill' ? 'h-full min-h-[420px]' : 'h-[440px]'} fi-live-map w-full`} />
+      <div className="pointer-events-none absolute left-3 top-3 z-[500] flex items-center gap-2 rounded-md border border-sky-400/25 bg-slate-950/80 px-2.5 py-1.5 shadow-[0_0_20px_rgba(14,165,233,0.16)] backdrop-blur-sm">
+        <RadioTower className="h-3.5 w-3.5 text-sky-300" />
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-100">Live-Leitstelle</span>
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
+        <span className="text-[10px] font-semibold tabular-nums text-slate-300">{trains.filter((train) => train.status === 'aktiv').length} aktiv</span>
+      </div>
+      <div className="pointer-events-none absolute right-3 top-3 z-[500] hidden items-center gap-1.5 rounded-md border border-slate-500/20 bg-slate-950/72 px-2 py-1.5 text-[10px] text-slate-300 shadow-lg backdrop-blur-sm sm:flex">
+        <CircleDot className="h-3 w-3 text-sky-300" /> Knoten · Live-Loks · Fahrkorridore
+      </div>
       {selectedTrain && (
         <div className="absolute bottom-3 left-3 right-3 z-[500] mx-auto max-w-lg sm:left-auto sm:right-3 sm:w-80">
           <TrainOpsCard train={selectedTrain} onClose={() => select(null)} />

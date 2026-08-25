@@ -49,3 +49,10 @@ The final UI must retain the existing application’s readable typography and ac
 | Confirmations | Creating, editing or deleting an owned route or timetable entry, taking a loan and making a special repayment requires a cost/status confirmation modal. |
 
 **Implementation constraint:** The generated screenshot is only an art-direction target and is not loaded by the game runtime. The actual visual graph is implemented as accessible TypeScript/HTML/CSS and is driven by the existing station data and local game state.
+
+
+## Leitstellenkarte: Live-Tracking-Überarbeitung
+
+Die Leaflet-Karte orientiert sich nun funktional am vom Nutzer bereitgestellten Leitstellenreferenzbild: eine dunkle, leicht strukturierte Deutschlandkarte mit permanent lesbaren Knoten, dezent leuchtenden blau-cyanfarbenen Stammkorridoren und klar hervorgehobenen Live-Verbindungen. Aktive Zugläufe erhalten eine warme amberfarbene Glühspur und einen pulsierten Lokmarker; geplante Züge bleiben zurückhaltend cyan, abgestellte Fahrzeuge amber und Wartungsfahrzeuge rot. Die Karte zeigt weiterhin ausschließlich die vorhandenen, tickbasiert berechneten Simulationspositionen; sie simuliert kein externes GPS.
+
+Der Erfolge-Hotspot ist auf den oberen rechten Dampflok-Holzrahmen positioniert. Seine Quellbildwerte sind verbindlich: `left: 14.2%`, `top: 16.4%`, `width: 11.0%`, `height: 9.8%`. Sein Rahmen verwendet dieselbe goldene Interaktionsbehandlung wie die Hauptkacheln für Firma und Finanzen.

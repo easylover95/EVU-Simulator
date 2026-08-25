@@ -45,12 +45,11 @@ const HOTSPOTS: OfficeHotspot[] = [
     id: 'gallery',
     label: 'Erfolge & Meilensteine',
     dest: 'gallery',
-    // Source % of leitstelle_bg.png. 16:9 cover → visible ~14.2 / 16.4 / 11.0 × 9.8
-    // (upper-right steam-loco frame, left of window; not ceiling 5.4, not lower row 21.4).
+    // Source % of leitstelle_bg.png: upper-right steam-loco wood frame, left of window 1.
     x: 14.2,
-    y: 21.6,
+    y: 16.4,
     w: 11.0,
-    h: 8.3,
+    h: 9.8,
     z: 3,
     shape: 'rect',
     Icon: Trophy,
