@@ -40,3 +40,7 @@ Die lange Kategorienavigation am oberen Rand bleibt für breitere mobile Geräte
 ## Mobile-Usability-Finalprüfung
 
 Der finale Portrait-Build wurde mit 390 × 844 px geprüft. Die Bottom-Bar bleibt mit den fünf Bereichen „Home“, „Fracht“, „Flotte“, „Bank“ und „Firma“ am unteren Rand sichtbar und wird nicht vom Gründungsdialog verdeckt. Der Startdialog bleibt vollständig lesbar und bedienbar. Die zentralen Büro-Hotspots erhalten auf sehr schmalen Displays größere Mindest-Touchflächen und kompaktere, umbrechende Labels.
+
+## Energieanzeige der Auftragskalkulation
+
+Im Produktionspreview wurde ein offener Güterauftrag Bayreuth–Regensburg (120 km, 1.347 t) geprüft. Die Auftragskalkulation zeigt nach dem Trassenpreis eine geschlossene Karte **„Traktionsvergleich“** mit dem Hinweis **„Eine Option wählen · kein Doppelabzug“**. Darin stehen zwei visuell getrennte Alternativen: Diesel mit Energie 1.493 € und Netto +6.019 € sowie E-Lok mit Energie 1.089 € und Netto +6.423 €. Es erscheinen keine zwei gleichzeitig als Abzug zu summierenden Energiezeilen. Der Komponentenpfad für eine bereits ausgewählte Lok übergibt deren `fuel_type` und zeigt dann ausschließlich die tatsächliche Energieart samt Netto-Gewinn.

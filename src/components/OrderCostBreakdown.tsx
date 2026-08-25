@@ -1,4 +1,4 @@
-import { Fuel, Route, TrendingDown } from 'lucide-react';
+import { Fuel, Route, TrendingDown, Zap } from 'lucide-react';
 import type { FuelType, Order } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import {
@@ -71,6 +71,7 @@ export function OrderCostBreakdown({
     : 'Abbuchung beim Start der Fahrt · Erlös bei Abschluss';
   const tkmRevenue = Math.max(0, Number(order.tkm_revenue) || 0);
   const baseRevenue = daily ? 0 : Math.max(0, diesel.grossYield - tkmRevenue);
+  const baugleisDieselOnly = isBaugleisOrder(order) && !chosen;
 
   return (
     <div className={`app-glass-panel rounded-sm border border-amber-500/25 ${compact ? 'p-2.5' : 'p-3'}`}>
@@ -122,24 +123,39 @@ export function OrderCostBreakdown({
           <MoneyRow
             label={daily ? `Energie ${energyLabel(chosen.energyMode)} (täglich)` : `Energie ${energyLabel(chosen.energyMode)}`}
             amount={chosen.energyCost}
-            hint={energyHint(chosen.energyMode, chosen.distanceKm)}
+            hint={`${energyHint(chosen.energyMode, chosen.distanceKm)} · zugewiesene Lok`}
+            tone="cost"
+          />
+        ) : baugleisDieselOnly ? (
+          <MoneyRow
+            label={daily ? 'Energie Diesel (Baugleis, täglich)' : 'Energie Diesel (Baugleis)'}
+            amount={diesel.energyCost}
+            hint="Baugleis-Einsätze benötigen eine Diesel- oder Dual-Lok; kein Stromvergleich möglich"
             tone="cost"
           />
         ) : (
-          <>
-            <MoneyRow
-              label={daily ? 'Energie Diesel (täglich)' : 'Energie Diesel'}
-              amount={diesel.energyCost}
-              hint={energyHint('diesel', diesel.distanceKm)}
-              tone="cost"
-            />
-            <MoneyRow
-              label={daily ? 'Energie Strom (täglich)' : 'Energie Strom'}
-              amount={electric.energyCost}
-              hint={energyHint('elektrik', electric.distanceKm)}
-              tone="cost"
-            />
-          </>
+          <div className="rounded-sm border border-sky-400/20 bg-slate-950/40 p-2">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-sky-200">Traktionsvergleich</span>
+              <span className="text-[10px] text-slate-500">Eine Option wählen · kein Doppelabzug</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-sm border border-amber-400/20 bg-amber-400/5 p-2">
+                <div className="flex items-center gap-1 text-[10px] font-bold text-amber-200"><Fuel className="h-3 w-3" /> Diesel</div>
+                <div className="mt-1 text-[10px] text-slate-400">Energie {formatEuro(diesel.energyCost)}{unit}</div>
+                <div className={`mt-1 text-xs font-bold tabular-nums ${diesel.netProfit >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                  Netto {diesel.netProfit >= 0 ? '+' : '−'}{formatEuro(Math.abs(diesel.netProfit))}{unit}
+                </div>
+              </div>
+              <div className="rounded-sm border border-sky-400/20 bg-sky-400/5 p-2">
+                <div className="flex items-center gap-1 text-[10px] font-bold text-sky-200"><Zap className="h-3 w-3" /> E-Lok</div>
+                <div className="mt-1 text-[10px] text-slate-400">Energie {formatEuro(electric.energyCost)}{unit}</div>
+                <div className={`mt-1 text-xs font-bold tabular-nums ${electric.netProfit >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                  Netto {electric.netProfit >= 0 ? '+' : '−'}{formatEuro(Math.abs(electric.netProfit))}{unit}
+                </div>
+              </div>
+            </div>
+          </div>
         )}
 
         {isBaugleisOrder(order) && azfUnresolved && (
@@ -178,23 +194,17 @@ export function OrderCostBreakdown({
               {unit}
             </span>
           </div>
+        ) : baugleisDieselOnly ? (
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-white">Netto bei Diesel{unit}</span>
+            <span className={`text-sm font-bold tabular-nums ${diesel.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {diesel.netProfit >= 0 ? '+' : '−'}
+              {formatEuro(Math.abs(diesel.netProfit))}
+              {unit}
+            </span>
+          </div>
         ) : (
-          <>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Netto bei Diesel{unit}</span>
-              <span className={`font-bold tabular-nums ${diesel.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {diesel.netProfit >= 0 ? '+' : '−'}
-                {formatEuro(Math.abs(diesel.netProfit))}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400">Netto bei Strom{unit}</span>
-              <span className={`font-bold tabular-nums ${electric.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {electric.netProfit >= 0 ? '+' : '−'}
-                {formatEuro(Math.abs(electric.netProfit))}
-              </span>
-            </div>
-          </>
+          <span className="block text-[10px] text-slate-500">Der Traktionsvergleich zeigt zwei Alternativen. Erst nach der Zuweisung wird nur die gewählte Energieart als Abzug gebucht.</span>
         )}
       </div>
 
@@ -204,7 +214,7 @@ export function OrderCostBreakdown({
             <Route className="h-2.5 w-2.5" /> {diesel.pathFormula}
           </span>
           <span className="inline-flex items-center gap-1">
-            <Fuel className="h-2.5 w-2.5" /> Diesel {diesel.energyFormula} · Strom {electric.energyFormula}
+            <Fuel className="h-2.5 w-2.5" /> {chosen ? `Gebuchte Traktion: ${energyLabel(chosen.energyMode)} · ${chosen.energyFormula}` : baugleisDieselOnly ? `Baugleis-Traktion: Diesel · ${diesel.energyFormula}` : `Alternativen: Diesel ${diesel.energyFormula} | Strom ${electric.energyFormula}`}
           </span>
         </div>
       )}
