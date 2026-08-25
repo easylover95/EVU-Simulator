@@ -24,3 +24,4 @@ dist-ssr
 
 src-tauri/target/
 src-tauri/gen/schemas/
+"public/assets/leitstelle.glb" 
