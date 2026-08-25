@@ -1,0 +1,103 @@
+{
+  "scenario": "dynamic-fleet-growth-365-v1",
+  "days": 365,
+  "startCapital": 210000,
+  "endCapital": 1617535,
+  "netCashChange": 1407535,
+  "lowestBalance": 182382,
+  "firstNegativeDay": null,
+  "financiallyStable": true,
+  "finalLevel": 8,
+  "finalReputation": 56,
+  "totalRevenue": 6320697,
+  "cashOut": 5163162,
+  "cashOperatingResult": 2467650,
+  "transport": {
+    "completedTrips": 941,
+    "totalTkm": 69744000,
+    "totalTonsMoved": 556700,
+    "finalLocomotives": 4,
+    "finalWagonUnits": 28,
+    "finalActiveTripsPerDay": 4
+  },
+  "financing": {
+    "initialLoanProceeds": 250000,
+    "principalRepaid": 96515,
+    "interestPaid": 2731,
+    "principalOutstanding": 153485
+  },
+  "investments": [
+    {
+      "day": 227,
+      "kind": "credit-and-br232",
+      "balanceBefore": 600428,
+      "loanProceeds": 250000,
+      "locomotiveCost": 550000,
+      "wagonCost": 109200,
+      "personnelCost": 4650,
+      "balanceAfter": 186578,
+      "fleetSize": 3
+    },
+    {
+      "day": 294,
+      "kind": "br140",
+      "balanceBefore": 854650,
+      "loanProceeds": 0,
+      "locomotiveCost": 420000,
+      "wagonCost": 134400,
+      "personnelCost": 4650,
+      "balanceAfter": 295600,
+      "fleetSize": 4
+    }
+  ],
+  "costs": {
+    "contractRevenue": 1670260,
+    "spotRevenue": 4650437,
+    "pathEnergy": 2538349,
+    "payroll": 207997,
+    "depot": 1040250,
+    "insurance": 31025,
+    "maintenance": 13625,
+    "wagonRevision": 5120,
+    "quickPay": 6600,
+    "hiring": 7350,
+    "locomotiveInvestment": 970000,
+    "wagonInvestment": 243600,
+    "loanProceeds": 250000,
+    "loanInterest": 2731,
+    "loanPrincipal": 96515
+  },
+  "series": [
+    {
+      "seriesId": "BR 218",
+      "contribution": 2503924
+    },
+    {
+      "seriesId": "BR 232",
+      "contribution": 662752
+    },
+    {
+      "seriesId": "BR 140/143",
+      "contribution": 615672
+    }
+  ],
+  "routes": [
+    {
+      "route": "BR 218 · Eanos-Spotverkehr",
+      "contribution": 1283709
+    },
+    {
+      "route": "BR 218 · Coil-Rahmenvertrag",
+      "contribution": 1220215
+    },
+    {
+      "route": "BR 232 · Bulk-Spotverkehr",
+      "contribution": 662752
+    },
+    {
+      "route": "BR 140/143 · Intermodal-Spotverkehr",
+      "contribution": 615672
+    }
+  ],
+  "reconciliation": 1617535
+}
