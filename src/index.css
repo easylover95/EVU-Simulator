@@ -457,6 +457,14 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
+.app-nav-tab-label-compact {
+  display: none;
+}
+
+.app-mobile-quicknav {
+  display: none;
+}
+
 .app-nav-tab {
   border: 0;
   background: transparent;
@@ -1179,6 +1187,54 @@ body,
   box-shadow: 0 0 28px rgba(251, 191, 36, 0.08);
 }
 @media (max-width: 768px) {
+  .app-main-content {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
+  }
+  .app-mobile-quicknav {
+    position: fixed;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: calc(0.5rem + env(safe-area-inset-bottom));
+    z-index: 60;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0.2rem;
+    padding: 0.3rem;
+    border: 1px solid rgba(251, 191, 36, 0.24);
+    border-radius: 0.9rem;
+    background: rgba(10, 12, 16, 0.94);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.46), 0 0 24px rgba(251, 191, 36, 0.08);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .app-mobile-quicknav-item {
+    display: flex;
+    min-width: 0;
+    min-height: 3.05rem;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.18rem;
+    border: 1px solid transparent;
+    border-radius: 0.65rem;
+    background: transparent;
+    color: #94a3b8;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .app-mobile-quicknav-item.is-active {
+    border-color: rgba(251, 191, 36, 0.56);
+    background: linear-gradient(180deg, rgba(251, 191, 36, 0.2), rgba(180, 83, 9, 0.18));
+    color: #fde68a;
+  }
+  .app-mobile-quicknav-icon {
+    height: 1.05rem;
+    width: 1.05rem;
+  }
   :root {
     --app-header-h: 4.75rem;
   }
@@ -1231,9 +1287,17 @@ body,
     border-radius: 0.55rem;
   }
   .app-nav-tab {
-    min-height: 2rem;
-    padding: 0.42rem 0.62rem;
-    font-size: 9px;
+    min-height: 2.5rem;
+    min-width: 4.25rem;
+    padding: 0.42rem 0.7rem;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+  .app-nav-tab-label-wide {
+    display: none;
+  }
+  .app-nav-tab-label-compact {
+    display: inline;
   }
   .app-topbar-sub {
     justify-content: flex-start;
@@ -1311,9 +1375,22 @@ body,
   .app-topbar-actions {
     gap: 0.2rem;
   }
+  .app-nav-tabs,
+  .app-topbar-sub {
+    display: none;
+  }
   .app-nav-tab {
-    padding-left: 0.52rem;
-    padding-right: 0.52rem;
+    min-width: 3.8rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+  .app-mobile-quicknav {
+    left: 0.35rem;
+    right: 0.35rem;
+  }
+  .app-mobile-quicknav-item {
+    min-height: 2.85rem;
+    font-size: 8px;
   }
   .pc-main-body {
     padding: 9px;

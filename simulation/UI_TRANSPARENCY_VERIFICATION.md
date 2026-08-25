@@ -30,3 +30,9 @@ Der aktuelle Produktionsbuild wurde zusätzlich mit einer simulierten Gerätebre
 Der neue Mobile-Breakpoint reduziert den Topbar-Platzbedarf, macht die Hauptnavigation horizontal scrollbar, verkleinert Touch-Ziele kontrolliert und blendet sekundäre Metadaten aus. Der Desktop-Dashboardbereich wechselt auf ein einspaltiges Layout; der EVU-Berater und die Bank-/Vorsorgekarten können untereinander gelesen werden. Dialoge erhalten auf sehr schmalen Displays eigenes vertikales Scrolling, sodass Kredit-, Fonds- und Investitionsmodale nicht aus dem Viewport laufen.
 
 Der Preview-Link wurde nach dem Build erneut geladen. Die visuelle Prüfung fand ohne verbindliche Finanzbuchung statt.
+
+## Zweite Mobile-Usability-Prüfung
+
+Die Hauptnavigation wurde auf 390 × 844 px durch eine feste, kontrastreiche Bottom-Bar mit fünf gleich großen Touch-Zielen ergänzt. Die Bereiche erscheinen als kurze, verständliche Labels „Home“, „Fracht“, „Flotte“, „Bank“ und „Firma“ mit Icons. Im Startdialog bleibt die Bottom-Bar sichtbar, ohne die Eingabefelder oder den primären Gründungsbutton zu überdecken; der Inhaltsbereich erhält dafür zusätzlichen unteren Sicherheitsabstand.
+
+Die lange Kategorienavigation am oberen Rand bleibt für breitere mobile Geräte erhalten, wird auf sehr schmalen Displays ausgeblendet und durch die Bottom-Bar ersetzt. Dadurch muss der Nutzer nicht mehr nach rechts wischen, um „Finanzen & Bank“ oder „Firma & Personal“ zu finden. Der Portrait-Screenshot bestätigt, dass die fünf Bereiche gleichzeitig sichtbar und mit ausreichend großen Touch-Flächen erreichbar sind.

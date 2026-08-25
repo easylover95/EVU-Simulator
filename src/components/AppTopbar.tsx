@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { Mail, Pause, Play, Settings, Star, Train, Users } from 'lucide-react';
+import { BriefcaseBusiness, Home, Landmark, Mail, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound } from 'lucide-react';
 import type { Company } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
@@ -45,6 +45,20 @@ export function AppTopbar({
   const cat = categoryForView(view);
   const def = categoryDef(cat);
   const subnav = showsSubnav(view);
+  const compactNavLabels: Record<(typeof NAV_CATEGORIES)[number]['id'], string> = {
+    zentrale: 'Home',
+    transport: 'Fracht',
+    fleet: 'Flotte',
+    finance: 'Bank',
+    firma: 'Firma',
+  };
+  const compactNavIcons = {
+    zentrale: Home,
+    transport: BriefcaseBusiness,
+    fleet: TrainFront,
+    finance: Landmark,
+    firma: UsersRound,
+  } as const;
 
   return (
     <header ref={headerRef as RefObject<HTMLElement>} className="app-topbar">
@@ -147,10 +161,13 @@ export function AppTopbar({
               <button
                 key={item.id}
                 type="button"
+                title={item.label}
+                aria-label={item.label}
                 onClick={() => onSetView(item.defaultView)}
                 className={`app-nav-tab ${active ? 'is-active' : ''}`}
               >
-                {item.label}
+                <span className="app-nav-tab-label-wide">{item.label}</span>
+                <span className="app-nav-tab-label-compact">{compactNavLabels[item.id]}</span>
               </button>
             );
           })}
@@ -171,6 +188,26 @@ export function AppTopbar({
           ))}
         </nav>
       )}
+
+      <nav className="app-mobile-quicknav" aria-label="Mobile Hauptnavigation">
+        {NAV_CATEGORIES.map((item) => {
+          const active = cat === item.id;
+          const Icon = compactNavIcons[item.id];
+          return (
+            <button
+              key={item.id}
+              type="button"
+              title={item.label}
+              aria-label={item.label}
+              onClick={() => onSetView(item.defaultView)}
+              className={`app-mobile-quicknav-item ${active ? 'is-active' : ''}`}
+            >
+              <Icon className="app-mobile-quicknav-icon" aria-hidden />
+              <span>{compactNavLabels[item.id]}</span>
+            </button>
+          );
+        })}
+      </nav>
     </header>
   );
 }
