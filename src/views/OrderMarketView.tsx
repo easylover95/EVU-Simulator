@@ -304,7 +304,7 @@ export function OrderMarketView({
   return (
     <SectionShell
       title="Frachtbörse"
-      subtitle={`${marketOrders.length} Aufträge · Spot-Erlöse nach EVU-Level (Level 1–3: 50–55 %) · Baugleis-Einsatz skaliert · Brh Güter ${MIN_BRH_RANGE.gueterverkehr.min}–${MIN_BRH_RANGE.gueterverkehr.max} · Bau ${MIN_BRH_RANGE.baugleis.min}–${MIN_BRH_RANGE.baugleis.max}`}
+      subtitle={`${marketOrders.length} Aufträge · Frühspiel: mindestens 3 Leichtaufträge mit 4–6 Wagen · Schwere Züge ab Level 3 + 36 Wagen-Stellplätzen · Brh Güter ${MIN_BRH_RANGE.gueterverkehr.min}–${MIN_BRH_RANGE.gueterverkehr.max} · Bau ${MIN_BRH_RANGE.baugleis.min}–${MIN_BRH_RANGE.baugleis.max}`}
       actions={marketActions}
       tutorialId="tutorial-frachtboerse"
     >

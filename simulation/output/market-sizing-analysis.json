@@ -1,0 +1,61 @@
+
+> vite-react-typescript-starter@0.0.0 analyze:market-sizing
+> tsx --tsconfig tsconfig.app.json simulation/analyzeMarketSizing.ts
+
+{
+  "marketPolicy": {
+    "early": {
+      "level": 1,
+      "wagonBerthCapacity": 25,
+      "smallFreightOrders": 7,
+      "maxFreightWagons": 9,
+      "allowedClasses": [
+        "leicht",
+        "mittel"
+      ]
+    },
+    "medium": {
+      "level": 2,
+      "wagonBerthCapacity": 36,
+      "smallFreightOrders": 5,
+      "maxFreightWagons": 9,
+      "allowedClasses": [
+        "leicht",
+        "mittel"
+      ]
+    },
+    "heavyUnlocked": {
+      "level": 3,
+      "wagonBerthCapacity": 36,
+      "allowedClasses": [
+        "leicht",
+        "mittel",
+        "schwer"
+      ]
+    }
+  },
+  "pricingExamples": [
+    {
+      "wagonCount": 5,
+      "distanceKm": 90,
+      "weightT": 400,
+      "tkm": 36000,
+      "grossYield": 3505,
+      "pathCost": 1073,
+      "energyCost": 1120,
+      "operatingCost": 2193,
+      "netProfit": 1312
+    },
+    {
+      "wagonCount": 11,
+      "distanceKm": 90,
+      "weightT": 880,
+      "tkm": 79200,
+      "grossYield": 5527,
+      "pathCost": 1241,
+      "energyCost": 1120,
+      "operatingCost": 2361,
+      "netProfit": 3166
+    }
+  ]
+}

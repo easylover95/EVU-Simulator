@@ -724,7 +724,9 @@ function App() {
     const marketRaw =
       persisted && persisted.length > 0
         ? persisted
-        : refreshMarketOrders(SEED_ORDERS, nextCompany.tick, standingFromCompany(nextCompany));
+        : refreshMarketOrders(SEED_ORDERS, nextCompany.tick, standingFromCompany(nextCompany), {
+            wagonBerthCapacity: wagonBerthCap(depotRef.current),
+          });
     const market = purgeExpiredOpenOrders(marketRaw, gameNowAtLoad);
     const hydrated = hydrateDeploymentAssignments(
       deploymentsRef.current,
@@ -1550,7 +1552,11 @@ function App() {
     const day = marketRefreshDayKey(t, clockMinutes);
     saveMarketRefreshDay(day);
     setMarketRefreshDay(day);
-    setOrders((prev) => refreshMarketOrders(prev, t, standingFromCompany(current)));
+    setOrders((prev) =>
+      refreshMarketOrders(prev, t, standingFromCompany(current), {
+        wagonBerthCapacity: wagonBerthCap(depotRef.current),
+      }),
+    );
   }
 
   function handleLocalAssign(

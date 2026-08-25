@@ -618,21 +618,76 @@ function randInt(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
-function wagonNeed(type: string): { count: number; weight: number } {
-  switch (type) {
-    case 'Facns':
-    case 'Eanos':
-    case 'Tads':
-      return { count: randInt(8, 14), weight: randInt(800, 1400) };
-    case 'Sggrss':
-      return { count: randInt(4, 8), weight: randInt(900, 1600) };
-    case 'Zans':
-      return { count: randInt(3, 6), weight: randInt(400, 800) };
-    case 'Hbbillns':
-      return { count: randInt(6, 12), weight: randInt(400, 900) };
-    default:
-      return { count: randInt(6, 10), weight: randInt(600, 1100) };
-  }
+/** Market sizes are deliberately visible in the generated note and used for Early-Game accessibility. */
+export type FreightLoadClass = 'leicht' | 'mittel' | 'schwer';
+
+export interface MarketGenerationContext {
+  /** Current wagon-berth capacity, not the free berth count. Defaults to the starter depot. */
+  wagonBerthCapacity?: number;
+}
+
+export interface MarketSizingPolicy {
+  guaranteedLightOrders: number;
+  allowedClasses: FreightLoadClass[];
+  wagonBerthCapacity: number;
+}
+
+const FREIGHT_LOAD_RANGES: Record<FreightLoadClass, { min: number; max: number; label: string }> = {
+  leicht: { min: 4, max: 6, label: 'Leichtauftrag' },
+  mittel: { min: 7, max: 9, label: 'Mittelauftrag' },
+  schwer: { min: 10, max: 14, label: 'Schwerauftrag' },
+};
+
+/** Typical loaded tonnes per wagon are local balancing values, keeping weight proportional to wagon count. */
+const WAGON_PAYLOAD_T: Record<string, { min: number; max: number }> = {
+  Facns: { min: 72, max: 96 },
+  Eanos: { min: 68, max: 92 },
+  Tads: { min: 62, max: 88 },
+  Sggrss: { min: 82, max: 110 },
+  Zans: { min: 58, max: 78 },
+  Hbbillns: { min: 42, max: 62 },
+  Res: { min: 55, max: 80 },
+};
+
+/**
+ * Early depots always receive three 4–6-wagon offers. Larger capacity and company level unlock
+ * medium first and heavy jobs later, while at least two light jobs remain on every refresh.
+ */
+export function marketSizingPolicy(
+  standing?: CommercialStanding | null,
+  context?: MarketGenerationContext | null,
+): MarketSizingPolicy {
+  const level = Math.max(1, Number(standing?.level) || 1);
+  const wagonBerthCapacity = Math.max(1, Math.round(Number(context?.wagonBerthCapacity) || 25));
+  const earlyMarket = level <= 1 || wagonBerthCapacity <= 25;
+  const heavyUnlocked = level >= 3 && wagonBerthCapacity >= 36;
+  return {
+    guaranteedLightOrders: earlyMarket ? 3 : 2,
+    allowedClasses: heavyUnlocked ? ['leicht', 'mittel', 'schwer'] : ['leicht', 'mittel'],
+    wagonBerthCapacity,
+  };
+}
+
+export interface WagonNeed {
+  count: number;
+  weight: number;
+  loadClass: FreightLoadClass;
+  classLabel: string;
+  payloadPerWagon: number;
+}
+
+export function wagonNeed(type: string, loadClass: FreightLoadClass = 'mittel'): WagonNeed {
+  const range = FREIGHT_LOAD_RANGES[loadClass];
+  const count = randInt(range.min, range.max);
+  const payload = WAGON_PAYLOAD_T[type] ?? { min: 58, max: 82 };
+  const payloadPerWagon = randInt(payload.min, payload.max);
+  return {
+    count,
+    weight: count * payloadPerWagon,
+    loadClass,
+    classLabel: range.label,
+    payloadPerWagon,
+  };
 }
 
 /** Cargo → dealer wagon type. Unknown types fall back to a buyable type. */
@@ -754,13 +809,14 @@ function buildSpotOrder(
   usedNumbers: Set<string>,
   asConstructionSpot: boolean,
   standing?: CommercialStanding | null,
+  loadClass: FreightLoadClass = 'mittel',
 ): Order {
   const route = pickRoute(customer.category, standing);
   const net = routeCountries(route);
   const cargo = pick(customer.cargoLabels);
   const preferred = wagonTypeForCargo(cargo, pick(customer.wagonTypes));
   const wagonType = customer.wagonTypes.includes(preferred) ? preferred : pick(customer.wagonTypes);
-  const need = wagonNeed(wagonType);
+  const need = wagonNeed(wagonType, loadClass);
   const type: OrderType = customer.category === 'gleisbau' || asConstructionSpot ? 'baugleis' : 'gueterverkehr';
   const priced = computeSpotYield(type, route.distanceKm, need.weight, customer.category, standing);
   const sperre = type === 'baugleis' ? pick(SPERRPAUSEN) : null;
@@ -784,7 +840,7 @@ function buildSpotOrder(
     penalty: type === 'baugleis' ? scaleLegacyAmount(randInt(2800, 5200)) : scaleLegacyAmount(randInt(180, 800)),
     deadline,
     status: 'offen',
-    notes: `${customer.name} · ${need.count}× ${wagonType} · ${priced.tkm.toLocaleString('de-DE')} tkm · ${priced.eurPerTkm.toFixed(3).replace('.', ',')} €/tkm (Sockel ${priced.baseRevenue.toLocaleString('de-DE')} € + ${priced.tkmRevenue.toLocaleString('de-DE')} € tkm-Anteil)`,
+    notes: `${customer.name} · ${need.classLabel}: ${need.count}× ${wagonType} · Ø ${need.payloadPerWagon} t/Wagen · ${priced.tkm.toLocaleString('de-DE')} tkm · ${priced.eurPerTkm.toFixed(3).replace('.', ',')} €/tkm (Sockel ${priced.baseRevenue.toLocaleString('de-DE')} € + ${priced.tkmRevenue.toLocaleString('de-DE')} € tkm-Anteil)`,
     min_brh: clampOrderMinBrh(type, type === 'baugleis' ? randInt(50, 65) : randInt(60, 75)),
     required_wagon_type: wagonType,
     required_wagon_count: need.count,
@@ -860,10 +916,16 @@ function buildEinsatzOrder(
   };
 }
 
-export function generateMarketOrders(tick: number, usedNumbers?: Set<string>, standing?: CommercialStanding | null): Order[] {
+export function generateMarketOrders(
+  tick: number,
+  usedNumbers?: Set<string>,
+  standing?: CommercialStanding | null,
+  context?: MarketGenerationContext | null,
+): Order[] {
   const gameDate = tickToDate(tick);
   const used = usedNumbers ?? new Set<string>();
   const level = Math.max(1, Number(standing?.level) || 1);
+  const sizing = marketSizingPolicy(standing, context);
   const gleisbau = eligibleCustomers(
     FREIGHT_CUSTOMERS.filter((c) => c.category === 'gleisbau'),
     standing,
@@ -875,13 +937,17 @@ export function generateMarketOrders(tick: number, usedNumbers?: Set<string>, st
   const orders: Order[] = [];
 
   const spotCount = randInt(8, 11);
-  for (let i = 0; i < spotCount; i += 1) {
-    orders.push(buildSpotOrder(pick(freight), gameDate, tick, used, false, standing));
+  const guaranteedLight = Math.min(spotCount, sizing.guaranteedLightOrders);
+  for (let i = 0; i < guaranteedLight; i += 1) {
+    orders.push(buildSpotOrder(pick(freight), gameDate, tick, used, false, standing, 'leicht'));
+  }
+  for (let i = guaranteedLight; i < spotCount; i += 1) {
+    orders.push(buildSpotOrder(pick(freight), gameDate, tick, used, false, standing, pick(sizing.allowedClasses)));
   }
 
   const bauSpot = randInt(2, 3);
   for (let i = 0; i < bauSpot; i += 1) {
-    orders.push(buildSpotOrder(pick(gleisbau), gameDate, tick, used, true, standing));
+    orders.push(buildSpotOrder(pick(gleisbau), gameDate, tick, used, true, standing, pick(sizing.allowedClasses)));
   }
 
   const durations = [...allowedEinsatzDays(level)];
@@ -905,10 +971,11 @@ export function refreshMarketOrders(
   existing: Order[],
   tick: number,
   standing?: CommercialStanding | null,
+  context?: MarketGenerationContext | null,
 ): Order[] {
   const keep = existing.filter((o) => o.status !== 'offen');
   const used = new Set(keep.map((o) => o.order_number));
-  return [...generateMarketOrders(tick, used, standing), ...keep];
+  return [...generateMarketOrders(tick, used, standing, context), ...keep];
 }
 
 function gameNowMs(gameNow: Date | number): number {
