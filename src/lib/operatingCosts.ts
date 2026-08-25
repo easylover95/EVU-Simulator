@@ -4,9 +4,13 @@ import { isBaugleisOrder, pdlAzfChargeForOrder, type AzfSource } from '@/lib/pdl
 import { getDieselPriceMultiplier, getPathCostMultiplier } from '@/lib/events';
 
 /**
- * Path (Trasse) and energy rates — documented, defensible, simplified.
+ * Path (Trasse) and energy rates — local game-balancing values.
  *
- * Trassenpreis (freight train-path, DB-Netz inspired, balancing 2026):
+ * Difficulty setting: the core path and energy inputs include an 8 % operating-cost
+ * uplift. This makes recurring spot operations materially more margin-sensitive,
+ * without relying on external market prices.
+ *
+ * Trassenpreis (freight train-path):
  *   €/Zug-km = TRASSE_EUR_PER_TRAIN_KM + TRASSE_WEIGHT_EUR_PER_100T_KM × (t / 100)
  *   × type factor (1.00 Güterzug, 0.65 Baugleis / Arbeitseinsatz)
  *
@@ -18,16 +22,17 @@ import { getDieselPriceMultiplier, getPathCostMultiplier } from '@/lib/events';
  * Spot trips: one-time charge for full route km at trip start.
  * Baugleis-Einsatz (15–180 days): same formula as a daily operating line.
  */
-export const TRASSE_EUR_PER_TRAIN_KM = 9.6;
-export const TRASSE_WEIGHT_EUR_PER_100T_KM = 0.36;
+export const OPERATING_COST_DIFFICULTY_MULTIPLIER = 1.08;
+export const TRASSE_EUR_PER_TRAIN_KM = 9.6 * OPERATING_COST_DIFFICULTY_MULTIPLIER;
+export const TRASSE_WEIGHT_EUR_PER_100T_KM = 0.36 * OPERATING_COST_DIFFICULTY_MULTIPLIER;
 export const TRASSE_BAUGLEIS_FACTOR = 0.65;
 
 export const DIESEL_LITERS_PER_KM = 4.8;
-export const DIESEL_EUR_PER_LITER = 2.4;
+export const DIESEL_EUR_PER_LITER = 2.4 * OPERATING_COST_DIFFICULTY_MULTIPLIER;
 export const DIESEL_EUR_PER_KM = DIESEL_LITERS_PER_KM * DIESEL_EUR_PER_LITER;
 
 export const ELECTRIC_KWH_PER_KM = 20;
-export const ELECTRIC_EUR_PER_KWH = 0.42;
+export const ELECTRIC_EUR_PER_KWH = 0.42 * OPERATING_COST_DIFFICULTY_MULTIPLIER;
 export const ELECTRIC_EUR_PER_KM = ELECTRIC_KWH_PER_KM * ELECTRIC_EUR_PER_KWH;
 
 export type EnergyMode = 'diesel' | 'elektrik';

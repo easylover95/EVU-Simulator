@@ -105,8 +105,11 @@ export const BASE_ZU_FAULT_CHANCE = 0.08;
 /** Random operational damage: not before 3 in-game months and company level 3. */
 export const MIN_FAULT_COMPANY_LEVEL = 3;
 export const MIN_FAULT_GAME_DAYS = 90;
-export const FAULT_DAILY_CHANCE_IN_SERVICE = 0.01;
+/** Aktive Fahrzeuge unterliegen einem täglichen, kleinen aber spürbaren Ausfallrisiko. */
+export const FAULT_DAILY_CHANCE_IN_SERVICE = 0.0045;
 export const FAULT_DAILY_CHANCE_IDLE = 0.0025;
+/** Außerplanmäßige Reparaturen enthalten Diagnose, Expressbeschaffung und Stillstandszuschlag. */
+export const FAULT_REPAIR_MULTIPLIER = 1.6;
 
 export const LOCO_FAULT_LABELS: Record<LocoFaultKind, string> = {
   antrieb: 'Antrieb / Motor',
@@ -590,8 +593,8 @@ export function clearLocoFault(loco: Locomotive): Locomotive {
   });
 }
 
-function pickRandomFaultKind(): LocoFaultKind {
-  return FAULT_KINDS[Math.floor(Math.random() * FAULT_KINDS.length)] ?? 'antrieb';
+function pickRandomFaultKind(random: () => number = Math.random): LocoFaultKind {
+  return FAULT_KINDS[Math.floor(random() * FAULT_KINDS.length)] ?? 'antrieb';
 }
 
 function reportLocoFault(
@@ -645,7 +648,8 @@ export function quoteWorkshopJob(
   const ratio = kind === 'reparatur' || kind === 'etcs' ? 0 : overdueRatioFor(frist);
   const overdueMalus = ratio * OVERDUE_MAX_SURCHARGE;
   const fremdMalus = channel === 'fremdvergabe' ? FREMDVERGABE_SURCHARGE : 0;
-  const listCost = Math.round(baseCost * (1 + overdueMalus) * (1 + fremdMalus));
+  const faultMalus = kind === 'reparatur' && locoHasFault(loco) ? FAULT_REPAIR_MULTIPLIER : 1;
+  const listCost = Math.round(baseCost * (1 + overdueMalus) * (1 + fremdMalus) * faultMalus);
   const cappedDiscount = Math.max(0, Math.min(15, Number(discountPct) || 0));
   const cost = Math.round(listCost * (1 - cappedDiscount / 100));
   const baseDays = channel === 'fremdvergabe' ? ownDays * FREMDVERGABE_DURATION_MULT[kind] : ownDays;
@@ -815,6 +819,7 @@ export function processMaintenanceDay(
   jobs: WorkshopJob[],
   atTick: number,
   companyLevel = 1,
+  random: () => number = Math.random,
 ): { locos: Locomotive[]; notifications: Omit<Notification, 'id'>[]; changed: boolean; unplannedFaults: number } {
   const busy = new Set(jobs.filter((j) => j.completeAtTick > atTick).map((j) => j.locoId));
   const activeByLoco = new Map<string, AssignmentWithDetails>();
@@ -859,7 +864,7 @@ export function processMaintenanceDay(
     const zu = fristFor(synced, 'ZU');
     if (zu.overdue && !busy.has(synced.id) && !locoHasFault(synced) && synced.status === 'frei') {
       const risk = BASE_ZU_FAULT_CHANCE * (1 + ZU_OVERDUE_FAULT_BONUS);
-      if (Math.random() < risk) {
+      if (random() < risk) {
         changed = true;
         unplannedFaults += 1;
         const reported = reportLocoFault(
@@ -873,23 +878,20 @@ export function processMaintenanceDay(
         return reported.loco;
       }
     }
-    if (
-      faultsUnlocked &&
-      !busy.has(synced.id) &&
-      !locoHasFault(synced) &&
-      (synced.status === 'frei')
-    ) {
-      const chance = FAULT_DAILY_CHANCE_IDLE;
-      if (Math.random() < chance) {
+    const isInService = synced.status === 'einsatz' || assignment?.status === 'aktiv';
+    const isIdle = synced.status === 'frei';
+    if (faultsUnlocked && !busy.has(synced.id) && !locoHasFault(synced) && (isInService || isIdle)) {
+      const chance = isInService ? FAULT_DAILY_CHANCE_IN_SERVICE : FAULT_DAILY_CHANCE_IDLE;
+      if (random() < chance) {
         changed = true;
         unplannedFaults += 1;
-        const kind = pickRandomFaultKind();
+        const kind = pickRandomFaultKind(random);
         const reported = reportLocoFault(
           synced,
           kind,
           atTick,
-          'Schaden gemeldet',
-          `${synced.name}: ${LOCO_FAULT_LABELS[kind]} — Ausfall. Die Reparatur ist in der Werkstatt für diese Lok freigeschaltet.`,
+          'Außerplanmäßiger Lokschaden',
+          `${synced.name}: ${LOCO_FAULT_LABELS[kind]} — Ausfall im ${isInService ? 'Betrieb' : 'Stillstand'}. Die Reparatur ist in der Werkstatt für diese Lok freigeschaltet.`,
         );
         notifications.push(reported.notification);
         return reported.loco;

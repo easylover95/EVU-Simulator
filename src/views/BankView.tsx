@@ -9,6 +9,8 @@ import {
   INSURANCE_BASE_DAILY,
   INSURANCE_CATALOG,
   LOAN_AMOUNTS,
+  MAX_DEBT_TO_EQUITY_RATIO,
+  checkLoanCredit,
   LOAN_OFFERS,
   LOAN_TIER_TABLE,
   GROSSKUNDEN_OVERDRAFT,
@@ -46,6 +48,7 @@ interface BankViewProps {
   onToggleInsurance: (id: InsuranceId) => boolean;
   onRepayLoan: (loanId: string) => boolean;
   dailyFixed?: DailyFixedCosts;
+  fleetBookValue: number;
 }
 
 export function BankView({
@@ -56,6 +59,7 @@ export function BankView({
   onToggleInsurance,
   onRepayLoan,
   dailyFixed,
+  fleetBookValue,
 }: BankViewProps) {
   const [amount, setAmount] = useState<LoanAmount>(25_000);
   const [offerIdx, setOfferIdx] = useState(1);
@@ -72,6 +76,15 @@ export function BankView({
   const currentTier = normalizeOverdraftLimit(bank.overdraftLimit);
   const sliderIndex = Math.max(0, OVERDRAFT_TIERS.indexOf(currentTier));
   const sanierung = sanierungSnapshot(bank, company?.tick ?? 0);
+  const outstandingLoanPrincipal = (bank.loans ?? []).reduce((sum, loan) => sum + (Number(loan?.principalRemaining) || Number(loan?.principal) || 0), 0);
+  const creditCheck = checkLoanCredit({
+    requestedPrincipal: amount,
+    cashBalance: balance,
+    fleetBookValue,
+    outstandingLoanPrincipal,
+    overdraftUsed: usedOverdraft,
+  });
+  const loanAvailable = amountUnlocked && creditCheck.approved;
 
   useEffect(() => setDraftOverdraft(normalizeOverdraftLimit(bank.overdraftLimit)), [bank.overdraftLimit]);
 
@@ -286,11 +299,17 @@ export function BankView({
               Tagesrate {formatEuro(daily)} · Gesamtrückzahlung {formatEuro(daily * offer.termDays)} · max.{' '}
               {formatEuro(MAX_LOAN_PRINCIPAL)}
             </p>
+            <p className={loanAvailable ? 'text-[11px] text-emerald-300' : 'text-[11px] text-rose-300'}>
+              Bonität: Verschuldungsgrad nach Auszahlung{' '}
+              {creditCheck.projectedDebtToEquity == null ? '—' : `${creditCheck.projectedDebtToEquity.toFixed(2).replace('.', ',')}×`}
+              {' '}von maximal {MAX_DEBT_TO_EQUITY_RATIO.toFixed(2).replace('.', ',')}×. Eigenkapitalbasis {formatEuro(creditCheck.equity)}.
+            </p>
+            {!loanAvailable && creditCheck.reason && <p className="text-[11px] text-rose-300">{creditCheck.reason}</p>}
             <Button
-              disabled={!amountUnlocked}
-              title={!amountUnlocked ? `Freischaltung ab Level ${loanUnlockLevel(amount)}` : undefined}
+              disabled={!loanAvailable}
+              title={!amountUnlocked ? `Freischaltung ab Level ${loanUnlockLevel(amount)}` : creditCheck.reason ?? undefined}
               onClick={() => {
-                if (!amountUnlocked) return;
+                if (!loanAvailable) return;
                 setPendingAction({ kind: 'loan', amount, termDays: offer.termDays, annualPct: offer.annualPct, label: offer.label, dailyPayment: daily });
               }}
             >

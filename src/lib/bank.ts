@@ -415,12 +415,63 @@ export const INSURANCE_CATALOG: Record<
 /** Always-on Betriebsversicherung (Standort/Fuhrpark), unabhängig von optionalen Policen. */
 export const INSURANCE_BASE_DAILY = 85;
 
+/**
+ * Verschärfte Kreditkonditionen: höhere Zinsen und kürzere Laufzeiten erhöhen
+ * den laufenden Schuldendienst und verhindern dauerhaft günstige Langläufer.
+ */
 export const LOAN_OFFERS = [
-  { termDays: 30, annualPct: 5.2, label: '30 Tage · 5,2 % p.a.' },
-  { termDays: 90, annualPct: 4.1, label: '90 Tage · 4,1 % p.a.' },
-  { termDays: 180, annualPct: 3.4, label: '180 Tage · 3,4 % p.a.' },
-  { termDays: 360, annualPct: 2.8, label: '360 Tage · 2,8 % p.a.' },
+  { termDays: 30, annualPct: 6.0, label: '30 Tage · 6,0 % p.a.' },
+  { termDays: 60, annualPct: 5.5, label: '60 Tage · 5,5 % p.a.' },
+  { termDays: 120, annualPct: 5.0, label: '120 Tage · 5,0 % p.a.' },
+  { termDays: 180, annualPct: 4.5, label: '180 Tage · 4,5 % p.a.' },
 ] as const;
+
+/** Maximaler Verschuldungsgrad: gesamte verzinsliche Schuld / Eigenkapital. */
+export const MAX_DEBT_TO_EQUITY_RATIO = 1.25;
+
+export interface LoanCreditCheck {
+  approved: boolean;
+  existingDebt: number;
+  projectedDebt: number;
+  equity: number;
+  projectedDebtToEquity: number | null;
+  maxDebtToEquity: number;
+  reason: string | null;
+}
+
+/**
+ * Bewertet die Darlehensfähigkeit vor Auszahlung. Die Darlehensauszahlung erhöht
+ * Cash und Schuld gleich stark; deshalb bleibt das Eigenkapital vor und nach der
+ * Auszahlung identisch. Fuhrparkwert wird vom Aufrufer aus dem lokalen Katalog
+ * geliefert und Leasingvermögen ist davon ausgeschlossen.
+ */
+export function checkLoanCredit(input: {
+  requestedPrincipal: number;
+  cashBalance: number;
+  fleetBookValue: number;
+  outstandingLoanPrincipal: number;
+  overdraftUsed?: number;
+}): LoanCreditCheck {
+  const requestedPrincipal = Math.max(0, Math.round(Number(input.requestedPrincipal) || 0));
+  const cash = Number(input.cashBalance) || 0;
+  const fleet = Math.max(0, Number(input.fleetBookValue) || 0);
+  const loanDebt = Math.max(0, Number(input.outstandingLoanPrincipal) || 0);
+  const overdraft = Math.max(0, Number(input.overdraftUsed) || 0, -cash);
+  const existingDebt = loanDebt + overdraft;
+  const projectedDebt = existingDebt + requestedPrincipal;
+  const equity = Math.round(Math.max(0, cash) + fleet - existingDebt);
+  const projectedDebtToEquity = equity > 0 ? projectedDebt / equity : null;
+  const approved = requestedPrincipal > 0
+    && equity > 0
+    && projectedDebtToEquity != null
+    && projectedDebtToEquity <= MAX_DEBT_TO_EQUITY_RATIO;
+  const reason = approved
+    ? null
+    : equity <= 0
+      ? 'Kredit abgelehnt: Eigenkapital ist nicht positiv.'
+      : `Kredit abgelehnt: Verschuldungsgrad ${projectedDebtToEquity?.toFixed(2).replace('.', ',') ?? '—'}× überschreitet die Grenze von ${MAX_DEBT_TO_EQUITY_RATIO.toFixed(2).replace('.', ',')}×.`;
+  return { approved, existingDebt, projectedDebt, equity, projectedDebtToEquity, maxDebtToEquity: MAX_DEBT_TO_EQUITY_RATIO, reason };
+}
 
 export const LOAN_AMOUNTS = [25_000, 50_000, 100_000, 250_000, 500_000, 1_000_000] as const;
 export type LoanAmount = (typeof LOAN_AMOUNTS)[number];

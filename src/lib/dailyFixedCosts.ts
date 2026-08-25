@@ -6,12 +6,18 @@ import { isNewGameDay } from '@/lib/storage';
 
 /** Mirrors processLeasesTick / processPayrollTick / processBankTick / processDepotTick — display only. */
 
-/** Standort-/Hallenmiete, unabhängig von der Auslastung. */
-export const HALL_RENT_DAILY = 2850;
-/** Gleismiete / Standgeld for locos not in Einsatz (15–30 € band). */
-export const IDLE_LOCO_STANDING_DAILY = 26;
-/** Gleismiete / Standgeld per idle wagon unit. */
-export const IDLE_WAGON_STANDING_DAILY = 18;
+/** Grundmiete für einen Standort mit zwei Lok- und zehn Wageneinheiten. */
+export const HALL_RENT_DAILY = 2_850;
+export const INCLUDED_LOCO_BERTHS = 2;
+export const INCLUDED_WAGON_UNITS = 10;
+/** Zusätzlicher Lokstellplatz / Hallenabschnitt je angebrochener Lok über der Grundkapazität. */
+export const EXTRA_LOCO_BERTH_DAILY = 620;
+/** Zusätzliche Wagenabstellkapazität je Wageneinheit über der Grundkapazität. */
+export const EXTRA_WAGON_CAPACITY_DAILY = 42;
+/** Gleismiete / Standgeld für Loks außerhalb einer aktiven Fahrt. */
+export const IDLE_LOCO_STANDING_DAILY = 34;
+/** Gleismiete / Standgeld per inaktiver Wageneinheit. */
+export const IDLE_WAGON_STANDING_DAILY = 24;
 
 export interface DailyFixedCostLine {
   id: string;
@@ -81,24 +87,38 @@ export function idleWagonUnits(wagons: Wagon[] | null | undefined): number {
 
 export function previewDepotDaily(locos: Locomotive[] | null | undefined, wagons: Wagon[] | null | undefined): {
   hall: number;
+  extraLocoBerths: number;
+  extraWagonCapacity: number;
+  extraLocoBerthCount: number;
+  extraWagonUnitCount: number;
   idleLocos: number;
   idleWagons: number;
   idleLocoCount: number;
   idleWagonCount: number;
   total: number;
 } {
+  const locoCount = Array.isArray(locos) ? locos.length : 0;
+  const wagonUnits = Array.isArray(wagons) ? wagons.reduce((sum, wagon) => sum + Math.max(0, Number(wagon.count) || 0), 0) : 0;
   const idleLocoN = idleLocoCount(locos);
   const idleWagonN = idleWagonUnits(wagons);
   const hall = HALL_RENT_DAILY;
+  const extraLocoBerthCount = Math.max(0, locoCount - INCLUDED_LOCO_BERTHS);
+  const extraWagonUnitCount = Math.max(0, wagonUnits - INCLUDED_WAGON_UNITS);
+  const extraLocoBerths = extraLocoBerthCount * EXTRA_LOCO_BERTH_DAILY;
+  const extraWagonCapacity = extraWagonUnitCount * EXTRA_WAGON_CAPACITY_DAILY;
   const idleLocos = idleLocoN * IDLE_LOCO_STANDING_DAILY;
   const idleWagons = idleWagonN * IDLE_WAGON_STANDING_DAILY;
   return {
     hall,
+    extraLocoBerths,
+    extraWagonCapacity,
+    extraLocoBerthCount,
+    extraWagonUnitCount,
     idleLocos,
     idleWagons,
     idleLocoCount: idleLocoN,
     idleWagonCount: idleWagonN,
-    total: hall + idleLocos + idleWagons,
+    total: hall + extraLocoBerths + extraWagonCapacity + idleLocos + idleWagons,
   };
 }
 
@@ -198,7 +218,17 @@ export function computeDailyFixedCosts(input: {
     const depotPreview = previewDepotDaily(input.locomotives, input.wagons);
     const depot = depotPreview.total;
     const depotLines: DailyFixedCostLine[] = [
-      { id: 'depot-hall', label: 'Standort / Hallenmiete', amount: depotPreview.hall },
+      { id: 'depot-hall', label: 'Standort / Hallenmiete · Grundkapazität', amount: depotPreview.hall },
+      {
+        id: 'depot-extra-loco-berths',
+        label: `${depotPreview.extraLocoBerthCount} zusätzliche Lokstellplätze · ${EXTRA_LOCO_BERTH_DAILY} € / Tag`,
+        amount: depotPreview.extraLocoBerths,
+      },
+      {
+        id: 'depot-extra-wagon-capacity',
+        label: `${depotPreview.extraWagonUnitCount} zusätzliche Wageneinheiten · ${EXTRA_WAGON_CAPACITY_DAILY} € / Tag`,
+        amount: depotPreview.extraWagonCapacity,
+      },
       {
         id: 'depot-idle-locos',
         label: `${depotPreview.idleLocoCount} inaktive Loks · Standgeld ${IDLE_LOCO_STANDING_DAILY} €`,

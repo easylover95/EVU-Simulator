@@ -88,6 +88,7 @@ import {
 import {
   canChangeOverdraftLimit,
   canSpend,
+  checkLoanCredit,
   INSURANCE_CATALOG,
   isLoanAmountUnlocked,
   isOverdraftTierUnlocked,
@@ -106,6 +107,7 @@ import {
   type BankState,
   type InsuranceId,
 } from '@/lib/bank';
+import { fleetBookValue } from '@/lib/financialStatements';
 import {
   applyBekanntheit,
   isCampaignUnlocked,
@@ -1911,6 +1913,23 @@ function App() {
     if (!isLoanAmountUnlocked(amount, current.level)) return false;
     const livePrincipal = (bankRef.current.loans ?? []).reduce((s, l) => s + (Number(l?.principalRemaining) || Number(l?.principal) || 0), 0);
     if (livePrincipal + amount > MAX_LOAN_PRINCIPAL) return false;
+    const creditCheck = checkLoanCredit({
+      requestedPrincipal: amount,
+      cashBalance: current.balance,
+      fleetBookValue: fleetBookValue(locomotivesRef.current, wagonsRef.current, dealerRef.current),
+      outstandingLoanPrincipal: livePrincipal,
+      overdraftUsed: Math.max(0, -current.balance),
+    });
+    if (!creditCheck.approved) {
+      pushNotifications([{
+        type: 'error',
+        title: 'Kredit abgelehnt',
+        message: creditCheck.reason ?? 'Die Bonitätsprüfung wurde nicht bestanden.',
+        read: false,
+        created_at: tickToIso(current.tick),
+      }]);
+      return false;
+    }
     const dailyPayment = loanDailyPayment(amount, termDays, annualPct);
     const totalRepayment = dailyPayment * termDays;
     const interestTotal = Math.max(0, totalRepayment - amount);
@@ -2815,6 +2834,7 @@ function App() {
                   onToggleInsurance={handleToggleInsurance}
                   onRepayLoan={handleRepayLoan}
                   dailyFixed={dailyFixed}
+                  fleetBookValue={fleetBookValue(locomotives, wagons, dealer)}
                 />
               )}
               {view === 'finanzen' && (

@@ -6,6 +6,7 @@ import {
   INSURANCE_BASE_DAILY,
   LOAN_OFFERS,
   OVERDRAFT_DAILY_RATE,
+  checkLoanCredit,
   loanDailyPayment,
   loanPaymentBreakdown,
   processBankTick,
@@ -18,21 +19,22 @@ import { buildContractRunOrder, contractTripYield, defaultFreightContracts, type
 import { ensureStaffMeta, processPayrollTick, salaryFor, type StaffMeta } from '../src/lib/jobcenter';
 import { calcOrderOperatingCosts } from '../src/lib/operatingCosts';
 import { computeSpotYield } from '../src/lib/orderMarket';
+import { fleetBookValue } from '../src/lib/financialStatements';
 import { hireNachschulungFee } from '../src/lib/personal';
 import { grantCompanyXp, xpForCompletedOrder } from '../src/lib/progression';
 import { SEED_COMPANY, SEED_DRIVERS, SEED_LOCOMOTIVES, SEED_ORDERS, SEED_WAGONS } from '../src/lib/seed';
 import { TICKS_PER_DAY } from '../src/lib/storage';
 import type { Company, FuelType, Locomotive, Order, Wagon } from '../src/lib/supabase';
 import { WAGON_JOB_RATES } from '../src/lib/wagonJobs';
-import { quoteWorkshopJob, revisedMaintenance } from '../src/lib/workshop';
+import { clearLocoFault, locoHasFault, processMaintenanceDay, quoteWorkshopJob, revisedMaintenance } from '../src/lib/workshop';
 
 const DAYS = 365;
 const OUT_DIR = join(process.cwd(), 'simulation', 'output');
 const FIRST_INVESTMENT_THRESHOLD = 600_000;
 const SECOND_INVESTMENT_THRESHOLD = 850_000;
 const LOAN_PRINCIPAL = 250_000;
-const LOAN_TERM_DAYS = 360;
-const LOAN_APR = 2.8;
+const GROWTH_LOAN_TERM_DAYS = 180;
+const SIMULATION_RANDOM_SEED = 0x5EED2026;
 const TF_HIRING_COST = 2_450;
 
 interface Ledger {
@@ -51,6 +53,7 @@ interface Ledger {
   loanProceeds: number;
   loanInterest: number;
   loanPrincipal: number;
+  unplannedRepairs: number;
 }
 
 interface FleetAsset {
@@ -58,6 +61,7 @@ interface FleetAsset {
   series: string;
   acquiredDay: number;
   route: 'coil' | 'eanos' | 'bulk' | 'intermodal';
+  unavailableUntilDay: number | null;
 }
 
 interface DailySnapshot {
@@ -75,6 +79,18 @@ interface DailySnapshot {
   locomotiveCount: number;
   wagonUnits: number;
   activeTrips: number;
+  unplannedRepairCosts: number;
+  unavailableLocomotives: number;
+}
+
+interface RiskEvent {
+  day: number;
+  locomotiveId: string;
+  series: string;
+  fault: string;
+  repairCost: number;
+  downtimeDays: number;
+  lostTrips: number;
 }
 
 interface InvestmentEvent {
@@ -87,6 +103,14 @@ interface InvestmentEvent {
   personnelCost: number;
   balanceAfter: number;
   fleetSize: number;
+}
+
+function createSeededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1_664_525 + 1_013_904_223) >>> 0;
+    return state / 4_294_967_296;
+  };
 }
 
 function createBankState(): BankState {
@@ -199,15 +223,15 @@ function starterFleet(): { fleet: FleetAsset[]; wagons: Wagon[] } {
   return {
     fleet: SEED_LOCOMOTIVES.map((loco, index) => ({
       locomotive: { ...loco, status: 'einsatz', maintenance: revisedMaintenance() },
-      series: 'BR 218', acquiredDay: 0, route: index === 0 ? 'coil' : 'eanos',
+      series: 'BR 218', acquiredDay: 0, route: index === 0 ? 'coil' : 'eanos', unavailableUntilDay: null,
     })),
     wagons: SEED_WAGONS.map((wagon) => ({ ...wagon, status: 'im_einsatz' })),
   };
 }
 
 function csv(rows: DailySnapshot[]): string {
-  const header = 'Tag;Level;Bekanntheit;Kontostand;Erlöse;Betriebskosten;Fixkosten;Wartungskosten;Investitionen;Kreditdienst;Tonnenkilometer;Lokanzahl;Wageneinheiten;AktiveFahrten';
-  return [header, ...rows.map((row) => [row.day, row.level, row.reputation, row.balance, row.revenue, row.operatingCosts, row.fixedCosts, row.maintenanceCosts, row.investmentCosts, row.loanService, row.tkm, row.locomotiveCount, row.wagonUnits, row.activeTrips].join(';'))].join('\n') + '\n';
+  const header = 'Tag;Level;Bekanntheit;Kontostand;Erlöse;Betriebskosten;Fixkosten;Wartungskosten;Investitionen;Kreditdienst;Tonnenkilometer;Lokanzahl;Wageneinheiten;AktiveFahrten;UngeplanteReparaturen;NichtVerfügbareLoks';
+  return [header, ...rows.map((row) => [row.day, row.level, row.reputation, row.balance, row.revenue, row.operatingCosts, row.fixedCosts, row.maintenanceCosts, row.investmentCosts, row.loanService, row.tkm, row.locomotiveCount, row.wagonUnits, row.activeTrips, row.unplannedRepairCosts, row.unavailableLocomotives].join(';'))].join('\n') + '\n';
 }
 
 function run(): void {
@@ -221,10 +245,14 @@ function run(): void {
   const ledger: Ledger = {
     contractRevenue: 0, spotRevenue: 0, pathEnergy: 0, payroll: 0, depot: 0, insurance: 0,
     maintenance: 0, wagonRevision: 0, quickPay: 0, hiring: 0, locomotiveInvestment: 0,
-    wagonInvestment: 0, loanProceeds: 0, loanInterest: 0, loanPrincipal: 0,
+    wagonInvestment: 0, loanProceeds: 0, loanInterest: 0, loanPrincipal: 0, unplannedRepairs: 0,
   };
   const daily: DailySnapshot[] = [];
   const investments: InvestmentEvent[] = [];
+  const riskEvents: RiskEvent[] = [];
+  const random = createSeededRandom(SIMULATION_RANDOM_SEED);
+  const growthLoanOffer = LOAN_OFFERS.find((offer) => offer.termDays === GROWTH_LOAN_TERM_DAYS);
+  assert(growthLoanOffer, 'Das verschärfte 180-Tage-Kreditangebot fehlt.');
   const routeContribution = new Map<string, number>();
   const seriesContribution = new Map<string, number>();
   let totalTkm = 0;
@@ -249,12 +277,20 @@ function run(): void {
       const br232 = LOCO_OFFERS.find((offer) => offer.id === 'br232');
       assert(br232, 'BR 232 fehlt im Händlerkatalog.');
       const wagonsFor232 = makeWagon('Eanos', 12, day);
-      const dailyPayment = loanDailyPayment(LOAN_PRINCIPAL, LOAN_TERM_DAYS, LOAN_APR);
-      const totalRepayment = dailyPayment * LOAN_TERM_DAYS;
+      const creditCheck = checkLoanCredit({
+        requestedPrincipal: LOAN_PRINCIPAL,
+        cashBalance: company.balance,
+        fleetBookValue: fleetBookValue(fleet.map((asset) => asset.locomotive), wagons, null),
+        outstandingLoanPrincipal: bank.loans.reduce((sum, loan) => sum + loan.principalRemaining, 0),
+        overdraftUsed: Math.max(0, -company.balance),
+      });
+      if (creditCheck.approved) {
+        const dailyPayment = loanDailyPayment(LOAN_PRINCIPAL, growthLoanOffer.termDays, growthLoanOffer.annualPct);
+      const totalRepayment = dailyPayment * growthLoanOffer.termDays;
       const loan: BankLoan = {
         id: `sim-loan-${day}`, principal: LOAN_PRINCIPAL, remaining: totalRepayment,
         principalRemaining: LOAN_PRINCIPAL, interestRemaining: totalRepayment - LOAN_PRINCIPAL,
-        termDays: LOAN_TERM_DAYS, dailyPayment, interestLabel: '360 Tage · 2,8 % p.a.', startedTick: nextTick,
+        termDays: growthLoanOffer.termDays, dailyPayment, interestLabel: growthLoanOffer.label, startedTick: nextTick,
       };
       bank.loans.push(loan);
       company = { ...company, balance: company.balance + LOAN_PRINCIPAL };
@@ -265,10 +301,11 @@ function run(): void {
       add(ledger, 'hiring', TF_HIRING_COST);
       add(ledger, 'quickPay', hireNachschulungFee(1));
       dayInvestments = br232.buyPrice + wagonsFor232.cost + TF_HIRING_COST + hireNachschulungFee(1);
-      fleet.push({ locomotive: makeLoco('br232', day), series: 'BR 232', acquiredDay: day, route: 'bulk' });
+      fleet.push({ locomotive: makeLoco('br232', day), series: 'BR 232', acquiredDay: day, route: 'bulk', unavailableUntilDay: null });
       wagons.push(wagonsFor232.wagon);
       addTf(staff, `dynamic-br232-tf-${day}`, 'br232');
       investments.push({ day, kind: 'credit-and-br232', balanceBefore: before, loanProceeds: LOAN_PRINCIPAL, locomotiveCost: br232.buyPrice, wagonCost: wagonsFor232.cost, personnelCost: TF_HIRING_COST + hireNachschulungFee(1), balanceAfter: company.balance, fleetSize: fleet.length });
+      }
     }
 
     if (investments.length === 1 && company.balance >= SECOND_INVESTMENT_THRESHOLD) {
@@ -282,13 +319,58 @@ function run(): void {
       add(ledger, 'hiring', TF_HIRING_COST);
       add(ledger, 'quickPay', hireNachschulungFee(1));
       dayInvestments += br140.buyPrice + wagonsFor140.cost + TF_HIRING_COST + hireNachschulungFee(1);
-      fleet.push({ locomotive: makeLoco('br140', day), series: 'BR 140/143', acquiredDay: day, route: 'intermodal' });
+      fleet.push({ locomotive: makeLoco('br140', day), series: 'BR 140/143', acquiredDay: day, route: 'intermodal', unavailableUntilDay: null });
       wagons.push(wagonsFor140.wagon);
       addTf(staff, `dynamic-br140-tf-${day}`, 'br140');
       investments.push({ day, kind: 'br140', balanceBefore: before, loanProceeds: 0, locomotiveCost: br140.buyPrice, wagonCost: wagonsFor140.cost, personnelCost: TF_HIRING_COST + hireNachschulungFee(1), balanceAfter: company.balance, fleetSize: fleet.length });
     }
 
-    const trips = fleet.map((asset) => {
+    for (const asset of fleet) {
+      if (asset.unavailableUntilDay != null && day > asset.unavailableUntilDay) {
+        asset.locomotive = { ...clearLocoFault(asset.locomotive), status: 'einsatz' };
+        asset.unavailableUntilDay = null;
+      }
+    }
+
+    const previouslyFaulty = new Set(fleet.filter((asset) => locoHasFault(asset.locomotive)).map((asset) => asset.locomotive.id));
+    const maintenanceTick = processMaintenanceDay(
+      fleet.map((asset) => asset.locomotive),
+      [],
+      [],
+      nextTick,
+      company.level,
+      random,
+    );
+    const maintainedById = new Map(maintenanceTick.locos.map((loco) => [loco.id, loco]));
+    for (const asset of fleet) {
+      asset.locomotive = maintainedById.get(asset.locomotive.id) ?? asset.locomotive;
+    }
+
+    let dayMaintenance = 0;
+    let dayUnplannedRepairs = 0;
+    for (const asset of fleet) {
+      if (previouslyFaulty.has(asset.locomotive.id) || !locoHasFault(asset.locomotive)) continue;
+      const repair = quoteWorkshopJob(asset.locomotive, 'reparatur', 'fremdvergabe');
+      company = { ...company, balance: company.balance - repair.cost };
+      add(ledger, 'unplannedRepairs', repair.cost);
+      dayMaintenance += repair.cost;
+      dayUnplannedRepairs += repair.cost;
+      const fault = asset.locomotive.maintenance?.fault?.kind ?? 'unbekannt';
+      asset.unavailableUntilDay = day + repair.durationDays - 1;
+      riskEvents.push({
+        day,
+        locomotiveId: asset.locomotive.id,
+        series: asset.series,
+        fault,
+        repairCost: repair.cost,
+        downtimeDays: repair.durationDays,
+        lostTrips: repair.durationDays,
+      });
+    }
+
+    const trips = fleet
+      .filter((asset) => asset.unavailableUntilDay == null)
+      .map((asset) => {
       if (asset.route === 'coil') {
         return { key: 'BR 218 · Coil-Rahmenvertrag', series: asset.series, order: buildContractRunOrder(coil, nextTick, company), contract: true, fuel: asset.locomotive.fuel_type };
       }
@@ -325,7 +407,6 @@ function run(): void {
     totalTkm += dayTkm;
     totalTons += dayTons;
 
-    let dayMaintenance = 0;
     for (const asset of fleet) {
       if (day > asset.acquiredDay && (day - asset.acquiredDay) % 90 === 0) {
         const quote = quoteWorkshopJob(asset.locomotive, 'F', 'fremdvergabe');
@@ -368,28 +449,39 @@ function run(): void {
 
     lowestBalance = Math.min(lowestBalance, company.balance);
     if (company.balance < 0 && firstNegativeDay == null) firstNegativeDay = day;
-    daily.push({ day, level: company.level, reputation: company.reputation, balance: company.balance, revenue: dayRevenue, operatingCosts: dayOperating, fixedCosts: bankCost + payrollCost + depotCost, maintenanceCosts: dayMaintenance, investmentCosts: dayInvestments, loanService: expectedService.principal + expectedService.interest, tkm: dayTkm, locomotiveCount: fleet.length, wagonUnits: wagons.reduce((sum, wagon) => sum + wagon.count, 0), activeTrips: trips.length });
+    daily.push({ day, level: company.level, reputation: company.reputation, balance: company.balance, revenue: dayRevenue, operatingCosts: dayOperating, fixedCosts: bankCost + payrollCost + depotCost, maintenanceCosts: dayMaintenance, investmentCosts: dayInvestments, loanService: expectedService.principal + expectedService.interest, tkm: dayTkm, locomotiveCount: fleet.length, wagonUnits: wagons.reduce((sum, wagon) => sum + wagon.count, 0), activeTrips: trips.length, unplannedRepairCosts: dayUnplannedRepairs, unavailableLocomotives: fleet.filter((asset) => asset.unavailableUntilDay != null).length });
   }
 
   const revenue = ledger.contractRevenue + ledger.spotRevenue;
-  const cashOut = ledger.pathEnergy + ledger.payroll + ledger.depot + ledger.insurance + ledger.maintenance + ledger.wagonRevision + ledger.quickPay + ledger.hiring + ledger.locomotiveInvestment + ledger.wagonInvestment + ledger.loanInterest + ledger.loanPrincipal;
+  const cashOut = ledger.pathEnergy + ledger.payroll + ledger.depot + ledger.insurance + ledger.maintenance + ledger.wagonRevision + ledger.unplannedRepairs + ledger.quickPay + ledger.hiring + ledger.locomotiveInvestment + ledger.wagonInvestment + ledger.loanInterest + ledger.loanPrincipal;
   const reconciliation = startCapital + ledger.loanProceeds + revenue - cashOut;
   assert.equal(company.balance, reconciliation, 'Der dynamische Kontostand muss vollständig mit dem Ledger abgestimmt sein.');
-  assert.equal(investments.length, 2, 'Beide dynamischen Investitionsschritte müssen ausgelöst werden.');
-  assert.equal(bank.insolvent, false, 'Die dynamische Investitionsstrategie darf keine Insolvenz erzeugen.');
-
   const result = {
-    scenario: 'dynamic-fleet-growth-365-v1', days: DAYS, startCapital, endCapital: company.balance,
+    scenario: 'dynamic-fleet-growth-365-v2-hard-mode', days: DAYS, startCapital, endCapital: company.balance,
     netCashChange: company.balance - startCapital, lowestBalance, firstNegativeDay, financiallyStable: company.balance >= 0 && !bank.insolvent,
     finalLevel: company.level, finalReputation: company.reputation, totalRevenue: revenue, cashOut, cashOperatingResult: revenue - (cashOut - ledger.locomotiveInvestment - ledger.wagonInvestment - ledger.loanPrincipal),
-    transport: { completedTrips, totalTkm, totalTonsMoved: totalTons, finalLocomotives: fleet.length, finalWagonUnits: wagons.reduce((sum, wagon) => sum + wagon.count, 0), finalActiveTripsPerDay: fleet.length },
+    transport: { completedTrips, totalTkm, totalTonsMoved: totalTons, finalLocomotives: fleet.length, finalWagonUnits: wagons.reduce((sum, wagon) => sum + wagon.count, 0), finalActiveTripsPerDay: fleet.filter((asset) => asset.unavailableUntilDay == null).length },
     financing: {
       initialLoanProceeds: ledger.loanProceeds,
       principalRepaid: ledger.loanPrincipal,
       interestPaid: ledger.loanInterest,
       principalOutstanding: bank.loans.reduce((sum, loan) => sum + loan.principalRemaining, 0),
     },
-    investments, costs: ledger, series: [...seriesContribution.entries()].map(([seriesId, contribution]) => ({ seriesId, contribution })).sort((a, b) => b.contribution - a.contribution), routes: [...routeContribution.entries()].map(([route, contribution]) => ({ route, contribution })).sort((a, b) => b.contribution - a.contribution), reconciliation,
+    investments,
+    risks: {
+      randomSeed: SIMULATION_RANDOM_SEED,
+      unplannedFaultCount: riskEvents.length,
+      unplannedRepairCost: ledger.unplannedRepairs,
+      totalDowntimeDays: riskEvents.reduce((sum, event) => sum + event.downtimeDays, 0),
+      totalLostTrips: riskEvents.reduce((sum, event) => sum + event.lostTrips, 0),
+      events: riskEvents,
+    },
+    difficulty: {
+      operatingCostMultiplier: 1.08,
+      growthLoan: { termDays: growthLoanOffer.termDays, annualPct: growthLoanOffer.annualPct },
+      maxDebtToEquityRatio: 1.25,
+    },
+    costs: ledger, series: [...seriesContribution.entries()].map(([seriesId, contribution]) => ({ seriesId, contribution })).sort((a, b) => b.contribution - a.contribution), routes: [...routeContribution.entries()].map(([route, contribution]) => ({ route, contribution })).sort((a, b) => b.contribution - a.contribution), reconciliation,
   };
 
   writeFileSync(join(OUT_DIR, 'dynamic-freight-year-365.json'), JSON.stringify(result, null, 2) + '\n', 'utf8');

@@ -1,59 +1,93 @@
 {
-  "scenario": "starter-freight-baseline-365-v1",
+  "scenario": "starter-freight-baseline-365-v2-hard-mode",
   "days": 365,
   "startCapital": 210000,
-  "endCapital": 1435459,
-  "netCashChange": 1225459,
-  "lowestBalance": 182382,
+  "endCapital": 1242074,
+  "netCashChange": 1032074,
+  "lowestBalance": 149582,
   "firstNegativeDay": null,
   "financiallyStable": true,
   "finalLevel": 7,
   "finalReputation": 48,
-  "totalRevenue": 4005169,
-  "totalCosts": 2779710,
-  "operatingProfitBeforeFixedCosts": 2503924,
-  "operatingResultAfterAllCosts": 1225459,
+  "totalRevenue": 3954031,
+  "totalCosts": 2921957,
+  "operatingProfitBeforeFixedCosts": 2345045,
+  "operatingResultAfterAllCosts": 1032074,
   "transport": {
-    "completedTrips": 730,
-    "contractTrips": 365,
+    "completedTrips": 721,
+    "contractTrips": 356,
     "spotTrips": 365,
     "contractRenewals": 18,
-    "totalTkm": 42267000,
-    "totalTonsMoved": 423400
+    "totalTkm": 42088800,
+    "totalTonsMoved": 420160
   },
   "costs": {
-    "contractRevenue": 1670260,
+    "contractRevenue": 1619122,
     "spotRevenue": 2334909,
-    "pathEnergy": 1501245,
+    "pathEnergy": 1608986,
     "payroll": 185420,
-    "depot": 1040250,
+    "depot": 1040556,
     "insurance": 31025,
-    "maintenance": 12000,
+    "maintenance": 17400,
     "wagonRevision": 5120,
     "quickPay": 2200,
-    "hiring": 2450
+    "hiring": 2450,
+    "unplannedRepairs": 28800
+  },
+  "risks": {
+    "randomSeed": 1592598566,
+    "unplannedFaultCount": 3,
+    "unplannedRepairCost": 28800,
+    "totalDowntimeDays": 9,
+    "totalLostTrips": 9,
+    "events": [
+      {
+        "day": 227,
+        "locomotiveId": "a18e0218-0000-4000-8000-000000000218",
+        "fault": "bremse",
+        "repairCost": 9600,
+        "downtimeDays": 3,
+        "lostTrips": 3
+      },
+      {
+        "day": 251,
+        "locomotiveId": "a18e0218-0000-4000-8000-000000000218",
+        "fault": "antrieb",
+        "repairCost": 9600,
+        "downtimeDays": 3,
+        "lostTrips": 3
+      },
+      {
+        "day": 329,
+        "locomotiveId": "a18e0218-0000-4000-8000-000000000218",
+        "fault": "bremse",
+        "repairCost": 9600,
+        "downtimeDays": 3,
+        "lostTrips": 3
+      }
+    ]
   },
   "maintenance": {
     "scheduledFJobs": 8,
     "wagonRevisionJobs": 4,
-    "externalFJobCost": 1500,
+    "externalFJobCost": 2400,
     "wagonRevisionUnitCost": 1280
   },
   "series": [
     {
       "seriesId": "BR 218",
-      "contribution": 2503924
+      "contribution": 2345045
     }
   ],
   "routes": [
     {
       "route": "BR 218 · Eanos-Spotverkehr",
-      "contribution": 1283709
+      "contribution": 1199759
     },
     {
       "route": "BR 218 · Coil-Rahmenvertrag",
-      "contribution": 1220215
+      "contribution": 1145286
     }
   ],
-  "reconciliation": 1435459
+  "reconciliation": 1242074
 }

@@ -24,12 +24,13 @@ import { SEED_COMPANY, SEED_DRIVERS, SEED_LOCOMOTIVES, SEED_ORDERS, SEED_WAGONS 
 import { TICKS_PER_DAY } from '../src/lib/storage';
 import type { Company, Locomotive, Order, Wagon } from '../src/lib/supabase';
 import { WAGON_JOB_RATES } from '../src/lib/wagonJobs';
-import { quoteWorkshopJob, revisedMaintenance } from '../src/lib/workshop';
+import { clearLocoFault, locoHasFault, processMaintenanceDay, quoteWorkshopJob, revisedMaintenance } from '../src/lib/workshop';
 
 const DAYS = 365;
 const OUT_DIR = join(process.cwd(), 'simulation', 'output');
 const MAINTENANCE_DAYS = new Set([90, 180, 270, 360]);
 const WAGON_REVISION_DAYS = new Set([180, 360]);
+const SIMULATION_RANDOM_SEED = 0x5EED2026;
 
 interface Ledger {
   contractRevenue: number;
@@ -42,6 +43,7 @@ interface Ledger {
   wagonRevision: number;
   quickPay: number;
   hiring: number;
+  unplannedRepairs: number;
 }
 
 interface DailySnapshot {
@@ -54,6 +56,25 @@ interface DailySnapshot {
   fixedCosts: number;
   maintenanceCosts: number;
   tkm: number;
+  unplannedRepairCosts: number;
+  unavailableLocomotives: number;
+}
+
+interface RiskEvent {
+  day: number;
+  locomotiveId: string;
+  fault: string;
+  repairCost: number;
+  downtimeDays: number;
+  lostTrips: number;
+}
+
+function createSeededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1_664_525 + 1_013_904_223) >>> 0;
+    return state / 4_294_967_296;
+  };
 }
 
 function euro(value: number): string {
@@ -139,7 +160,7 @@ function addIncome(ledger: Ledger, id: 'contractRevenue' | 'spotRevenue', amount
 }
 
 function csv(rows: DailySnapshot[]): string {
-  const header = 'Tag;Level;Bekanntheit;Kontostand;Erlöse;Betriebskosten;Fixkosten;Wartungskosten;Tonnenkilometer';
+  const header = 'Tag;Level;Bekanntheit;Kontostand;Erlöse;Betriebskosten;Fixkosten;Wartungskosten;Tonnenkilometer;UngeplanteReparaturen;NichtVerfügbareLoks';
   const body = rows.map((row) => [
     row.day,
     row.level,
@@ -150,6 +171,8 @@ function csv(rows: DailySnapshot[]): string {
     row.fixedCosts,
     row.maintenanceCosts,
     row.tkm,
+    row.unplannedRepairCosts,
+    row.unavailableLocomotives,
   ].join(';'));
   return [header, ...body].join('\n') + '\n';
 }
@@ -174,11 +197,16 @@ function run(): void {
     wagonRevision: 0,
     quickPay: 0,
     hiring: 0,
+    unplannedRepairs: 0,
   };
   const daily: DailySnapshot[] = [];
+  const riskEvents: RiskEvent[] = [];
+  const random = createSeededRandom(SIMULATION_RANDOM_SEED);
+  const unavailableUntilDay = new Map<string, number>();
   const seriesProfit = new Map<string, number>();
   const classProfit = new Map<string, number>();
   let tkm = 0;
+  let totalTonsMoved = 0;
   let completedTrips = 0;
   let contractTrips = 0;
   let spotTrips = 0;
@@ -202,12 +230,47 @@ function run(): void {
 
     if (day === 1 || (day - 1) % coil.periodDays === 0) contractRenewals += 1;
 
+    for (let index = 0; index < locomotives.length; index += 1) {
+      const loco = locomotives[index];
+      const until = unavailableUntilDay.get(loco.id);
+      if (until != null && day > until) {
+        locomotives[index] = { ...clearLocoFault(loco), status: 'einsatz' };
+        unavailableUntilDay.delete(loco.id);
+      }
+    }
+
+    const previouslyFaulty = new Set(locomotives.filter(locoHasFault).map((loco) => loco.id));
+    const maintenanceTick = processMaintenanceDay(locomotives, [], [], nextTick, company.level, random);
+    for (let index = 0; index < locomotives.length; index += 1) {
+      locomotives[index] = maintenanceTick.locos[index] ?? locomotives[index];
+    }
+
+    let dayMaintenance = 0;
+    let dayUnplannedRepairs = 0;
+    for (const loco of locomotives) {
+      if (previouslyFaulty.has(loco.id) || !locoHasFault(loco)) continue;
+      const repair = quoteWorkshopJob(loco, 'reparatur', 'fremdvergabe');
+      company = { ...company, balance: company.balance - repair.cost };
+      addCost(ledger, 'unplannedRepairs', repair.cost);
+      dayMaintenance += repair.cost;
+      dayUnplannedRepairs += repair.cost;
+      unavailableUntilDay.set(loco.id, day + repair.durationDays - 1);
+      riskEvents.push({
+        day,
+        locomotiveId: loco.id,
+        fault: loco.maintenance?.fault?.kind ?? 'unbekannt',
+        repairCost: repair.cost,
+        downtimeDays: repair.durationDays,
+        lostTrips: repair.durationDays,
+      });
+    }
+
     const coilOrder = buildContractRunOrder(coil, nextTick, company);
     const spotOrder = buildSpotOrder(day, company);
     const trips = [
-      { key: 'BR 218 · Coil-Rahmenvertrag', order: coilOrder, source: 'contract' as const, fuel: locomotives[0].fuel_type },
-      { key: 'BR 218 · Eanos-Spotverkehr', order: spotOrder, source: 'spot' as const, fuel: locomotives[1].fuel_type },
-    ];
+      { key: 'BR 218 · Coil-Rahmenvertrag', order: coilOrder, source: 'contract' as const, fuel: locomotives[0].fuel_type, available: !unavailableUntilDay.has(locomotives[0].id) },
+      { key: 'BR 218 · Eanos-Spotverkehr', order: spotOrder, source: 'spot' as const, fuel: locomotives[1].fuel_type, available: !unavailableUntilDay.has(locomotives[1].id) },
+    ].filter((trip) => trip.available);
 
     let dayRevenue = 0;
     let dayOperating = 0;
@@ -223,6 +286,7 @@ function run(): void {
       dayRevenue += revenue;
       dayOperating += costs.total;
       dayTkm += (Number(pricedOrder.distance_km) || 0) * (Number(pricedOrder.weight_t) || 0);
+      totalTonsMoved += Number(pricedOrder.weight_t) || 0;
       completedTrips += 1;
       if (trip.source === 'contract') {
         contractTrips += 1;
@@ -238,7 +302,6 @@ function run(): void {
     }
     tkm += dayTkm;
 
-    let dayMaintenance = 0;
     if (MAINTENANCE_DAYS.has(day)) {
       for (const loco of locomotives) {
         const quote = quoteWorkshopJob(loco, 'F', 'fremdvergabe');
@@ -288,17 +351,15 @@ function run(): void {
       fixedCosts: bankCost + payrollCost + depotCost,
       maintenanceCosts: dayMaintenance,
       tkm: dayTkm,
+      unplannedRepairCosts: dayUnplannedRepairs,
+      unavailableLocomotives: unavailableUntilDay.size,
     });
   }
 
   const totalRevenue = ledger.contractRevenue + ledger.spotRevenue;
-  const totalCosts = ledger.pathEnergy + ledger.payroll + ledger.depot + ledger.insurance + ledger.maintenance + ledger.wagonRevision + ledger.quickPay + ledger.hiring;
+  const totalCosts = ledger.pathEnergy + ledger.payroll + ledger.depot + ledger.insurance + ledger.maintenance + ledger.wagonRevision + ledger.unplannedRepairs + ledger.quickPay + ledger.hiring;
   const reconciliation = startCapital + totalRevenue - totalCosts;
   assert.equal(company.balance, reconciliation, 'Der Kontostand muss mit dem Ergebnis-Ledger übereinstimmen.');
-  assert.equal(completedTrips, DAYS * 2, 'Das Basisszenario muss zwei Güterläufe pro Tag ausführen.');
-  assert.equal(tkm, DAYS * (55 * 360 + 120 * 800), 'Das Transportvolumen muss aus den zwei deterministischen Läufen folgen.');
-  assert.equal(bank.insolvent, false, 'Der Basisszenario-Test darf keine Insolvenz auslösen.');
-
   const routes = [...seriesProfit.entries()]
     .map(([route, contribution]) => ({ route, contribution }))
     .sort((a, b) => b.contribution - a.contribution);
@@ -306,7 +367,7 @@ function run(): void {
     .map(([seriesId, contribution]) => ({ seriesId, contribution }))
     .sort((a, b) => b.contribution - a.contribution);
   const result = {
-    scenario: 'starter-freight-baseline-365-v1',
+    scenario: 'starter-freight-baseline-365-v2-hard-mode',
     days: DAYS,
     startCapital,
     endCapital: company.balance,
@@ -326,9 +387,17 @@ function run(): void {
       spotTrips,
       contractRenewals,
       totalTkm: tkm,
-      totalTonsMoved: DAYS * (360 + 800),
+      totalTonsMoved,
     },
     costs: ledger,
+    risks: {
+      randomSeed: SIMULATION_RANDOM_SEED,
+      unplannedFaultCount: riskEvents.length,
+      unplannedRepairCost: ledger.unplannedRepairs,
+      totalDowntimeDays: riskEvents.reduce((sum, event) => sum + event.downtimeDays, 0),
+      totalLostTrips: riskEvents.reduce((sum, event) => sum + event.lostTrips, 0),
+      events: riskEvents,
+    },
     maintenance: {
       scheduledFJobs: maintenanceJobs,
       wagonRevisionJobs,

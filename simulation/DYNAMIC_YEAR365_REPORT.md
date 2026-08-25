@@ -1,77 +1,97 @@
-# Jahresauswertung: Dynamische Flotteninvestition im Güterverkehr
+# Jahresauswertung: Verschärfte Wirtschaftslogik im Güterverkehr
 
-> **Ergebnis:** Die regelbasierte Erweiterung von zwei auf vier Lokomotiven bleibt im simulierten Jahr zahlungsfähig. Sie steigert den Jahresumsatz um **2.315.528 €** und das Endkapital um **182.076 €** gegenüber dem Basisszenario. Nach Abzug der offenen Kreditrestschuld verbleibt gegenüber dem Basisszenario ein Liquiditätsvorsprung von **28.591 €**.
+> **Ergebnis:** Der 365-Tage-Lauf bleibt im harten Modus zahlungsfähig, aber die kreditfinanzierte Expansion ist im Jahresvergleich nicht mehr liquiditätsoptimal. Das dynamische Szenario endet mit **692.075 €** gegenüber **1.242.074 €** im harten Basisszenario. Nach Abzug der offenen Kreditrestschuld beträgt die dynamische Liquidität **610.144 €**.
 
-![Kapital, Flotte und Kosten](output/dynamic-freight-year-365-analysis.png)
+![Kapital-, Flotten- und Kostenanalyse](output/dynamic-freight-year-365-analysis.png)
 
-## Vergleich zum Basisszenario
+## Eingeführte Schwierigkeitsregeln
 
-| Kennzahl | Basis | Dynamische Flotte | Veränderung |
+| Bereich | Neue Regel | Wirkung im Spiel |
+| --- | --- | --- |
+| Trasse und Energie | Alle Kernkosten für Trasse, Diesel und Strom steigen um 8 %. | Spotverkehre haben weniger Deckungsbeitrag und Kapital wächst langsamer. |
+| Standort und Depot | Die Grundmiete deckt 2 Loks und 10 Wageneinheiten. Darüber fallen 620 € je Lok-Stellplatz und 42 € je Wageneinheit pro Tag an; Standgeld bleibt zusätzlich bestehen. | Flottenwachstum erhöht nicht nur die einmalige Beschaffung, sondern dauerhaft die Standortkosten. |
+| Kredit | Angebote: 30/60/120/180 Tage zu 6,0/5,5/5,0/4,5 % p.a. | Der laufende Tilgungsdruck steigt deutlich. |
+| Bonität | Kredit nur bei Debt-Equity-Ratio nach Auszahlung von höchstens 1,25×. | Cash und eigenfinanzierter Fuhrparkwert begrenzen den Fremdkapitalhebel. |
+| Risiken | Ab Level 3 und Tag 90: aktive Lok mit 0,45 % Ausfallwahrscheinlichkeit pro Tag. | Defekte verursachen einen dreitägigen Ausfall und eine fremdvergebene Reparatur mit 60-%-Schadenaufschlag. |
+
+Die Regeln sind lokale Spielannahmen. Sie verwenden keine externen Markt-, Finanzierungs- oder Schadensdaten.[1] [2]
+
+## Ergebnisvergleich im verschärften Modus
+
+| Kennzahl | Basis: harter Modus | Dynamische Flotte: harter Modus | Dynamik gegenüber Basis |
 | --- | ---: | ---: | ---: |
-| Endkapital | 1.435.459 € | **1.617.535 €** | **+182.076 €** |
-| Erlöse | 4.005.169 € | **6.320.697 €** | **+2.315.528 €** |
-| Cash-Abfluss inkl. Investitionen | 2.779.710 € | 5.163.162 € | +2.383.452 € |
-| Güterfahrten | 730 | **941** | +211 |
-| Transportvolumen | 42.267.000 tkm | **69.744.000 tkm** | **+65,00 %** |
-| Bewegte Gütermenge | 423.400 t | **556.700 t** | +133.300 t |
-| Lokomotiven zum Jahresende | 2 | **4** | +2 |
-| Wageneinheiten zum Jahresende | 10 | **28** | +18 |
-| Finanzielle Stabilität | Ja | **Ja** | unverändert |
+| Endkapital | **1.242.074 €** | 692.075 € | **−549.999 €** |
+| Kreditbereinigte Liquidität | 1.242.074 € | 610.144 € | **−631.930 €** |
+| Erlöse | 3.954.031 € | **5.316.163 €** | +1.362.132 € |
+| Cash-Abfluss | 2.921.957 € | 5.084.088 € | +2.162.131 € |
+| Güterfahrten | 721 | **870** | +149 |
+| Transportleistung | 42.088.800 tkm | **56.991.800 tkm** | +14.903.000 tkm |
+| Bewegte Gütermenge | 420.160 t | **518.860 t** | +98.700 t |
+| Flotte zum Jahresende | 2 Loks / 10 Wagen | 4 Loks / 28 Wagen | +2 Loks / +18 Wagen |
+| Finanzielle Stabilität | Ja | Ja | unverändert |
 
-## Triggerbasierte Investitionen
+Die Dynamik liefert weiterhin mehr Umsatz und Transportleistung. Dieser operative Mehrertrag reicht im betrachteten Jahr jedoch nicht aus, um die Mehrbelastung aus Beschaffungen, expandierter Standortkapazität und dem beschleunigten Kreditdienst zu kompensieren.
 
-| Tag | Auslöser und Maßnahme | Kapitalwirkung | Operative Wirkung |
-| ---: | --- | ---: | --- |
-| 227 | Kontostand 600.428 €, Level mindestens 5: Kredit über 250.000 €, Kauf BR 232 plus 12× Eanos und neuer Tf mit Quick-Pay | Kapital nach Buchung 186.578 € | Drei tägliche Güterläufe |
-| 294 | Kontostand 854.650 €: Kauf BR 140/143 plus 6× Sggrss und neuer Tf mit Quick-Pay | Kapital nach Buchung 295.600 € | Vier tägliche Güterläufe |
+## Dynamischer Investitionspfad
 
-Die Anschaffungswerte der Lokomotiven betragen zusammen 970.000 €, die Wageninvestitionen 243.600 €. Durch die vorhandene Mengenrabattlogik kostet das 12-Eanos-Paket 109.200 € und das 6-Sggrss-Paket 134.400 €.[1]
+| Tag | Maßnahme | Kapital vor Maßnahme | Kapital danach | Operative Kapazität |
+| ---: | --- | ---: | ---: | --- |
+| 245 | 250.000-€-Kredit (180 Tage, 4,5 % p.a.), BR 232, 12 Eanos, zusätzlicher Tf mit Quick-Pay | 605.083 € | 191.233 € | Drei tägliche Güterläufe |
+| 338 | BR 140/143, 6 Sggrss, zusätzlicher Tf mit Quick-Pay | 854.249 € | 295.199 € | Vier tägliche Güterläufe |
 
-## Kreditwirkung und Liquidität
+Gegenüber dem vorherigen, leichteren Modell verschiebt sich die erste Investition von Tag 227 auf Tag 245 und die zweite von Tag 294 auf Tag 338. Die kürzere Restlaufzeit der zusätzlichen Loks begrenzt damit die zusätzlich realisierbare Transportleistung im ersten Simulationsjahr.[2]
+
+## Finanzierung und Kapitalwirkung
 
 | Finanzierung | Betrag |
 | --- | ---: |
 | Kreditaufnahme | 250.000 € |
-| Tilgung im Simulationsjahr | 96.515 € |
-| Zinsaufwand im Simulationsjahr | 2.731 € |
-| Offene Kreditrestschuld zum Jahresende | **153.485 €** |
-| Kreditbereinigte Liquidität der dynamischen Flotte | 1.464.050 € |
-| Kreditbereinigter Vorsprung gegenüber der Basis | **28.591 €** |
+| Tilgung im Simulationsjahr | 168.069 € |
+| Zinsaufwand im Simulationsjahr | 3.751 € |
+| Kreditdienst insgesamt | 171.820 € |
+| Offene Kreditrestschuld zum Jahresende | **81.931 €** |
+| Endkapital nach Abzug der Restschuld | **610.144 €** |
 
-Der Kredit erhöht nicht den Umsatz selbst, sondern verschiebt die erste Erweiterung auf Tag 227 in einen Bereich, in dem die operative Zusatzkapazität noch 139 Betriebstage Erlöse generiert. Die höhere Cash-Position zum Jahresende ist deshalb nur zusammen mit der offenen Restschuld und dem zusätzlichen Fuhrpark zu bewerten.
+Der Kredit ist durch die Debt-Equity-Prüfung zugelassen worden. Er verbleibt jedoch nur 120 Tage im operativen Aufbaupfad: Die BR 232 wird an Tag 245 angeschafft. Die beschleunigte Tilgung senkt die Restschuld zum Jahresende, bindet aber im selben Zeitraum deutlich mehr Liquidität als der ehemalige 360-Tage-Kredit.
 
-## Kostenverteilung und operative Beiträge
+## Kostenverteilung der dynamischen Flotte
 
-| Kostenblock | Dynamischer Jahreswert |
-| --- | ---: |
-| Trasse und Energie | 2.538.349 € |
-| Standort und Depot | 1.040.250 € |
-| Personal inkl. Neueinstellungen und Quick-Pay | 221.947 € |
-| Lok- und Wagenwartung | 18.745 € |
-| Versicherung | 31.025 € |
-| Kreditdienst aus Zins und Tilgung | 99.246 € |
-| Lokinvestitionen | 970.000 € |
-| Wageninvestitionen | 243.600 € |
+| Kostenblock | Jahreswert | Anteil am Cash-Abfluss |
+| --- | ---: | ---: |
+| Trasse und Energie | 2.198.376 € | 43,24 % |
+| Standort und Depot | 1.200.976 € | 23,62 % |
+| Lokinvestitionen | 970.000 € | 19,08 % |
+| Wageninvestitionen | 243.600 € | 4,79 % |
+| Personal inkl. Einstellung und Quick-Pay | 215.313 € | 4,24 % |
+| Kreditdienst (Zins und Tilgung) | 171.820 € | 3,38 % |
+| Planmäßige Wartung, Wagenrevisionen und Schäden | 52.978 € | 1,04 % |
+| Versicherung | 31.025 € | 0,61 % |
 
-| Baureihe | Beitrag vor Fixkosten |
-| --- | ---: |
-| BR 218 | 2.503.924 € |
-| BR 232 | 662.752 € |
-| BR 140/143 | 615.672 € |
+Die dynamischen Standortkosten betragen 1.200.976 €. Das sind 160.726 € mehr als im früheren reinen Fixkostenmodell der dynamischen Flotte. Der Kreditdienst steigt gegenüber dem früheren langen Darlehen von 99.246 € auf 171.820 €.[3]
 
-Die BR 218 bleibt aufgrund der ganzjährigen Nutzung die stärkste Einzelbaureihe. Die BR 232 und BR 140/143 tragen zusammen 1.278.424 € bei, obwohl sie erst an den Tagen 227 und 294 in Betrieb gehen. Dies erklärt die sichtbare Beschleunigung der Kapitalentwicklung nach dem zweiten Kauf.[2]
+## Reproduzierbare Schadenereignisse
 
-## Modellbasis und Grenzen
+| Tag | Baureihe | Defekt | Reparatur | Stillstand | Ausgefallene Güterläufe |
+| ---: | --- | --- | ---: | ---: | ---: |
+| 227 | BR 218 | Bremse | 9.600 € | 3 Tage | 3 |
+| 249 | BR 218 | Antrieb | 9.600 € | 3 Tage | 3 |
+| 301 | BR 218 | Bremse | 9.600 € | 3 Tage | 3 |
+| **Summe** |  |  | **28.800 €** | **9 Tage** | **9** |
+
+Der Lauf verwendet den fest hinterlegten Pseudozufalls-Seed `1592598566`. Somit sind Eintrittstage, Defektarten, Reparaturkosten und Stillstände für diesen Startzustand exakt reproduzierbar. In der Live-Anwendung verwendet das Ereignismodul echte Zufallsziehungen; dort ist die Ereignisfolge absichtlich nicht festgeschrieben.[2]
+
+## Einordnung und Grenzen
 
 | Offenlegung | Festlegung |
 | --- | --- |
-| **Basis** | Cash-basierte Managementrechnung über Erlöse, Trasse/Energie, Personal, Standort, Wartung, Investitionen, Zins und Tilgung. |
-| **Zeit** | 365 virtuelle Tage ab dem Starterunternehmen. |
-| **Annahmen** | Schwellenwerte 600.000 € und 850.000 €; Kredit 250.000 € mit 360 Tagen Laufzeit zu 2,8 % p.a.; zusätzliche Güterläufe werden sofort nach Beschaffung gefahren. |
-| **Quellen und Confidence** | Katalogpreise, Darlehenslogik, Personal-, Wartungs-, Frachterlös- und Betriebskosten stammen vollständig aus dem lokalen Simulatorcode und dem reproduzierbaren Lauf.[1] [2] Die Aussagekraft ist hoch für dieses Szenario, nicht für zufällige Schäden, andere Beschaffungsreihenfolgen, abweichende Vertragsverfügbarkeit oder reale EVU-Finanzen. |
-| **Compliance** | Dies ist eine Analyse einer Spielsimulation und keine persönliche Finanzberatung. |
+| **Basis** | Cash-basierte Managementrechnung: Erlöse, Trasse/Energie, Standort, Personal, Wartung, Schäden, Investitionen, Zinsen und Tilgung. Fuhrparkwerte werden nicht als Verkaufserlös realisiert. |
+| **Zeit** | 365 virtuelle Tage ab Starterunternehmen; ausgewertet nach Abschluss des Jahreslaufs. |
+| **Annahmen** | Kostenaufschlag 8 %, Grundkapazität 2 Loks/10 Wagen, zusätzliche Standortkosten, Debt-Equity-Limit 1,25×, Kredit 180 Tage/4,5 % p.a., fixer Risiko-Seed. |
+| **Quellen und Confidence** | Alle Eingaben stammen aus den lokalen TypeScript-Regeln und den erzeugten JSON/CSV-Ausgaben.[1] [2] Die Daten sind für dieses Szenario exakt reproduzierbar. Sie sind keine Prognose für reale EVU-Kosten, Schadensquoten, Vertragsauslastungen oder Kreditzinsen. |
+| **Compliance** | Dies ist die Auswertung einer Spielsimulation und keine persönliche Finanzberatung. |
 
 ## References
 
-[1]: ../src/lib/dealer.ts "Lok- und Wagenkatalog"
-[2]: output/dynamic-freight-year-365.json "Ergebnisdaten des dynamischen 365-Tage-Laufs"
+[1]: ../src/lib/operatingCosts.ts "Lokale Trassen- und Energieformeln"
+[2]: runDynamicFreightYear365.ts "Dynamischer 365-Tage-Headless-Lauf"
+[3]: output/dynamic-freight-year-365.json "Ergebnisdaten des verschärften dynamischen Laufs"

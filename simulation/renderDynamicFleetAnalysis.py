@@ -59,7 +59,12 @@ for event in dynamic['investments']:
     ax1.scatter([event['day']], [event['balanceAfter']], color=COLORS['cyan'], edgecolor=COLORS['bg'], s=45, zorder=5)
     label = 'BR 232 + Kredit' if event['kind'] == 'credit-and-br232' else 'BR 140/143'
     ax1.annotate(label, xy=(event['day'], event['balanceAfter']), xytext=(7, 12), textcoords='offset points', color=COLORS['text'], fontsize=8, fontweight='bold')
-ax1.set_title('Tägliche Kapitalentwicklung: Basisszenario gegenüber dynamischer Flotte', color=COLORS['text'], fontsize=14, fontweight='bold', loc='left', pad=14)
+for event in dynamic.get('risks', {}).get('events', []):
+    balance = next(row['Kontostand'] for row in dyn_days if row['Tag'] == event['day'])
+    ax1.axvspan(event['day'], event['day'] + event['downtimeDays'] - 1, color=COLORS['rose'], alpha=0.11)
+    ax1.scatter([event['day']], [balance], marker='x', color=COLORS['rose'], s=48, linewidths=1.8, zorder=6)
+    ax1.annotate(f"Schaden · {event['repairCost'] / 1_000:.1f} Tsd.", xy=(event['day'], balance), xytext=(5, -16), textcoords='offset points', color=COLORS['rose'], fontsize=7.3)
+ax1.set_title('Tägliche Kapitalentwicklung im verschärften Modus: Basis gegenüber dynamischer Flotte', color=COLORS['text'], fontsize=14, fontweight='bold', loc='left', pad=14)
 ax1.text(0, 1.02, f"Endkapital Basis {baseline['endCapital']:,.0f} €  |  Dynamisch {dynamic['endCapital']:,.0f} €  |  Differenz {dynamic['endCapital'] - baseline['endCapital']:,.0f} €", transform=ax1.transAxes, color=COLORS['muted'], fontsize=9)
 ax1.set_xlim(1, 365)
 ax1.set_ylabel('Kontostand in €', color=COLORS['text'], fontsize=9)
@@ -93,7 +98,7 @@ segments = [
     ('Trasse / Energie', costs['pathEnergy'], COLORS['blue']),
     ('Standort / Depot', costs['depot'], COLORS['slate']),
     ('Personal', costs['payroll'] + costs['hiring'] + costs['quickPay'], COLORS['green']),
-    ('Wartung / Wagen', costs['maintenance'] + costs['wagonRevision'], COLORS['orange']),
+    ('Wartung / Schaden', costs['maintenance'] + costs['wagonRevision'] + costs.get('unplannedRepairs', 0), COLORS['orange']),
     ('Versicherung', costs['insurance'], COLORS['purple']),
     ('Kreditdienst', costs['loanInterest'] + costs['loanPrincipal'], COLORS['rose']),
     ('Lok-Investitionen', costs['locomotiveInvestment'], COLORS['amber']),
@@ -105,11 +110,11 @@ for label, value, color in segments:
     if value > 130_000:
         ax3.text(left + value / 2, 0, f'{value / 1_000:.0f} Tsd.', color=COLORS['bg'], ha='center', va='center', fontsize=8, fontweight='bold')
     left += value
-ax3.set_title('Kostenverteilung über 365 Tage inklusive Anschaffungen und Kreditdienst', color=COLORS['text'], fontsize=11, loc='left', pad=10)
+ax3.set_title('Kostenverteilung im verschärften Modus inklusive Schaden, Anschaffungen und Kreditdienst', color=COLORS['text'], fontsize=11, loc='left', pad=10)
 ax3.set_xlabel('Cash-Abfluss in €', color=COLORS['text'], fontsize=9)
 ax3.xaxis.set_major_formatter(FuncFormatter(euro_axis))
 ax3.legend(ncol=4, bbox_to_anchor=(0, -0.23), loc='upper left', facecolor=COLORS['panel'], edgecolor=COLORS['grid'], labelcolor=COLORS['text'], fontsize=7.5)
 
-fig.text(0.01, 0.012, 'Datenbasis: deterministischer 365-Tage-Headless-Lauf mit lokaler Regel- und Kataloglogik; keine externen Marktdaten.', color=COLORS['muted'], fontsize=7.7)
+fig.text(0.01, 0.012, 'Datenbasis: deterministischer 365-Tage-Headless-Lauf mit lokalen Spielregeln. Kosten +8 %, variable Standortkapazität, 180-Tage-Kredit und reproduzierbare Lokschäden; keine externen Marktdaten.', color=COLORS['muted'], fontsize=7.2)
 fig.tight_layout(rect=(0, 0.04, 1, 1))
 fig.savefig(OUT / 'dynamic-freight-year-365-analysis.png', facecolor=COLORS['bg'], bbox_inches='tight')
