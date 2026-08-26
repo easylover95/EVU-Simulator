@@ -145,6 +145,18 @@ export function LiveTrackingMap({
       maxZoom: 18,
     }).addTo(map);
 
+    const railwayPane = map.createPane('fi-railway-overlay');
+    railwayPane.style.zIndex = '260';
+    railwayPane.style.pointerEvents = 'none';
+    L.tileLayer('https://tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png', {
+      pane: 'fi-railway-overlay',
+      attribution: 'Schienen: &copy; OpenStreetMap-Mitwirkende, Style: OpenRailwayMap (CC-BY-SA 2.0)',
+      minZoom: 2,
+      maxZoom: 19,
+      tileSize: 256,
+      opacity: 0.82,
+    }).addTo(map);
+
     const corridorPane = map.createPane('fi-corridors');
     corridorPane.style.zIndex = '330';
     for (const [fromKey, toKey] of TRUNK_CORRIDORS) {

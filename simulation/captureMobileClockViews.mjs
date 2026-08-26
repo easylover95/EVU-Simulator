@@ -159,6 +159,7 @@ try {
           tileCount: tiles.length,
           loadedTileCount: loaded.length,
           usesVoyager: loaded.some((tile) => tile.currentSrc.includes('/rastertiles/voyager/')),
+          railwayTileCount: loaded.filter((tile) => tile.currentSrc.includes('tiles.openrailwaymap.org/standard/')).length,
           mapVisible: Boolean(document.querySelector('.fi-live-map')),
         };
       })()`);
@@ -173,6 +174,7 @@ try {
       && checks.disposition?.map?.mapVisible
       && checks.disposition?.map?.loadedTileCount > 0
       && checks.disposition?.map?.usesVoyager
+      && checks.disposition?.map?.railwayTileCount > 0
       && speedAfterClick === '5×'
       && pauseAfterClick === 'Spiel pausieren',
   };
