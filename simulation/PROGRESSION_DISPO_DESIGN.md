@@ -8,6 +8,14 @@ Empfohlen wird ein **Kern-Level-Cap bei Stufe 20** mit einem anschließenden **M
 
 Dieser Vorschlag ersetzt keine reale Banken- oder Marktlogik. Alle Werte sind lokale Spielbalance-Annahmen auf Basis der bestehenden XP-, Depot-, Kredit- und Betriebskostenregeln.
 
+## Implementierungsstatus
+
+Die Regeln dieses Entwurfs sind im Laufzeitcode umgesetzt. `bank.ts` nutzt die Rahmenstufen 25.000 € bis 175.000 € sowie die Zinsbänder 0,035 %, 0,055 % und 0,080 % pro Spieltag anhand der momentanen Dispoauslastung. Kauf von Lokomotiven, Wagen, Depotausbauten, Ausrüstungspaketen und Netzzugang benötigt frei verfügbares Guthaben; operative Kosten wie Reparaturen, Gehalt, Versicherung und Leasingraten können weiterhin den Dispo nutzen.
+
+`progression.ts` begrenzt das wirtschaftliche Kernlevel auf 20. Ab dort zählt Auftrags-XP als dauerhafter Konzern-Meilensteinfortschritt in Schritten von 250.000 XP. Dieser Zustand wird lokal getrennt vom optionalen Cloud-Schema gespeichert. Der Rang ist in der Firmenbearbeitung und in den Auswertungen sichtbar. Es gibt keinen Prestige-Reset: Fuhrpark, Personal, Depot, Kapital, Kredite und Reputation bleiben unangetastet.
+
+Die Regression `npm run test:progression-dispo` prüft Staffel, progressive Zinsbuchung, Cash-only-Investitionen, das Level-20-Cap und den Rang „Europäischer Konzern“ nach dem ersten abgeschlossenen Konzern-Meilenstein.
+
 ## Ausgangslage im aktuellen Modell
 
 Die bestehende Unternehmens-XP wächst pro Stufe um den Faktor **1,45**. Von der Startfirma mit 1.000 XP bis Stufe 2 steigen die Anforderungen dadurch schnell: Stufe 10 benötigt kumuliert 60.749 XP, Stufe 20 bereits 2.584.968 XP und Stufe 25 16.580.999 XP. Ohne eine spätere Abflachung wird ein unbegrenztes Levelsystem deshalb mathematisch zwar möglich, für normale Spielverläufe aber kaum noch als Fortschritt wahrnehmbar.
@@ -79,8 +87,9 @@ Die Reihenfolge für eine spätere Implementierung sollte sein: Zuerst die neue 
 
 ## Reproduzierbarkeit
 
-Die Berechnung liegt in `simulation/analyzeProgressionDesign.ts`. Sie nutzt die aktuelle XP-Wachstumsrate von 1,45 sowie die vorgeschlagene Dispo-Kurve und schreibt die Messwerte nach `simulation/output/progression-design-analysis.json`.
+Die Berechnung liegt in `simulation/analyzeProgressionDesign.ts`. Sie nutzt die aktuelle XP-Wachstumsrate von 1,45 sowie die vorgeschlagene Dispo-Kurve und schreibt die Messwerte nach `simulation/output/progression-design-analysis.json`. Die bestehende Analyse dokumentiert weiterhin die Design-Szenarien; die Runtime-Regression überprüft zusätzlich die tatsächlich implementierten Regeln.
 
 ```bash
 ./node_modules/.bin/tsx --tsconfig tsconfig.app.json simulation/analyzeProgressionDesign.ts
+npm run test:progression-dispo
 ```

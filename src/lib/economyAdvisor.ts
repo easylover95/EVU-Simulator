@@ -1,7 +1,12 @@
 import type { Company, FuelType, Order } from '@/lib/supabase';
 import type { LocoOffer, WagonOffer } from '@/lib/dealer';
 import type { BankState } from '@/lib/bank';
-import { summarizePnl } from '@/lib/bank';
+import {
+  OVERDRAFT_CRITICAL_UTILIZATION,
+  OVERDRAFT_INVESTMENT_LOCK_UTILIZATION,
+  overdraftUtilization,
+  summarizePnl,
+} from '@/lib/bank';
 import type { DailyFixedCosts } from '@/lib/dailyFixedCosts';
 import { previewDepotDaily } from '@/lib/dailyFixedCosts';
 import { calcOrderOperatingCosts } from '@/lib/operatingCosts';
@@ -32,7 +37,7 @@ export interface InvestmentForecast {
 }
 
 export interface AdvisorAlert {
-  id: 'liquidity' | 'fixed-costs' | 'debt' | 'maintenance-fund' | 'stable';
+  id: 'overdraft' | 'liquidity' | 'fixed-costs' | 'debt' | 'maintenance-fund' | 'stable';
   tone: RiskTone;
   title: string;
   message: string;
@@ -199,7 +204,20 @@ export function buildAdvisorAlerts(input: {
   const debt = (input.bank.loans ?? []).reduce((sum, loan) => sum + Math.max(0, safeNumber(loan.principalRemaining)), 0) + Math.max(0, -company.balance);
   const debtToEquity = input.equity > 0 ? debt / input.equity : null;
   const fundTarget = maintenanceFundTarget(dailyFixed);
+  const overdraftUsage = overdraftUtilization(company.balance, input.bank.overdraftLimit);
   const alerts: AdvisorAlert[] = [];
+
+  if (overdraftUsage > OVERDRAFT_CRITICAL_UTILIZATION) {
+    alerts.push({
+      id: 'overdraft', tone: 'critical', title: 'Sanierung kritisch',
+      message: `Dispo zu ${(overdraftUsage * 100).toFixed(1).replace('.', ',')} % ausgelastet. Die höchste Zinsstufe ist aktiv; positive Deckungsbeiträge und Rückführung haben Vorrang.`,
+    });
+  } else if (overdraftUsage >= OVERDRAFT_INVESTMENT_LOCK_UTILIZATION) {
+    alerts.push({
+      id: 'overdraft', tone: 'critical', title: 'Wachstumssperre aktiv',
+      message: `Dispo zu ${(overdraftUsage * 100).toFixed(1).replace('.', ',')} % ausgelastet. Fahrzeuge, Wagen, Depots und Netzzugang werden erst nach der Rückführung wieder investitionsfähig.`,
+    });
+  }
 
   if (company.balance < Math.max(15_000, dailyFixed * BUFFER_DAYS_CAUTION)) {
     alerts.push({

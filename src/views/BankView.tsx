@@ -13,17 +13,23 @@ import {
   checkLoanCredit,
   LOAN_OFFERS,
   LOAN_TIER_TABLE,
-  GROSSKUNDEN_OVERDRAFT,
   MAX_LOAN_PRINCIPAL,
+  OVERDRAFT_CRITICAL_UTILIZATION,
+  OVERDRAFT_HIGH_DAILY_RATE,
+  OVERDRAFT_INVESTMENT_LOCK_UTILIZATION,
+  OVERDRAFT_SAFE_DAILY_RATE,
+  OVERDRAFT_SAFE_UTILIZATION,
   OVERDRAFT_TIER_TABLE,
   OVERDRAFT_TIERS,
   canChangeOverdraftLimit,
-  isGrosskundenOverdraft,
+  isInvestmentLockedByOverdraft,
   isLoanAmountUnlocked,
   isOverdraftTierUnlocked,
   loanDailyPayment,
   loanUnlockLevel,
   normalizeOverdraftLimit,
+  overdraftRateForBalance,
+  overdraftUtilization,
   sanierungSnapshot,
   type BankLoan,
   type BankState,
@@ -82,6 +88,9 @@ export function BankView({
   const amountUnlocked = isLoanAmountUnlocked(amount, companyLevel);
   const inOverdraft = balance < 0;
   const usedOverdraft = inOverdraft ? Math.abs(balance) : 0;
+  const utilization = overdraftUtilization(balance, bank.overdraftLimit);
+  const activeOverdraftRate = overdraftRateForBalance(balance, bank.overdraftLimit);
+  const investmentLocked = isInvestmentLockedByOverdraft(balance, bank.overdraftLimit);
   const frameLocked = !canChangeOverdraftLimit(balance);
   const currentTier = normalizeOverdraftLimit(bank.overdraftLimit);
   const sliderIndex = Math.max(0, OVERDRAFT_TIERS.indexOf(currentTier));
@@ -135,8 +144,8 @@ export function BankView({
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
             {inOverdraft
-              ? `Dispo genutzt: ${formatEuro(usedOverdraft)} von ${formatEuro(bank.overdraftLimit)}`
-              : `Kreditrahmen ${formatEuro(bank.overdraftLimit)} ungenutzt`}
+              ? `Dispo genutzt: ${(utilization * 100).toFixed(1).replace('.', ',')} % · ${formatEuro(usedOverdraft)} von ${formatEuro(bank.overdraftLimit)}`
+              : `Notfallrahmen ${formatEuro(bank.overdraftLimit)} ungenutzt`}
           </p>
         </Card>
         <Card>
@@ -144,9 +153,13 @@ export function BankView({
             <Percent className="h-3.5 w-3.5 text-amber-400" /> Dispozinsen
           </div>
           <div className="mt-2 text-2xl font-bold text-amber-400">
-            {(bank.overdraftDailyRate * 100).toFixed(2)} % / Tag
+            {(activeOverdraftRate * 100).toFixed(3).replace('.', ',')} % / Tag
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">Wird an jedem Spieltakt-Tag auf negative Salden gebucht.</p>
+          <p className="mt-1 text-[11px] text-slate-400">
+            {inOverdraft
+              ? `Aktive Stufe bei ${(utilization * 100).toFixed(1).replace('.', ',')} % Rahmen-Auslastung.`
+              : 'Bei Inanspruchnahme bis 50 % des Rahmens.'}
+          </p>
         </Card>
         <Card>
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">
@@ -166,8 +179,9 @@ export function BankView({
           <CardHeader>Dispo-Kreditrahmen</CardHeader>
           <div className="space-y-3 p-4">
             <p className="text-xs text-slate-400">
-              Rahmen bis {formatEuro(GROSSKUNDEN_OVERDRAFT)}. Großkunden-Rabatt senkt den Tageszins auf 0,02&nbsp;%.
-              Standard 0,03&nbsp;% / Tag. Höhere Stufen schalten mit dem Firmen-Level frei.
+              Notfallrahmen bis 175.000&nbsp;€ ab Level&nbsp;10. Zinsen steigen mit der tatsächlichen Auslastung:
+              bis 50&nbsp;% 0,035&nbsp;% / Tag, über 50 bis 85&nbsp;% 0,055&nbsp;% / Tag und darüber 0,080&nbsp;% / Tag.
+              Höhere Rahmenstufen schalten mit dem Firmen-Level frei.
             </p>
             {sanierung.insolvent && (
               <p className="rounded-lg border border-rose-500/40 bg-rose-950/40 px-3 py-2 text-[11px] font-bold text-rose-200">
@@ -229,9 +243,16 @@ export function BankView({
                 Rahmen zur Bestätigung
               </Button>
             )}
-            {isGrosskundenOverdraft(bank.overdraftLimit) && (
-              <p className="text-[11px] font-bold text-emerald-400">Großkunden-Rabatt aktiv — 0,02 % / Tag</p>
-            )}
+            <div className={`rounded-lg border px-3 py-2 text-[11px] leading-relaxed ${investmentLocked ? 'border-rose-500/40 bg-rose-950/40 text-rose-100' : 'border-amber-500/30 bg-amber-950/25 text-amber-100'}`}>
+              <strong>{investmentLocked ? 'Wachstumssperre aktiv.' : 'Investitionen sind cash-only.'}</strong>{' '}
+              Fahrzeuge, Wagen, Depots, Pakete und Netzzugang benötigen immer frei verfügbares Guthaben; der Dispo dient ausschließlich operativen Kosten.
+              {investmentLocked && ` Ab ${(OVERDRAFT_INVESTMENT_LOCK_UTILIZATION * 100).toFixed(0)} % Rahmen-Auslastung ist die Sanierung vorrangig.`}
+            </div>
+            <div className="space-y-1 text-[10px] text-slate-400">
+              <p>0–50 %: {(OVERDRAFT_SAFE_DAILY_RATE * 100).toFixed(3).replace('.', ',')} % / Tag · 50–85 %: {(OVERDRAFT_HIGH_DAILY_RATE * 100).toFixed(3).replace('.', ',')} % / Tag · über {(OVERDRAFT_CRITICAL_UTILIZATION * 100).toFixed(0)} %: 0,080 % / Tag.</p>
+              {inOverdraft && utilization > OVERDRAFT_SAFE_UTILIZATION && utilization <= OVERDRAFT_CRITICAL_UTILIZATION && <p className="font-semibold text-amber-300">Erhöhte Zinsstufe aktiv. Reduziere den Dispo unter 50 %.</p>}
+              {inOverdraft && utilization > OVERDRAFT_CRITICAL_UTILIZATION && <p className="font-semibold text-rose-300">Kritische Zinsstufe aktiv. Sanierung hat Priorität.</p>}
+            </div>
             <div className="overflow-x-auto rounded-lg border border-slate-800">
               <table className="fi-table">
                 <thead>
@@ -259,7 +280,7 @@ export function BankView({
               </table>
             </div>
             <p className="text-[11px] text-slate-500">
-              Level 1 startet mit 20.000 € Dispo. Der volle Rahmen von 250.000 € gilt erst ab Level 10.
+              Level 1 startet mit 25.000 € Dispo. Der volle Notfallrahmen von 175.000 € gilt ab Level 10 und wird danach nicht weiter erhöht.
             </p>
           </div>
         </CardFlush>
@@ -557,7 +578,7 @@ function BankConfirmModal({
       ? <ConfirmRows rows={[
         ['Bisheriger Rahmen', formatEuro(currentTier)],
         ['Neuer Rahmen', formatEuro(pending.limit)],
-        ['Tageszins', `${(pending.limit >= GROSSKUNDEN_OVERDRAFT ? 0.02 : 0.03).toLocaleString('de-DE', { minimumFractionDigits: 2 })} %`],
+        ['Tageszins', '0,035 % bis 50 % · 0,055 % bis 85 % · 0,080 % darüber'],
         ['Wirkung', 'Ändert die zulässige Untergrenze; keine sofortige Kontobewegung'],
       ]} />
       : pending.kind === 'insurance'

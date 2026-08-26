@@ -184,30 +184,42 @@ export interface BankState {
   insolvent: boolean;
 }
 
-export const OVERDRAFT_TIERS = [0, 20_000, 45_000, 70_000, 95_000, 120_000, 145_000, 170_000, 200_000, 225_000, 250_000] as const;
+/**
+ * Notfall-Dispo: bewusst flacher als die frühere 250-k€-Kurve. Er rettet Betrieb und Reparatur,
+ * bleibt aber von Stufe 10 an gedeckelt, damit er keine Flottenfinanzierung ersetzt.
+ */
+export const OVERDRAFT_TIERS = [0, 25_000, 35_000, 50_000, 65_000, 80_000, 100_000, 120_000, 140_000, 155_000, 175_000] as const;
 export type OverdraftTier = (typeof OVERDRAFT_TIERS)[number];
-export const MAX_OVERDRAFT = 250_000;
-/** Standard Dispo: 0,03 % / Tag. Großkunden-Rabatt (250 k€): 0,02 % / Tag. */
-export const OVERDRAFT_DAILY_RATE = 0.0003;
-export const OVERDRAFT_GROSSKUNDEN_RATE = 0.0002;
-export const GROSSKUNDEN_OVERDRAFT = 250_000;
-export const DEFAULT_OVERDRAFT = 20_000;
+export const MAX_OVERDRAFT = 175_000;
+export const DEFAULT_OVERDRAFT = 25_000;
 export const SANIERUNG_DAYS = 14;
 export const DISPO_LOCK_HINT = 'Anpassung des Dispo-Rahmens bei negativem Saldo nicht möglich';
 
-/** Level 1 starts at 20.000 €. Full 250.000 € from Level 10. */
+/** Auslastungsabhängige Tageszinsen: günstig nur für kurze operative Überbrückungen. */
+export const OVERDRAFT_SAFE_UTILIZATION = 0.5;
+export const OVERDRAFT_INVESTMENT_LOCK_UTILIZATION = 0.6;
+export const OVERDRAFT_CRITICAL_UTILIZATION = 0.85;
+export const OVERDRAFT_SAFE_DAILY_RATE = 0.00035;
+export const OVERDRAFT_HIGH_DAILY_RATE = 0.00055;
+export const OVERDRAFT_CRITICAL_DAILY_RATE = 0.0008;
+/** Compatibility export for views or legacy imports; new calculations use utilization. */
+export const OVERDRAFT_DAILY_RATE = OVERDRAFT_SAFE_DAILY_RATE;
+export const OVERDRAFT_GROSSKUNDEN_RATE = OVERDRAFT_SAFE_DAILY_RATE;
+export const GROSSKUNDEN_OVERDRAFT = MAX_OVERDRAFT;
+
+/** Level 1 starts at 25.000 €. The financial ceiling is 175.000 € from Level 10 onward. */
 export const OVERDRAFT_UNLOCK_LEVEL: Record<OverdraftTier, number> = {
   0: 1,
-  20_000: 1,
-  45_000: 2,
-  70_000: 3,
-  95_000: 4,
-  120_000: 5,
-  145_000: 6,
-  170_000: 7,
-  200_000: 8,
-  225_000: 9,
-  250_000: 10,
+  25_000: 1,
+  35_000: 2,
+  50_000: 3,
+  65_000: 4,
+  80_000: 5,
+  100_000: 6,
+  120_000: 7,
+  140_000: 8,
+  155_000: 9,
+  175_000: 10,
 };
 
 export const OVERDRAFT_TIER_TABLE: ReadonlyArray<{
@@ -217,16 +229,16 @@ export const OVERDRAFT_TIER_TABLE: ReadonlyArray<{
   grosskunde: boolean;
 }> = [
   { limit: 0, unlockLevel: 1, label: 'Kein Dispo', grosskunde: false },
-  { limit: 20_000, unlockLevel: 1, label: '20.000 €', grosskunde: false },
-  { limit: 45_000, unlockLevel: 2, label: '45.000 €', grosskunde: false },
-  { limit: 70_000, unlockLevel: 3, label: '70.000 €', grosskunde: false },
-  { limit: 95_000, unlockLevel: 4, label: '95.000 €', grosskunde: false },
-  { limit: 120_000, unlockLevel: 5, label: '120.000 €', grosskunde: false },
-  { limit: 145_000, unlockLevel: 6, label: '145.000 €', grosskunde: false },
-  { limit: 170_000, unlockLevel: 7, label: '170.000 €', grosskunde: false },
-  { limit: 200_000, unlockLevel: 8, label: '200.000 €', grosskunde: false },
-  { limit: 225_000, unlockLevel: 9, label: '225.000 €', grosskunde: false },
-  { limit: 250_000, unlockLevel: 10, label: '250.000 € · Großkunde', grosskunde: true },
+  { limit: 25_000, unlockLevel: 1, label: '25.000 €', grosskunde: false },
+  { limit: 35_000, unlockLevel: 2, label: '35.000 €', grosskunde: false },
+  { limit: 50_000, unlockLevel: 3, label: '50.000 €', grosskunde: false },
+  { limit: 65_000, unlockLevel: 4, label: '65.000 €', grosskunde: false },
+  { limit: 80_000, unlockLevel: 5, label: '80.000 €', grosskunde: false },
+  { limit: 100_000, unlockLevel: 6, label: '100.000 €', grosskunde: false },
+  { limit: 120_000, unlockLevel: 7, label: '120.000 €', grosskunde: false },
+  { limit: 140_000, unlockLevel: 8, label: '140.000 €', grosskunde: false },
+  { limit: 155_000, unlockLevel: 9, label: '155.000 €', grosskunde: false },
+  { limit: 175_000, unlockLevel: 10, label: '175.000 € · Notfallrahmen', grosskunde: false },
 ];
 
 export function defaultOverdraftForLevel(level: number): OverdraftTier {
@@ -266,12 +278,40 @@ export function canChangeOverdraftLimit(balance: number): boolean {
   return balance >= 0;
 }
 
-export function overdraftRateForLimit(limit: number): number {
-  return limit >= GROSSKUNDEN_OVERDRAFT ? OVERDRAFT_GROSSKUNDEN_RATE : OVERDRAFT_DAILY_RATE;
+export function overdraftUtilization(balance: number, overdraftLimit: number): number {
+  const limit = Math.max(0, Number(overdraftLimit) || 0);
+  if (limit <= 0) return balance < 0 ? 1 : 0;
+  return Math.max(0, Math.min(1, Math.abs(Math.min(0, Number(balance) || 0)) / limit));
 }
 
-export function isGrosskundenOverdraft(limit: number): boolean {
-  return limit >= GROSSKUNDEN_OVERDRAFT;
+export function overdraftRateForUtilization(utilization: number): number {
+  const used = Math.max(0, Number(utilization) || 0);
+  if (used <= OVERDRAFT_SAFE_UTILIZATION) return OVERDRAFT_SAFE_DAILY_RATE;
+  if (used <= OVERDRAFT_CRITICAL_UTILIZATION) return OVERDRAFT_HIGH_DAILY_RATE;
+  return OVERDRAFT_CRITICAL_DAILY_RATE;
+}
+
+export function overdraftRateForBalance(balance: number, overdraftLimit: number): number {
+  return overdraftRateForUtilization(overdraftUtilization(balance, overdraftLimit));
+}
+
+/** Legacy/default display rate for a positive balance; live bookings use overdraftRateForBalance. */
+export function overdraftRateForLimit(_limit: number): number {
+  return OVERDRAFT_SAFE_DAILY_RATE;
+}
+
+export function isGrosskundenOverdraft(_limit: number): boolean {
+  return false;
+}
+
+/** Optional asset purchases must be fully cash-funded; the Dispo remains reserved for operations. */
+export function canSpendInvestment(balance: number, amount: number): boolean {
+  const due = Math.max(0, Number(amount) || 0);
+  return Number(balance) >= due;
+}
+
+export function isInvestmentLockedByOverdraft(balance: number, overdraftLimit: number): boolean {
+  return overdraftUtilization(balance, overdraftLimit) >= OVERDRAFT_INVESTMENT_LOCK_UTILIZATION;
 }
 
 /**
@@ -660,15 +700,18 @@ export function processBankTick(state: BankState, company: Company, nextTick: nu
   const createdAt = company.updated_at;
 
   if (balance < 0) {
-    const interest = Math.max(1, Math.round(Math.abs(balance) * next.overdraftDailyRate));
+    const overdraftDailyRate = overdraftRateForBalance(balance, next.overdraftLimit);
+    const interest = Math.max(1, Math.round(Math.abs(balance) * overdraftDailyRate));
     balance -= interest;
-    next = pushBooking(next, {
+    next = pushBooking({ ...next, overdraftDailyRate }, {
       tick: nextTick,
       createdAt,
-      label: `Dispozinsen (${(next.overdraftDailyRate * 100).toFixed(2)} % / Tag)`,
+      label: `Dispozinsen (${(overdraftDailyRate * 100).toFixed(3).replace('.', ',')} % / Tag)`,
       amount: -interest,
       kind: 'zinsen' as const,
     });
+  } else if (next.overdraftDailyRate !== OVERDRAFT_SAFE_DAILY_RATE) {
+    next = { ...next, overdraftDailyRate: OVERDRAFT_SAFE_DAILY_RATE };
   }
 
   const remainingLoans: BankLoan[] = [];

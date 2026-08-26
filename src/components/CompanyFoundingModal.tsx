@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Building2, MapPin, Train } from 'lucide-react';
+import { Building2, MapPin, Star, Train } from 'lucide-react';
 import { DEFAULT_EVU_NAME, DEFAULT_HQ_LOCATION } from '@/lib/companyProfile';
 
 interface CompanyFoundingModalProps {
   mode: 'found' | 'edit';
   initialName?: string;
   initialLocation?: string;
+  corporateRankLabel?: string;
   onSave: (name: string, hqLocation: string) => void;
   onCancel?: () => void;
   onReplayTutorial?: () => void;
@@ -15,6 +16,7 @@ export function CompanyFoundingModal({
   mode,
   initialName,
   initialLocation,
+  corporateRankLabel,
   onSave,
   onCancel,
   onReplayTutorial,
@@ -50,6 +52,15 @@ export function CompanyFoundingModal({
               ? 'Willkommen. Lege Namen und Sitz deines Eisenbahnverkehrsunternehmens fest. Bestand, Kontostand und Spielstand bleiben erhalten.'
               : 'Name und Standort werden in der Kopfzeile, der Zentrale und im Büro übernommen.'}
           </p>
+          {mode === 'edit' && corporateRankLabel && (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-950/25 px-3 py-2.5">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-amber-300">
+                <Star className="h-3 w-3" /> Konzern-Rang
+              </div>
+              <p className="mt-1 text-sm font-bold text-amber-100">{corporateRankLabel}</p>
+              <p className="mt-1 text-[11px] leading-relaxed text-slate-400">Details und dauerhafte Meilensteinpunkte findest du unter Auswertungen. Der Rang löst keinen Spielstands-Reset aus.</p>
+            </div>
+          )}
           <label className="block">
             <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">
               <Building2 className="h-3 w-3 text-amber-400" /> EVU-Name

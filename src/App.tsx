@@ -88,6 +88,7 @@ import {
 import {
   canChangeOverdraftLimit,
   canSpend,
+  canSpendInvestment,
   checkLoanCredit,
   INSURANCE_CATALOG,
   isLoanAmountUnlocked,
@@ -283,6 +284,14 @@ import { buildAdvisorAlerts } from '@/lib/economyAdvisor';
 import { autoAzfChoice, isBaugleisOrder, pdlAzfDailyRate } from '@/lib/pdl';
 import { grandfatherAktivTrips, loadChargedTripIds, markTripCharged, saveChargedTripIds } from '@/lib/tripCosts';
 import { formatEuro } from '@/lib/status';
+import {
+  awardCorporateMilestoneXp,
+  corporateRankForProgress,
+  loadCorporateMilestones,
+  migrateVisibleMilestoneXp,
+  saveCorporateMilestones,
+  type CorporateMilestoneState,
+} from '@/lib/corporateMilestones';
 import { BEKANNTHEIT_PER_LEVEL, grantCompanyXp, xpForCompletedOrder } from '@/lib/progression';
 import { isAssignmentArrived } from '@/lib/tracking';
 import {
@@ -389,6 +398,7 @@ function App() {
   const [deployments, setDeployments] = useState<BaugleisDeployment[]>(() => loadBaugleisDeployments());
   const [depot, setDepot] = useState<DepotState>(() => loadDepotState());
   const [maintenanceFund, setMaintenanceFund] = useState<MaintenanceFundState>(() => loadMaintenanceFund());
+  const [corporateMilestones, setCorporateMilestones] = useState<CorporateMilestoneState>(() => loadCorporateMilestones());
   const [insolvencyDismissed, setInsolvencyDismissed] = useState(false);
   const [networkAccess, setNetworkAccess] = useState<NetworkAccessState>(() => loadNetworkAccess());
   const [worldEvents, setWorldEvents] = useState<WorldEventState>(() =>
@@ -421,6 +431,7 @@ function App() {
   const deploymentsRef = useRef(deployments);
   const depotRef = useRef(depot);
   const maintenanceFundRef = useRef(maintenanceFund);
+  const corporateMilestonesRef = useRef(corporateMilestones);
   const chargedTripsRef = useRef<string[]>(loadChargedTripIds());
   const ordersRef = useRef(orders);
   const networkRef = useRef(networkAccess);
@@ -443,6 +454,7 @@ function App() {
   deploymentsRef.current = deployments;
   depotRef.current = depot;
   maintenanceFundRef.current = maintenanceFund;
+  corporateMilestonesRef.current = corporateMilestones;
   ordersRef.current = orders;
   networkRef.current = networkAccess;
   eventsRef.current = worldEvents;
@@ -480,6 +492,37 @@ function App() {
     if (!isSupabaseConfigured) return;
     persistQuietly(supabase.from('notifications').insert(full));
   }, []);
+
+  const persistCorporateMilestones = useCallback((next: CorporateMilestoneState) => {
+    corporateMilestonesRef.current = next;
+    setCorporateMilestones(next);
+    saveCorporateMilestones(next);
+  }, []);
+
+  const awardPostCapMilestoneXp = useCallback((companyAfterXp: Company, xpGain: number) => {
+    if (xpGain <= 0) return;
+    const before = corporateRankForProgress(companyAfterXp.level, corporateMilestonesRef.current.totalXp);
+    const next = awardCorporateMilestoneXp(corporateMilestonesRef.current, xpGain);
+    persistCorporateMilestones(next);
+    const after = corporateRankForProgress(companyAfterXp.level, next.totalXp);
+    if (after.id !== before.id) {
+      pushNotifications([
+        {
+          type: 'success',
+          title: 'Konzern-Rang erreicht',
+          message: `${after.label}: ${after.description} Kein Spielstands-Reset — Fuhrpark, Kapital und Personal bleiben erhalten.`,
+          read: false,
+          created_at: tickToIso(companyAfterXp.tick),
+        },
+      ]);
+      sendMessage(
+        'System',
+        'Konzern-Meilenstein erreicht',
+        `${after.label} freigeschaltet. Dein aufgebautes EVU bleibt vollständig erhalten.`,
+        companyAfterXp.tick,
+      );
+    }
+  }, [persistCorporateMilestones, pushNotifications]);
 
   const persistCompany = useCallback((next: Company) => {
     const prev = companyRef.current;
@@ -1002,6 +1045,12 @@ function App() {
   );
 
   useEffect(() => {
+    if (loading || !company) return;
+    const migrated = migrateVisibleMilestoneXp(corporateMilestonesRef.current, company.level, company.xp);
+    if (migrated.totalXp !== corporateMilestonesRef.current.totalXp) persistCorporateMilestones(migrated);
+  }, [company, loading, persistCorporateMilestones]);
+
+  useEffect(() => {
     if (loading) return;
     completeDueWagonJobs(companyRef.current?.tick ?? 0);
     completeDueWorkshopJobs(companyRef.current?.tick ?? 0);
@@ -1017,12 +1066,19 @@ function App() {
     (amount: number, label: string, kind?: BankBookingKind): boolean => {
       const current = companyRef.current;
       if (!current) return false;
-      if (!canSpend(current.balance, amount, bankRef.current.overdraftLimit)) {
+      const investmentMustBeCashOnly = kind === 'investition';
+      const paymentAllowed = investmentMustBeCashOnly
+        ? canSpendInvestment(current.balance, amount)
+        : canSpend(current.balance, amount, bankRef.current.overdraftLimit);
+      if (!paymentAllowed) {
+        const message = investmentMustBeCashOnly
+          ? `Für ${label} werden ${formatEuro(amount)} frei verfügbares Guthaben benötigt. Der Dispo dient ausschließlich Betriebskosten und darf Investitionen nicht finanzieren.`
+          : `Unzureichende Mittel für ${label} (${formatEuro(amount)}).`;
         pushNotifications([
           {
             type: 'warning',
             title: 'Zahlung abgelehnt',
-            message: `Unzureichende Mittel für ${label} (${formatEuro(amount)}).`,
+            message,
             read: false,
             created_at: tickToIso(current.tick),
           },
@@ -1273,6 +1329,7 @@ function App() {
         if (order) {
           const xp = grantCompanyXp(nextCompany, xpForCompletedOrder(order));
           nextCompany = xp.company;
+          awardPostCapMilestoneXp(nextCompany, xp.milestoneXpGain);
         }
         if (assignment) {
           persistAchievements(noteCompletedTrip(achievementsRef.current, { ...assignment, order }, false));
@@ -1818,6 +1875,7 @@ function App() {
     if (a.order) {
       const xp = grantCompanyXp(nextCo, xpForCompletedOrder(a.order));
       nextCo = xp.company;
+      awardPostCapMilestoneXp(nextCo, xp.milestoneXpGain);
     }
     persistAchievements(noteCompletedTrip(achievementsRef.current, a, late));
     return grantAchievements(nextCo, atTick);
@@ -2769,6 +2827,7 @@ function App() {
                   assignments={assignments}
                   wagons={wagons}
                   dailyFixed={dailyFixed}
+                  corporateMilestones={corporateMilestones}
                   onEditCompany={openCompanyEditor}
                 />
               )}
@@ -3008,6 +3067,7 @@ function App() {
             mode={foundingMode}
             initialName={company?.name}
             initialLocation={company?.hq_location}
+            corporateRankLabel={corporateRankForProgress(company?.level ?? 1, corporateMilestones.totalXp).label}
             onSave={handleSaveCompany}
             onCancel={foundingMode === 'edit' ? () => setFoundingOpen(false) : undefined}
             onReplayTutorial={

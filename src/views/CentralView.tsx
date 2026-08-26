@@ -21,6 +21,13 @@ import { formatTickLabel } from '@/lib/gameTime';
 import { SectionShell } from '@/components/SectionShell';
 import { DailyFixedCostsCard } from '@/components/DailyFixedCostsCard';
 import type { DailyFixedCosts } from '@/lib/dailyFixedCosts';
+import {
+  corporateRankForProgress,
+  milestoneXpTowardNext,
+  nextCorporateRank,
+  type CorporateMilestoneState,
+} from '@/lib/corporateMilestones';
+import { CORE_LEVEL_CAP, CORPORATE_MILESTONE_XP_STEP } from '@/lib/progression';
 
 interface CentralViewProps {
   company: Company | null;
@@ -30,6 +37,7 @@ interface CentralViewProps {
   assignments: AssignmentWithDetails[];
   wagons: Wagon[];
   dailyFixed?: DailyFixedCosts;
+  corporateMilestones: CorporateMilestoneState;
   onEditCompany?: () => void;
 }
 
@@ -41,6 +49,7 @@ export function CentralView({
   assignments,
   wagons,
   dailyFixed,
+  corporateMilestones,
   onEditCompany,
 }: CentralViewProps) {
   const activeAssignments = assignments.filter(
@@ -69,6 +78,12 @@ export function CentralView({
     (company?.reputation ?? 0) >= 70 ? 'text-emerald-400' : (company?.reputation ?? 0) >= 40 ? 'text-amber-400' : 'text-rose-400';
   const repBarColor =
     (company?.reputation ?? 0) >= 70 ? 'bg-emerald-500' : (company?.reputation ?? 0) >= 40 ? 'bg-amber-500' : 'bg-rose-500';
+  const coreLevel = Math.min(CORE_LEVEL_CAP, Math.max(1, company?.level ?? 1));
+  const corporateRank = corporateRankForProgress(coreLevel, corporateMilestones.totalXp);
+  const nextRank = nextCorporateRank(coreLevel, corporateMilestones.totalXp);
+  const milestoneProgress = milestoneXpTowardNext(corporateMilestones);
+  const milestonePct = Math.min(100, (milestoneProgress / CORPORATE_MILESTONE_XP_STEP) * 100);
+  const milestoneNumber = corporateMilestones.completedMilestones + 1;
 
   return (
     <SectionShell
@@ -115,6 +130,41 @@ export function CentralView({
             <div className={`h-full rounded-full ${repBarColor}`} style={{ width: `${company?.reputation ?? 0}%` }} />
           </div>
         </div>
+      </div>
+
+      <div className="game-box border border-amber-500/25 bg-gradient-to-br from-slate-950 via-slate-900 to-amber-950/30 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300">
+              <Star className="h-3.5 w-3.5" /> Konzern-Rang
+            </div>
+            <h2 className="mt-1 text-lg font-bold text-amber-200">{corporateRank.label}</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-300">{corporateRank.description}</p>
+          </div>
+          <div className="rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-2 text-right">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Kernfortschritt</p>
+            <p className="mt-1 text-sm font-bold text-white">Level {coreLevel} / {CORE_LEVEL_CAP}</p>
+          </div>
+        </div>
+        {coreLevel >= CORE_LEVEL_CAP ? (
+          <div className="mt-4">
+            <div className="flex items-center justify-between gap-3 text-[11px]">
+              <span className="font-semibold text-slate-200">Konzern-Meilenstein {milestoneNumber}</span>
+              <span className="tabular-nums text-amber-200">{milestoneProgress.toLocaleString('de-DE')} / {CORPORATE_MILESTONE_XP_STEP.toLocaleString('de-DE')} XP</span>
+            </div>
+            <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-800">
+              <div className="h-full rounded-full bg-gradient-to-r from-amber-500 to-orange-300" style={{ width: `${milestonePct}%` }} />
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-slate-400">
+              Weitere Aufträge zählen dauerhaft als Konzern-Meilensteinpunkte. Kein Spielstands-Reset: Fuhrpark, Personal, Kapital und Depot bleiben erhalten.
+            </p>
+          </div>
+        ) : (
+          <p className="mt-4 text-[11px] leading-relaxed text-slate-400">
+            {nextRank ? `Nächster Rang: ${nextRank.label} ab Level ${nextRank.requiredLevel}.` : 'Alle Konzern-Ränge freigeschaltet.'}
+            {' '}Ab Level {CORE_LEVEL_CAP} werden weitere XP zu dauerhaften Konzern-Meilensteinpunkten statt zu weiteren Kernleveln.
+          </p>
+        )}
       </div>
 
       {dailyFixed && <DailyFixedCostsCard costs={dailyFixed} variant="compact" />}

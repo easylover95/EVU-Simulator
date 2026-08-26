@@ -1,5 +1,5 @@
 import type { Company, Locomotive, Wagon } from '@/lib/supabase';
-import { INSURANCE_BASE_DAILY, INSURANCE_CATALOG, type BankLoan, type BankState, type InsuranceId } from '@/lib/bank';
+import { INSURANCE_BASE_DAILY, INSURANCE_CATALOG, overdraftRateForBalance, type BankLoan, type BankState, type InsuranceId } from '@/lib/bank';
 import type { LeaseContract } from '@/lib/dealer';
 import type { StaffMeta } from '@/lib/jobcenter';
 import { isNewGameDay } from '@/lib/storage';
@@ -179,7 +179,10 @@ export function computeDailyFixedCosts(input: {
 
     const balance = Number(input.company?.balance) || 0;
     const bankState = input.bank;
-    const overdraftInterest = previewOverdraftInterest(balance, Number(bankState?.overdraftDailyRate) || 0);
+    const overdraftInterest = previewOverdraftInterest(
+      balance,
+      overdraftRateForBalance(balance, Number(bankState?.overdraftLimit) || 0),
+    );
     const loans = Array.isArray(bankState?.loans) ? bankState!.loans.filter((loan) => loan && typeof loan === 'object') : [];
     const loanLines: DailyFixedCostLine[] = loans
       .map((loan) => ({
