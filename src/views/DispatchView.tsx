@@ -81,6 +81,7 @@ interface DispatchViewProps {
   loading: boolean;
   onDataChange: () => void;
   preselectOrder?: Order | null;
+  preselectLocoId?: string | null;
   onLocalAssign?: (
     order: Order,
     locomotiveId: string,
@@ -143,6 +144,7 @@ export function DispatchView({
   loading,
   onDataChange,
   preselectOrder,
+  preselectLocoId,
   onLocalAssign,
   onLocalComplete,
   onLocalCancel,
@@ -183,6 +185,15 @@ export function DispatchView({
       setSelectedAzfId('');
     }
   }, [preselectOrder]);
+
+  useEffect(() => {
+    if (!preselectLocoId) return;
+    setSelectedLoco(preselectLocoId);
+    setSelectedDriver('');
+    setSelectedDriver2('');
+    setAzfMode('none');
+    setSelectedAzfId('');
+  }, [preselectLocoId]);
 
   const openOrders = useMemo(
     () => orders.filter((o) => o.status === 'offen' && !isExpiredOpenOffer(o, gameNow)),

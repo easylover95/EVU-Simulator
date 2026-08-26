@@ -365,6 +365,7 @@ function App() {
   const [inbox, setInbox] = useState<Message[]>(() => seedWelcomeInbox(0));
   const [loading, setLoading] = useState(true);
   const [dispoPreselect, setDispoPreselect] = useState<Order | null>(null);
+  const [dispoPreselectLocoId, setDispoPreselectLocoId] = useState<string | null>(null);
   const [dealerPrefill, setDealerPrefill] = useState<{ typeCode: string; qty: number } | null>(null);
   const [clockRunning, setClockRunning] = useState(false);
   const [clockSpeed, setClockSpeed] = useState<ClockSpeed>(1);
@@ -1575,6 +1576,7 @@ function App() {
     }
     if (order.status === 'offen' && !checkWagonAvailability(order, wagonsRef.current).sufficient) return;
     setDispoPreselect(order);
+    setDispoPreselectLocoId(null);
     setView('disposition');
   }
 
@@ -1927,7 +1929,9 @@ function App() {
     }
   }
 
-  function handleDisponierenFromLoco() {
+  function handleDisponierenFromLoco(loco?: Locomotive) {
+    setDispoPreselect(null);
+    setDispoPreselectLocoId(loco?.id ?? null);
     setView('disposition');
   }
 
@@ -2849,6 +2853,7 @@ function App() {
                   wagons={wagons}
                   loading={loading}
                   onDisponieren={handleDisponierenFromOrder}
+                  onOpenDisposition={() => setView('disposition')}
                   onReject={handleRejectOrder}
                   onRefreshMarket={handleRefreshMarket}
                   marketRefreshLocked={!isMarketRefreshAvailable(marketRefreshDay, tick, clockMinutes)}
@@ -2877,6 +2882,7 @@ function App() {
                   loading={loading}
                   onDataChange={fetchData}
                   preselectOrder={dispoPreselect}
+                  preselectLocoId={dispoPreselectLocoId}
                   onLocalAssign={handleLocalAssign}
                   onLocalComplete={handleLocalComplete}
                   onLocalCancel={handleLocalCancel}

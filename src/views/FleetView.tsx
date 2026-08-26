@@ -241,9 +241,9 @@ export function FleetView({
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {deployable && (
+                  {(deployable || loco.status === 'einsatz') && (
                     <button type="button" onClick={() => onDisponieren?.(loco)} className="btn-action btn-action-dispo">
-                      <ClipboardList className="h-3 w-3" /> Dispo
+                      <ClipboardList className="h-3 w-3" /> {loco.status === 'einsatz' ? 'Zur Disposition' : 'Disponieren'}
                     </button>
                   )}
                   {!deployable && loco.status !== 'einsatz' && (

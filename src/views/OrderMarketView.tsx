@@ -37,6 +37,7 @@ interface OrderMarketViewProps {
   wagons: Wagon[];
   loading: boolean;
   onDisponieren?: (order: Order) => void;
+  onOpenDisposition?: () => void;
   onReject?: (order: Order) => void;
   onRefreshMarket?: () => void;
   marketRefreshLocked?: boolean;
@@ -168,6 +169,7 @@ export function OrderMarketView({
   wagons,
   loading,
   onDisponieren,
+  onOpenDisposition,
   onReject,
   onRefreshMarket,
   marketRefreshLocked = false,
@@ -261,7 +263,13 @@ export function OrderMarketView({
   }, [filtered, sortKey, sortDir, gameNow]);
 
   const marketActions = (
-    <div className="flex items-center gap-2">
+    <div className="fi-market-actions flex flex-wrap items-center gap-2">
+      {onOpenDisposition && (
+        <Button onClick={onOpenDisposition} className="whitespace-nowrap">
+          <ClipboardList className="h-3 w-3" />
+          Zur Disposition
+        </Button>
+      )}
       {onRefreshMarket && (
         <span
           className="inline-flex"
@@ -279,13 +287,13 @@ export function OrderMarketView({
           </button>
         </span>
       )}
-      <div className="relative">
+      <div className="fi-market-search relative">
         <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Suchen..."
-          className="w-36 rounded-lg border border-slate-600 bg-slate-900 py-1.5 pl-7 pr-2 text-xs text-white outline-none focus:border-amber-500"
+          className="w-full rounded-lg border border-slate-600 bg-slate-900 py-1.5 pl-7 pr-2 text-xs text-white outline-none focus:border-amber-500"
         />
       </div>
     </div>
@@ -428,7 +436,7 @@ export function OrderMarketView({
                         <>
                           <button onClick={() => acceptOrder(order)} className="btn-action btn-action-dispo">
                             <ClipboardList className="h-3 w-3" />{' '}
-                            {gate ? 'Netzzugang fehlt' : wagonCheck.sufficient ? 'Annehmen/Disponieren' : 'Wagen fehlen'}
+                            {gate ? 'Netzzugang fehlt' : wagonCheck.sufficient ? 'Zur Disposition' : 'Wagen fehlen'}
                           </button>
                           <button onClick={() => onReject?.(order)} className="btn-action btn-action-reject">
                             <Ban className="h-3 w-3" /> Ablehnen

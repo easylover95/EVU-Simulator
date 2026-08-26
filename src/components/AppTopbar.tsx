@@ -1,5 +1,5 @@
 import type { RefObject } from 'react';
-import { BriefcaseBusiness, Home, Landmark, Mail, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound } from 'lucide-react';
+import { BriefcaseBusiness, ClipboardList, Home, Landmark, Mail, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound } from 'lucide-react';
 import type { Company } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
@@ -244,8 +244,18 @@ export function AppTopbar({
               <span>{compactNavLabels[item.id]}</span>
             </button>
           );
-        })}
-      </nav>
-    </header>
+          })}
+          <button
+            type="button"
+            title="Zugdisposition"
+            aria-label="Zugdisposition"
+            onClick={() => onSetView('disposition')}
+            className={`app-mobile-quicknav-item app-mobile-quicknav-disposition ${view === 'disposition' ? 'is-active' : ''}`}
+          >
+            <ClipboardList className="app-mobile-quicknav-icon" aria-hidden />
+            <span>Dispo</span>
+          </button>
+        </nav>
+      </header>
   );
 }

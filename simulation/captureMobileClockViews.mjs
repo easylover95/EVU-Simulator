@@ -145,6 +145,7 @@ try {
     ['flotte', 2],
     ['bank', 3],
     ['firma', 4],
+    ['disposition', 5],
   ];
   for (const [name, index] of views) {
     await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[${index}]?.click()`);
@@ -156,6 +157,7 @@ try {
     interaction: { selectedSpeed: speedAfterClick, selectedClockControl: pauseAfterClick },
     checks,
     pass: Object.values(checks).every((entry) => entry.clockVisible && entry.documentScrollWidth <= width && entry.bodyScrollWidth <= width)
+      && checks.disposition?.view === 'Disposition'
       && speedAfterClick === '5×'
       && pauseAfterClick === 'Spiel pausieren',
   };

@@ -1285,7 +1285,7 @@ body,
     bottom: calc(0.5rem + env(safe-area-inset-bottom));
     z-index: 60;
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 0.2rem;
     padding: 0.3rem;
     border: 1px solid rgba(251, 191, 36, 0.24);
@@ -1491,6 +1491,14 @@ body,
     right: 0.35rem;
     bottom: calc(4.25rem + env(safe-area-inset-bottom));
   }
+  .fi-market-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .fi-market-search {
+    min-width: 0;
+    flex: 1 1 7.5rem;
+  }
   .app-mobile-quicknav {
     left: 0.35rem;
     right: 0.35rem;
@@ -1498,6 +1506,9 @@ body,
   .app-mobile-quicknav-item {
     min-height: 2.85rem;
     font-size: 8px;
+  }
+  .app-mobile-quicknav-disposition {
+    color: #fbbf24;
   }
   .pc-main-body {
     padding: 9px;
