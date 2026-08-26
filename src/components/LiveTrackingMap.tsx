@@ -1,12 +1,45 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { CircleDot, Gauge, RadioTower, Train, User, Wrench, X } from 'lucide-react';
+import { CircleDot, Gauge, Layers3, RadioTower, Train, User, Wrench, X } from 'lucide-react';
 import type { AssignmentWithDetails, Locomotive, Wagon } from '@/lib/supabase';
 import { RAIL_STATIONS, lookupStation, TRUNK_CORRIDORS } from '@/lib/stations';
 import { buildTrackedTrains, locoMarkerId, type TrackedTrain } from '@/lib/tracking';
 import { getAssignmentPillClass, getLocoPillClass, getLocoStatusConfig } from '@/lib/status';
 import { getLocoDisplayName } from '@/lib/locoPhotos';
+
+type MapStyle = 'voyager' | 'satellite' | 'dark' | 'railway';
+
+type BaseLayerPreset = {
+  url: string;
+  attribution: string;
+  className?: string;
+};
+
+const BASE_LAYER_PRESETS: Record<Exclude<MapStyle, 'railway'>, BaseLayerPreset> = {
+  voyager: {
+    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; OpenStreetMap &copy; CARTO Voyager',
+    className: 'fi-map-base-voyager',
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
+    className: 'fi-map-base-satellite',
+  },
+  dark: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; OpenStreetMap &copy; CARTO Dark Matter',
+    className: 'fi-map-base-dark',
+  },
+};
+
+const MAP_STYLE_OPTIONS: Array<{ id: MapStyle; label: string; description: string }> = [
+  { id: 'voyager', label: 'Standard', description: 'Topografie & Grenzen' },
+  { id: 'satellite', label: 'Satellit', description: 'Luftbild mit Gleisoverlay' },
+  { id: 'dark', label: 'Dunkel', description: 'Nacht-Leitstelle' },
+  { id: 'railway', label: 'OpenRailwayMap pur', description: 'Nur Schieneninfrastruktur' },
+];
 
 interface LiveTrackingMapProps {
   assignments: AssignmentWithDetails[];
@@ -85,9 +118,12 @@ export function LiveTrackingMap({
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
   const linesRef = useRef<Map<string, L.LayerGroup>>(new Map());
+  const baseLayerRef = useRef<L.TileLayer | null>(null);
   const tracksRef = useRef<TrackedTrain[]>([]);
   const parkedRef = useRef<ParkedLoco[]>([]);
   const [internalSelected, setInternalSelected] = useState<string | null>(null);
+  const [mapStyle, setMapStyle] = useState<MapStyle>('voyager');
+  const [stylePickerOpen, setStylePickerOpen] = useState(false);
 
   const selectedId = controlledSelectedId !== undefined ? controlledSelectedId : internalSelected;
 
@@ -138,12 +174,6 @@ export function LiveTrackingMap({
       zoomControl: true,
       attributionControl: true,
     });
-
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO Voyager',
-      subdomains: 'abcd',
-      maxZoom: 18,
-    }).addTo(map);
 
     const railwayPane = map.createPane('fi-railway-overlay');
     railwayPane.style.zIndex = '260';
@@ -207,6 +237,30 @@ export function LiveTrackingMap({
       mapRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    baseLayerRef.current?.remove();
+    baseLayerRef.current = null;
+    if (mapStyle === 'railway') return;
+
+    const preset = BASE_LAYER_PRESETS[mapStyle];
+    const options: L.TileLayerOptions = {
+      attribution: preset.attribution,
+      maxZoom: 19,
+      className: preset.className,
+    };
+    if (preset.url.includes('{s}')) options.subdomains = 'abcd';
+    const baseLayer = L.tileLayer(preset.url, options).addTo(map);
+    baseLayerRef.current = baseLayer;
+
+    return () => {
+      if (baseLayerRef.current === baseLayer) baseLayerRef.current = null;
+      baseLayer.remove();
+    };
+  }, [mapStyle]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -339,14 +393,51 @@ export function LiveTrackingMap({
 
   const mapBlock = (
     <div className="relative h-full min-h-[360px] w-full">
-      <div ref={containerRef} className={`${variant === 'fill' ? 'h-full min-h-[420px]' : 'h-[440px]'} fi-live-map w-full`} />
+      <div ref={containerRef} data-map-style={mapStyle} className={`${variant === 'fill' ? 'h-full min-h-[420px]' : 'h-[440px]'} fi-live-map w-full`} />
       <div className="pointer-events-none absolute left-3 top-3 z-[500] flex items-center gap-2 rounded-md border border-sky-400/25 bg-slate-950/80 px-2.5 py-1.5 shadow-[0_0_20px_rgba(14,165,233,0.16)] backdrop-blur-sm">
         <RadioTower className="h-3.5 w-3.5 text-sky-300" />
         <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-100">Live-Leitstelle</span>
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
         <span className="text-[10px] font-semibold tabular-nums text-slate-300">{trains.filter((train) => train.status === 'aktiv').length} aktiv</span>
       </div>
-      <div className="pointer-events-none absolute right-3 top-3 z-[500] hidden items-center gap-1.5 rounded-md border border-slate-500/20 bg-slate-950/72 px-2 py-1.5 text-[10px] text-slate-300 shadow-lg backdrop-blur-sm sm:flex">
+      <div className="absolute right-3 top-3 z-[500] pointer-events-auto">
+        <button
+          type="button"
+          title="Kartendarstellung wählen"
+          aria-label="Kartendarstellung wählen"
+          aria-expanded={stylePickerOpen}
+          data-map-style-trigger
+          onClick={() => setStylePickerOpen((open) => !open)}
+          className="flex min-h-9 items-center gap-1.5 rounded-md border border-sky-400/35 bg-slate-950/88 px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide text-sky-100 shadow-[0_0_18px_rgba(14,165,233,0.18)] backdrop-blur-sm"
+        >
+          <Layers3 className="h-3.5 w-3.5 text-sky-300" />
+          <span className="hidden sm:inline">Karte</span>
+        </button>
+        {stylePickerOpen && (
+          <div className="mt-1.5 w-48 overflow-hidden rounded-md border border-sky-400/30 bg-slate-950/95 p-1 shadow-[0_10px_30px_rgba(2,6,23,0.55)] backdrop-blur-sm">
+            <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-[0.14em] text-slate-400">Kartendarstellung</div>
+            {MAP_STYLE_OPTIONS.map((option) => {
+              const active = mapStyle === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  data-map-style-option={option.id}
+                  onClick={() => {
+                    setMapStyle(option.id);
+                    setStylePickerOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between gap-2 rounded px-2 py-2 text-left ${active ? 'bg-sky-400/18 text-sky-100' : 'text-slate-300 hover:bg-slate-800/80'}`}
+                >
+                  <span className="text-[11px] font-bold">{option.label}</span>
+                  <span className="text-right text-[9px] text-slate-500">{option.description}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div className="pointer-events-none absolute right-14 top-3 z-[500] hidden items-center gap-1.5 rounded-md border border-slate-500/20 bg-slate-950/72 px-2 py-1.5 text-[10px] text-slate-300 shadow-lg backdrop-blur-sm md:flex">
         <CircleDot className="h-3 w-3 text-sky-300" /> Knoten · Live-Loks · Fahrkorridore
       </div>
       {selectedTrain && (

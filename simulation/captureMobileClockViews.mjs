@@ -160,9 +160,35 @@ try {
           loadedTileCount: loaded.length,
           usesVoyager: loaded.some((tile) => tile.currentSrc.includes('/rastertiles/voyager/')),
           railwayTileCount: loaded.filter((tile) => tile.currentSrc.includes('tiles.openrailwaymap.org/standard/')).length,
+          mapStyle: document.querySelector('.fi-live-map')?.getAttribute('data-map-style') ?? '',
+          filterPresent: Boolean(document.querySelector('[data-map-style-trigger]')),
           mapVisible: Boolean(document.querySelector('.fi-live-map')),
         };
       })()`);
+      const styles = [
+        ['satellite', 'server.arcgisonline.com'],
+        ['dark', '/dark_all/'],
+        ['railway', ''],
+        ['voyager', '/rastertiles/voyager/'],
+      ];
+      const styleChecks = {};
+      for (const [style, sourceFragment] of styles) {
+        const opened = await client.evaluate(`(() => { const trigger = document.querySelector('[data-map-style-trigger]'); trigger?.click(); return { exists: Boolean(trigger), open: Boolean(document.querySelector('[data-map-style-option]')) }; })()`);
+        await wait(120);
+        const selected = await client.evaluate(`(() => { const option = document.querySelector('[data-map-style-option="${style}"]'); option?.click(); return { exists: Boolean(option) }; })()`);
+        await wait(style === 'satellite' ? 4_200 : 1_700);
+        const layerSnapshot = await client.evaluate(`(() => {
+          const tiles = [...document.querySelectorAll('.fi-live-map .leaflet-tile')];
+          const loaded = tiles.filter((tile) => tile.complete && tile.naturalWidth > 0);
+          return {
+            selected: document.querySelector('.fi-live-map')?.dataset.mapStyle ?? '',
+            matchingBaseTiles: '${sourceFragment}' ? loaded.filter((tile) => tile.currentSrc.includes('${sourceFragment}')).length : 0,
+            railwayTileCount: loaded.filter((tile) => tile.currentSrc.includes('tiles.openrailwaymap.org/standard/')).length,
+          };
+        })()`);
+        styleChecks[style] = { ...layerSnapshot, opened, selectedOption: selected };
+      }
+      checks[name].mapStyleChecks = styleChecks;
     }
   }
   const report = {
@@ -175,6 +201,14 @@ try {
       && checks.disposition?.map?.loadedTileCount > 0
       && checks.disposition?.map?.usesVoyager
       && checks.disposition?.map?.railwayTileCount > 0
+      && checks.disposition?.mapStyleChecks?.satellite?.selected === 'satellite'
+      && checks.disposition?.mapStyleChecks?.satellite?.matchingBaseTiles > 0
+      && checks.disposition?.mapStyleChecks?.dark?.selected === 'dark'
+      && checks.disposition?.mapStyleChecks?.dark?.matchingBaseTiles > 0
+      && checks.disposition?.mapStyleChecks?.railway?.selected === 'railway'
+      && checks.disposition?.mapStyleChecks?.railway?.railwayTileCount > 0
+      && checks.disposition?.mapStyleChecks?.voyager?.selected === 'voyager'
+      && checks.disposition?.mapStyleChecks?.voyager?.matchingBaseTiles > 0
       && speedAfterClick === '5×'
       && pauseAfterClick === 'Spiel pausieren',
   };
