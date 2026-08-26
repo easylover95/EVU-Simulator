@@ -1994,16 +1994,16 @@ body,
 }
 
 
-/* Live-Leitstelle: dark cartography, glowing rail corridors, always-readable station nodes. */
+/* Live-Leitstelle: lesbare Voyager-Topografie, kontrastreiche Bahnkorridore und Knoten. */
 .fi-live-map,
 .fi-live-map .leaflet-container {
   background:
-    radial-gradient(circle at 46% 44%, rgba(14, 116, 144, 0.18), transparent 42%),
-    linear-gradient(145deg, #07101d 0%, #071522 54%, #03070e 100%);
+    radial-gradient(circle at 46% 44%, rgba(56, 189, 248, 0.14), transparent 44%),
+    linear-gradient(145deg, #dbeafe 0%, #dce8e4 54%, #cbd5e1 100%);
 }
 
 .fi-live-map .leaflet-tile-pane {
-  filter: saturate(1.35) contrast(1.16) brightness(0.7) hue-rotate(176deg);
+  filter: saturate(0.95) contrast(1.12) brightness(1.04);
 }
 
 .fi-live-map .leaflet-overlay-pane path {
@@ -2031,11 +2031,12 @@ body,
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
-  color: #dbeafe !important;
+  color: #f8fbff !important;
   font-size: 10px !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
   letter-spacing: 0.015em;
-  text-shadow: 0 1px 3px #020617, 0 0 8px rgba(56, 189, 248, 0.45) !important;
+  -webkit-text-stroke: 1px rgba(3, 23, 42, 0.82);
+  text-shadow: 0 1px 1px rgba(3, 23, 42, 0.95), 1px 0 1px rgba(3, 23, 42, 0.9), -1px 0 1px rgba(3, 23, 42, 0.9), 0 0 7px rgba(14, 165, 233, 0.72) !important;
   box-shadow: none !important;
   pointer-events: none !important;
 }

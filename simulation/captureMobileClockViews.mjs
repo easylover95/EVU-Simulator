@@ -149,8 +149,20 @@ try {
   ];
   for (const [name, index] of views) {
     await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[${index}]?.click()`);
-    await wait(450);
+    await wait(name === 'disposition' ? 2_800 : 450);
     checks[name] = await capture(client, name);
+    if (name === 'disposition') {
+      checks[name].map = await client.evaluate(`(() => {
+        const tiles = [...document.querySelectorAll('.fi-live-map .leaflet-tile')];
+        const loaded = tiles.filter((tile) => tile.complete && tile.naturalWidth > 0);
+        return {
+          tileCount: tiles.length,
+          loadedTileCount: loaded.length,
+          usesVoyager: loaded.some((tile) => tile.currentSrc.includes('/rastertiles/voyager/')),
+          mapVisible: Boolean(document.querySelector('.fi-live-map')),
+        };
+      })()`);
+    }
   }
   const report = {
     viewport: { width, height },
@@ -158,6 +170,9 @@ try {
     checks,
     pass: Object.values(checks).every((entry) => entry.clockVisible && entry.documentScrollWidth <= width && entry.bodyScrollWidth <= width)
       && checks.disposition?.view === 'Disposition'
+      && checks.disposition?.map?.mapVisible
+      && checks.disposition?.map?.loadedTileCount > 0
+      && checks.disposition?.map?.usesVoyager
       && speedAfterClick === '5×'
       && pauseAfterClick === 'Spiel pausieren',
   };

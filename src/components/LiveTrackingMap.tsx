@@ -139,8 +139,8 @@ export function LiveTrackingMap({
       attributionControl: true,
     });
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO',
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO Voyager',
       subdomains: 'abcd',
       maxZoom: 18,
     }).addTo(map);
@@ -151,25 +151,26 @@ export function LiveTrackingMap({
       const from = RAIL_STATIONS[fromKey];
       const to = RAIL_STATIONS[toKey];
       const corridor: L.LatLngExpression[] = [[from.lat, from.lng], [to.lat, to.lng]];
-      L.polyline(corridor, { pane: 'fi-corridors', color: '#0b2d57', weight: 9, opacity: 0.34, lineCap: 'round' }).addTo(map);
-      L.polyline(corridor, { pane: 'fi-corridors', color: '#1760a6', weight: 2.1, opacity: 0.82, lineCap: 'round' }).addTo(map);
+      L.polyline(corridor, { pane: 'fi-corridors', color: '#062a4a', weight: 10, opacity: 0.72, lineCap: 'round' }).addTo(map);
+      L.polyline(corridor, { pane: 'fi-corridors', color: '#00b7ff', weight: 3, opacity: 0.96, lineCap: 'round' }).addTo(map);
     }
 
     for (const station of Object.values(RAIL_STATIONS)) {
       L.circleMarker([station.lat, station.lng], {
-        radius: 8,
-        color: '#0ea5e9',
-        fillColor: '#0ea5e9',
-        fillOpacity: 0.16,
-        opacity: 0,
-        weight: 0,
+        radius: 10,
+        color: '#0284c7',
+        fillColor: '#38bdf8',
+        fillOpacity: 0.2,
+        opacity: 0.88,
+        weight: 2,
       }).addTo(map);
       L.circleMarker([station.lat, station.lng], {
-        radius: 4.6,
-        color: '#7dd3fc',
-        fillColor: '#082f49',
+        radius: 5,
+        color: '#e0f2fe',
+        fillColor: '#075985',
         fillOpacity: 1,
-        weight: 1.7,
+        opacity: 1,
+        weight: 2.2,
       })
         .bindTooltip(station.label, {
           className: 'fi-map-tooltip fi-station-tooltip',
