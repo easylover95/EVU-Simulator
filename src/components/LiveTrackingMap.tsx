@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { CircleDot, Gauge, Layers3, RadioTower, Train, User, Wrench, X } from 'lucide-react';
+import { CircleDot, ClipboardList, Gauge, Layers3, RadioTower, Train, User, Wrench, X } from 'lucide-react';
 import type { AssignmentWithDetails, Locomotive, Wagon } from '@/lib/supabase';
 import { RAIL_STATIONS, lookupStation, TRUNK_CORRIDORS } from '@/lib/stations';
 import { buildTrackedTrains, locoMarkerId, type TrackedTrain } from '@/lib/tracking';
@@ -49,6 +49,7 @@ interface LiveTrackingMapProps {
   hqLocation?: string;
   selectedId?: string | null;
   onSelect?: (id: string | null) => void;
+  onOpenTrainDispatch?: (assignmentId: string) => void;
   fitRequest?: number;
   refreshRequest?: number;
   variant?: 'card' | 'fill';
@@ -110,6 +111,7 @@ export function LiveTrackingMap({
   hqLocation,
   selectedId: controlledSelectedId,
   onSelect,
+  onOpenTrainDispatch,
   fitRequest = 0,
   refreshRequest = 0,
   variant = 'card',
@@ -490,7 +492,11 @@ export function LiveTrackingMap({
       </div>
       {selectedTrain && (
         <div className="absolute bottom-3 left-3 right-3 z-[500] mx-auto max-w-lg sm:left-auto sm:right-3 sm:w-80">
-          <TrainOpsCard train={selectedTrain} onClose={() => select(null)} />
+          <TrainOpsCard
+            train={selectedTrain}
+            onClose={() => select(null)}
+            onOpenDispatch={onOpenTrainDispatch ? () => onOpenTrainDispatch(selectedTrain.id) : undefined}
+          />
         </div>
       )}
       {selectedParked && (
@@ -531,7 +537,15 @@ function LegendRow({ label, detail, children }: { label: string; detail: string;
   );
 }
 
-function TrainOpsCard({ train, onClose }: { train: TrackedTrain; onClose: () => void }) {
+function TrainOpsCard({
+  train,
+  onClose,
+  onOpenDispatch,
+}: {
+  train: TrackedTrain;
+  onClose: () => void;
+  onOpenDispatch?: () => void;
+}) {
   const brhOk = train.availableBrh >= train.requiredBrh;
   return (
     <div className="fi-card border border-sky-500/40 shadow-[0_0_24px_rgba(56,189,248,0.25)]">
@@ -587,6 +601,17 @@ function TrainOpsCard({ train, onClose }: { train: TrackedTrain; onClose: () => 
             />
           </div>
         </div>
+        {onOpenDispatch && (
+          <button
+            type="button"
+            data-open-train-dispatch={train.id}
+            onClick={onOpenDispatch}
+            className="btn-gold-sm w-full justify-center"
+          >
+            <ClipboardList className="h-3 w-3" />
+            Zugdisposition öffnen
+          </button>
+        )}
       </div>
     </div>
   );

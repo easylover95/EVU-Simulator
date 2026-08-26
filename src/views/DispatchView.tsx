@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, lazy, Suspense } from 'react';
+import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import {
   ClipboardList,
   Train,
@@ -172,6 +172,7 @@ export function DispatchView({
   const [error, setError] = useState<string | null>(null);
   const [fleetFilter, setFleetFilter] = useState<FleetFilter>('alle');
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
+  const activeAssignmentRef = useRef<HTMLTableRowElement | null>(null);
   const [fitRequest, setFitRequest] = useState(0);
   const [refreshRequest, setRefreshRequest] = useState(0);
 
@@ -465,6 +466,13 @@ export function DispatchView({
     setRefreshRequest((n) => n + 1);
   }
 
+  function handleOpenTrainDispatch(assignmentId: string) {
+    setSelectedMarkerId(assignmentId);
+    window.requestAnimationFrame(() => {
+      activeAssignmentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
   const dispatchActions = (
     <div className="flex flex-wrap items-center gap-1.5">
       <button type="button" onClick={() => setFitRequest((n) => n + 1)} className="btn-gold-sm">
@@ -524,6 +532,7 @@ export function DispatchView({
                 hqLocation={hqLocation}
                 selectedId={selectedMarkerId}
                 onSelect={setSelectedMarkerId}
+                onOpenTrainDispatch={handleOpenTrainDispatch}
                 fitRequest={fitRequest}
                 refreshRequest={refreshRequest}
                 variant="fill"
@@ -1083,7 +1092,12 @@ export function DispatchView({
                 const dep = deployments.find((d) => d.assignmentId === a.id);
                 const einsatzOpex = dep ? deploymentDailyOperating(dep) : 0;
                 return (
-                  <tr key={a.id}>
+                  <tr
+                    key={a.id}
+                    ref={selectedMarkerId === a.id ? activeAssignmentRef : undefined}
+                    data-active-train-dispatch={a.id}
+                    className={selectedMarkerId === a.id ? 'bg-amber-900/20 outline outline-1 outline-amber-500/70' : ''}
+                  >
                     <td className="text-slate-300">{order.title}</td>
                     <td className="text-[11px] text-slate-400">{order.origin} → {order.destination}</td>
                     <td className="text-slate-300">{getLocoDisplayName(loco.designation)}</td>
