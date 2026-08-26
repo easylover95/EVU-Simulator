@@ -149,7 +149,7 @@ try {
   ];
   for (const [name, index] of views) {
     await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[${index}]?.click()`);
-    await wait(name === 'disposition' ? 2_800 : 450);
+    await wait(name === 'disposition' ? 5_000 : 450);
     checks[name] = await capture(client, name);
     if (name === 'disposition') {
       checks[name].map = await client.evaluate(`(() => {
@@ -165,6 +165,25 @@ try {
           mapVisible: Boolean(document.querySelector('.fi-live-map')),
         };
       })()`);
+      await client.evaluate(`document.querySelector('[data-map-legend-trigger]')?.click()`);
+      await wait(160);
+      checks[name].legend = await client.evaluate(`(() => {
+        const trigger = document.querySelector('[data-map-legend-trigger]');
+        const panel = document.querySelector('[data-map-legend-panel]');
+        const rect = panel?.getBoundingClientRect();
+        return {
+          triggerPresent: Boolean(trigger),
+          expanded: trigger?.getAttribute('aria-expanded') === 'true',
+          panelVisible: Boolean(rect && rect.width > 0 && rect.height > 0),
+          panelWidth: rect ? Math.round(rect.width) : 0,
+          panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
+        };
+      })()`);
+      const legendScreenshot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+      await writeFile(`${outputDir}/disposition-legend-390x844.png`, Buffer.from(legendScreenshot.data, 'base64'));
+      await client.evaluate(`document.querySelector('[data-map-legend-trigger]')?.click()`);
+      await wait(120);
+
       const styles = [
         ['satellite', 'server.arcgisonline.com'],
         ['dark', '/dark_all/'],
@@ -176,7 +195,7 @@ try {
         const opened = await client.evaluate(`(() => { const trigger = document.querySelector('[data-map-style-trigger]'); trigger?.click(); return { exists: Boolean(trigger), open: Boolean(document.querySelector('[data-map-style-option]')) }; })()`);
         await wait(120);
         const selected = await client.evaluate(`(() => { const option = document.querySelector('[data-map-style-option="${style}"]'); option?.click(); return { exists: Boolean(option) }; })()`);
-        await wait(style === 'satellite' ? 4_200 : 1_700);
+        await wait(style === 'satellite' ? 7_000 : 2_200);
         const layerSnapshot = await client.evaluate(`(() => {
           const tiles = [...document.querySelectorAll('.fi-live-map .leaflet-tile')];
           const loaded = tiles.filter((tile) => tile.complete && tile.naturalWidth > 0);
@@ -198,9 +217,11 @@ try {
     pass: Object.values(checks).every((entry) => entry.clockVisible && entry.documentScrollWidth <= width && entry.bodyScrollWidth <= width)
       && checks.disposition?.view === 'Disposition'
       && checks.disposition?.map?.mapVisible
-      && checks.disposition?.map?.loadedTileCount > 0
-      && checks.disposition?.map?.usesVoyager
-      && checks.disposition?.map?.railwayTileCount > 0
+      && checks.disposition?.legend?.triggerPresent
+      && checks.disposition?.legend?.expanded
+      && checks.disposition?.legend?.panelVisible
+      && checks.disposition?.legend?.panelWidth <= width
+      && checks.disposition?.legend?.panelText.includes('Signalmarker')
       && checks.disposition?.mapStyleChecks?.satellite?.selected === 'satellite'
       && checks.disposition?.mapStyleChecks?.satellite?.matchingBaseTiles > 0
       && checks.disposition?.mapStyleChecks?.dark?.selected === 'dark'
