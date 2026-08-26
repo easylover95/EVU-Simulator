@@ -153,6 +153,44 @@ export function AppTopbar({
         </div>
       </div>
 
+      <div className="app-mobile-clock" aria-label="Zeitsteuerung">
+        <div className="app-mobile-clock-row">
+          <button
+            type="button"
+            title="Pause"
+            aria-label="Spiel pausieren"
+            onClick={() => onSetClockRunning(false)}
+            className={`app-mobile-clock-icon ${!clockRunning ? 'is-on is-pause' : ''}`}
+          >
+            <Pause className="h-3.5 w-3.5" />
+          </button>
+          <button
+            type="button"
+            title="Spiel starten"
+            aria-label="Spiel starten"
+            onClick={() => onSetClockRunning(true)}
+            className={`app-mobile-clock-icon ${clockRunning ? 'is-on is-play' : ''}`}
+          >
+            <Play className="h-3.5 w-3.5" />
+          </button>
+          <div className="app-mobile-clock-speeds" aria-label="Spielgeschwindigkeit">
+            {CLOCK_SPEEDS.map((speed) => (
+              <button
+                key={speed}
+                type="button"
+                title={`Geschwindigkeit ${speed}×`}
+                aria-label={`Geschwindigkeit ${speed}×`}
+                onClick={() => onSetClockSpeed(speed)}
+                className={clockSpeed === speed ? 'is-on' : ''}
+              >
+                {speed}×
+              </button>
+            ))}
+          </div>
+          <span className={`app-mobile-clock-live ${clockRunning ? 'is-running' : ''}`} aria-hidden />
+        </div>
+      </div>
+
       <div className="app-topbar-tabs-row">
         <nav className="app-nav-tabs no-scrollbar" aria-label="Hauptnavigation">
           {NAV_CATEGORIES.map((item) => {

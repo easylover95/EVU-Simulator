@@ -465,6 +465,10 @@
   display: none;
 }
 
+.app-mobile-clock {
+  display: none;
+}
+
 .app-nav-tab {
   border: 0;
   background: transparent;
@@ -1190,7 +1194,89 @@ body,
   .app-main-content {
     padding-left: 0.75rem;
     padding-right: 0.75rem;
-    padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(8.75rem + env(safe-area-inset-bottom));
+  }
+  .app-mobile-clock {
+    position: fixed;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: calc(4.45rem + env(safe-area-inset-bottom));
+    z-index: 60;
+    display: flex;
+    min-height: 2.45rem;
+    align-items: center;
+    justify-content: center;
+    padding: 0.28rem 0.4rem;
+    border: 1px solid rgba(251, 191, 36, 0.28);
+    border-radius: 0.82rem;
+    background: rgba(10, 12, 16, 0.95);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 18px rgba(251, 191, 36, 0.08);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+  .app-mobile-clock-row {
+    display: grid;
+    width: min(100%, 18rem);
+    grid-template-columns: 2rem 2rem minmax(0, 1fr) 0.45rem;
+    align-items: center;
+    gap: 0.32rem;
+  }
+  .app-mobile-clock-icon {
+    display: inline-flex;
+    min-height: 1.82rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 193, 7, 0.2);
+    border-radius: 0.52rem;
+    background: rgba(8, 10, 14, 0.58);
+    color: #94a3b8;
+  }
+  .app-mobile-clock-icon.is-on.is-pause {
+    border-color: #fbbf24;
+    background: #f59e0b;
+    color: #0f172a;
+  }
+  .app-mobile-clock-icon.is-on.is-play {
+    border-color: #34d399;
+    background: #10b981;
+    color: #0f172a;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+  }
+  .app-mobile-clock-speeds {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: hidden;
+    border: 1px solid rgba(255, 193, 7, 0.18);
+    border-radius: 0.52rem;
+  }
+  .app-mobile-clock-speeds button {
+    min-width: 0;
+    min-height: 1.82rem;
+    border-right: 1px solid rgba(255, 193, 7, 0.14);
+    background: rgba(8, 10, 14, 0.52);
+    color: #cbd5e1;
+    font-size: 10px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .app-mobile-clock-speeds button:last-child {
+    border-right: 0;
+  }
+  .app-mobile-clock-speeds button.is-on {
+    background: #f59e0b;
+    color: #0f172a;
+  }
+  .app-mobile-clock-live {
+    width: 0.42rem;
+    height: 0.42rem;
+    border-radius: 999px;
+    background: #64748b;
+  }
+  .app-mobile-clock-live.is-running {
+    background: #38bdf8;
+    box-shadow: 0 0 8px #38bdf8;
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
   .app-mobile-quicknav {
     position: fixed;
@@ -1399,6 +1485,11 @@ body,
     min-width: 3.8rem;
     padding-left: 0.5rem;
     padding-right: 0.5rem;
+  }
+  .app-mobile-clock {
+    left: 0.35rem;
+    right: 0.35rem;
+    bottom: calc(4.25rem + env(safe-area-inset-bottom));
   }
   .app-mobile-quicknav {
     left: 0.35rem;
