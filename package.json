@@ -15,6 +15,7 @@
     "analyze:freight-pricing": "tsx --tsconfig tsconfig.app.json simulation/analyzeFreightPricing.ts && tsx --tsconfig tsconfig.app.json simulation/renderFreightPricingReport.ts",
     "analyze:market-sizing": "tsx --tsconfig tsconfig.app.json simulation/analyzeMarketSizing.ts",
     "analyze:progression-design": "tsx --tsconfig tsconfig.app.json simulation/analyzeProgressionDesign.ts",
+    "analyze:starting-capital": "tsx --tsconfig tsconfig.app.json simulation/analyzeStartingCapital.ts",
     "test:progression-dispo": "tsx --tsconfig tsconfig.app.json simulation/testProgressionAndOverdraft.ts",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

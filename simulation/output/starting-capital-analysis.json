@@ -1,0 +1,3341 @@
+{
+  "title": "Starting capital experiment — early game day 1–30",
+  "generatedAt": "2026-08-26T15:17:51.323Z",
+  "model": {
+    "days": 30,
+    "noLoans": true,
+    "noOverdraftForInvestments": true,
+    "orderSettlementDays": [
+      2,
+      4,
+      6
+    ],
+    "noRevenueAfterDay6": true,
+    "depotState": {
+      "purchasedIds": []
+    },
+    "firstDepotExpansion": {
+      "id": "loco-3",
+      "kind": "loco",
+      "add": 1,
+      "cost": 18000,
+      "unlockLevel": 2,
+      "label": "3. Lok-Stellplatz"
+    },
+    "defaultOverdraftLevel1": 25000,
+    "injectedDay5Fault": {
+      "type": "elektronik",
+      "repairCost": 7680,
+      "channel": "eigen"
+    },
+    "note": "Deterministic local game-balance experiment; no external economic data."
+  },
+  "marketPolicy": {
+    "guaranteedLightOrders": 3,
+    "allowedClasses": [
+      "leicht",
+      "mittel"
+    ],
+    "wagonBerthCapacity": 25
+  },
+  "starterOrders": [
+    {
+      "id": "starter-eanos-55",
+      "orderNumber": "START-01",
+      "title": "Kohle Ruhrgebiet",
+      "settlementDay": 2,
+      "wagonType": "Eanos",
+      "wagonCount": 4,
+      "distanceKm": 55,
+      "weightT": 320,
+      "grossYield": 2644,
+      "operatingCosts": 1323,
+      "contribution": 1321,
+      "xp": 17
+    },
+    {
+      "id": "starter-res-80",
+      "orderNumber": "START-02",
+      "title": "Gleisbaustoff Mittelrhein",
+      "settlementDay": 4,
+      "wagonType": "Res",
+      "wagonCount": 5,
+      "distanceKm": 80,
+      "weightT": 350,
+      "grossYield": 3130,
+      "operatingCosts": 1933,
+      "contribution": 1197,
+      "xp": 20
+    },
+    {
+      "id": "starter-eanos-120",
+      "orderNumber": "START-03",
+      "title": "Biomasse Süd",
+      "settlementDay": 6,
+      "wagonType": "Eanos",
+      "wagonCount": 4,
+      "distanceKm": 120,
+      "weightT": 300,
+      "grossYield": 3505,
+      "operatingCosts": 2877,
+      "contribution": 628,
+      "xp": 22
+    }
+  ],
+  "scenarios": [
+    {
+      "startCapital": 50000,
+      "ordersDispatchable": true,
+      "ordersCompleted": 3,
+      "starterContribution": 3146,
+      "dailyFixedAtStart": 3457,
+      "normal": {
+        "endCapital": -50821,
+        "lowestCapital": -50821,
+        "firstNegativeDay": 16,
+        "positiveDaysWithin30": 15,
+        "daysBufferAfterDay30": 0,
+        "financiallyStableAtDay30": false,
+        "totalRevenue": 9279,
+        "totalOperatingCosts": 6133,
+        "totalFixedCosts": 103967,
+        "repairCost": 0,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "daily": [
+          {
+            "day": 1,
+            "balance": 46543,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 0
+          },
+          {
+            "day": 2,
+            "balance": 44407,
+            "revenue": 2644,
+            "operatingCosts": 1323,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 3,
+            "balance": 40950,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 4,
+            "balance": 38690,
+            "revenue": 3130,
+            "operatingCosts": 1933,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 5,
+            "balance": 35233,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 6,
+            "balance": 32404,
+            "revenue": 3505,
+            "operatingCosts": 2877,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 7,
+            "balance": 28947,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 8,
+            "balance": 25490,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 9,
+            "balance": 22033,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 10,
+            "balance": 18576,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 11,
+            "balance": 15119,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 12,
+            "balance": 11662,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 13,
+            "balance": 8205,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 14,
+            "balance": 4748,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 15,
+            "balance": 1291,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 16,
+            "balance": -2166,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 17,
+            "balance": -5624,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3458,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 18,
+            "balance": -9083,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3459,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 19,
+            "balance": -12543,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3460,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 20,
+            "balance": -16007,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3464,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 21,
+            "balance": -19473,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3466,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 22,
+            "balance": -22941,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3468,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 23,
+            "balance": -26416,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3475,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 24,
+            "balance": -29894,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3478,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 25,
+            "balance": -33375,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3481,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 26,
+            "balance": -36859,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3484,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 27,
+            "balance": -40345,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3486,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 28,
+            "balance": -43834,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3489,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 29,
+            "balance": -47326,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3492,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 30,
+            "balance": -50821,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3495,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          }
+        ]
+      },
+      "day5Fault": {
+        "endCapital": -58592,
+        "lowestCapital": -58592,
+        "firstNegativeDay": 14,
+        "positiveDaysWithin30": 13,
+        "daysBufferAfterDay30": 0,
+        "financiallyStableAtDay30": false,
+        "totalRevenue": 9279,
+        "totalOperatingCosts": 6133,
+        "totalFixedCosts": 104058,
+        "repairCost": 7680,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "daily": [
+          {
+            "day": 1,
+            "balance": 46543,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 0
+          },
+          {
+            "day": 2,
+            "balance": 44407,
+            "revenue": 2644,
+            "operatingCosts": 1323,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 3,
+            "balance": 40950,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 4,
+            "balance": 38690,
+            "revenue": 3130,
+            "operatingCosts": 1933,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 5,
+            "balance": 27553,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 7680,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 6,
+            "balance": 24724,
+            "revenue": 3505,
+            "operatingCosts": 2877,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 7,
+            "balance": 21267,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 8,
+            "balance": 17810,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 9,
+            "balance": 14353,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 10,
+            "balance": 10896,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 11,
+            "balance": 7439,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 12,
+            "balance": 3982,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 13,
+            "balance": 525,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 14,
+            "balance": -2932,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 15,
+            "balance": -6390,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3458,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 16,
+            "balance": -9849,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3459,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 17,
+            "balance": -13309,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3460,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 18,
+            "balance": -16773,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3464,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 19,
+            "balance": -20239,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3466,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 20,
+            "balance": -23707,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3468,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 21,
+            "balance": -27183,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3476,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 22,
+            "balance": -30662,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3479,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 23,
+            "balance": -34144,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3482,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 24,
+            "balance": -37628,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3484,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 25,
+            "balance": -41115,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3487,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 26,
+            "balance": -44605,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3490,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 27,
+            "balance": -48098,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3493,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 28,
+            "balance": -51593,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3495,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 29,
+            "balance": -55091,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3498,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 30,
+            "balance": -58592,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3501,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          }
+        ]
+      },
+      "depot": {
+        "expansion": "3. Lok-Stellplatz",
+        "cost": 18000,
+        "unlockLevel": 2,
+        "initialCashSuffices": true,
+        "levelAtDay30": 1,
+        "xpAtDay30": 59,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "cashAtDay30": -50821
+      }
+    },
+    {
+      "startCapital": 100000,
+      "ordersDispatchable": true,
+      "ordersCompleted": 3,
+      "starterContribution": 3146,
+      "dailyFixedAtStart": 3457,
+      "normal": {
+        "endCapital": -564,
+        "lowestCapital": -564,
+        "firstNegativeDay": 30,
+        "positiveDaysWithin30": 29,
+        "daysBufferAfterDay30": 0,
+        "financiallyStableAtDay30": false,
+        "totalRevenue": 9279,
+        "totalOperatingCosts": 6133,
+        "totalFixedCosts": 103710,
+        "repairCost": 0,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "daily": [
+          {
+            "day": 1,
+            "balance": 96543,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 0
+          },
+          {
+            "day": 2,
+            "balance": 94407,
+            "revenue": 2644,
+            "operatingCosts": 1323,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 3,
+            "balance": 90950,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 4,
+            "balance": 88690,
+            "revenue": 3130,
+            "operatingCosts": 1933,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 5,
+            "balance": 85233,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 6,
+            "balance": 82404,
+            "revenue": 3505,
+            "operatingCosts": 2877,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 7,
+            "balance": 78947,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 8,
+            "balance": 75490,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 9,
+            "balance": 72033,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 10,
+            "balance": 68576,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 11,
+            "balance": 65119,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 12,
+            "balance": 61662,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 13,
+            "balance": 58205,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 14,
+            "balance": 54748,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 15,
+            "balance": 51291,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 16,
+            "balance": 47834,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 17,
+            "balance": 44377,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 18,
+            "balance": 40920,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 19,
+            "balance": 37463,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 20,
+            "balance": 34006,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 21,
+            "balance": 30549,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 22,
+            "balance": 27092,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 23,
+            "balance": 23635,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 24,
+            "balance": 20178,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 25,
+            "balance": 16721,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 26,
+            "balance": 13264,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 27,
+            "balance": 9807,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 28,
+            "balance": 6350,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 29,
+            "balance": 2893,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 30,
+            "balance": -564,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          }
+        ]
+      },
+      "day5Fault": {
+        "endCapital": -8247,
+        "lowestCapital": -8247,
+        "firstNegativeDay": 28,
+        "positiveDaysWithin30": 27,
+        "daysBufferAfterDay30": 0,
+        "financiallyStableAtDay30": false,
+        "totalRevenue": 9279,
+        "totalOperatingCosts": 6133,
+        "totalFixedCosts": 103713,
+        "repairCost": 7680,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "daily": [
+          {
+            "day": 1,
+            "balance": 96543,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 0
+          },
+          {
+            "day": 2,
+            "balance": 94407,
+            "revenue": 2644,
+            "operatingCosts": 1323,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 3,
+            "balance": 90950,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 4,
+            "balance": 88690,
+            "revenue": 3130,
+            "operatingCosts": 1933,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 5,
+            "balance": 77553,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 7680,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 6,
+            "balance": 74724,
+            "revenue": 3505,
+            "operatingCosts": 2877,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 7,
+            "balance": 71267,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 8,
+            "balance": 67810,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 9,
+            "balance": 64353,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 10,
+            "balance": 60896,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 11,
+            "balance": 57439,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 12,
+            "balance": 53982,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 13,
+            "balance": 50525,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 14,
+            "balance": 47068,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 15,
+            "balance": 43611,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 16,
+            "balance": 40154,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 17,
+            "balance": 36697,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 18,
+            "balance": 33240,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 19,
+            "balance": 29783,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 20,
+            "balance": 26326,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 21,
+            "balance": 22869,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 22,
+            "balance": 19412,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 23,
+            "balance": 15955,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 24,
+            "balance": 12498,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 25,
+            "balance": 9041,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 26,
+            "balance": 5584,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 27,
+            "balance": 2127,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 28,
+            "balance": -1330,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 29,
+            "balance": -4788,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3458,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 30,
+            "balance": -8247,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3459,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          }
+        ]
+      },
+      "depot": {
+        "expansion": "3. Lok-Stellplatz",
+        "cost": 18000,
+        "unlockLevel": 2,
+        "initialCashSuffices": true,
+        "levelAtDay30": 1,
+        "xpAtDay30": 59,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "cashAtDay30": -564
+      }
+    },
+    {
+      "startCapital": 150000,
+      "ordersDispatchable": true,
+      "ordersCompleted": 3,
+      "starterContribution": 3146,
+      "dailyFixedAtStart": 3457,
+      "normal": {
+        "endCapital": 49436,
+        "lowestCapital": 49436,
+        "firstNegativeDay": null,
+        "positiveDaysWithin30": 30,
+        "daysBufferAfterDay30": 14,
+        "financiallyStableAtDay30": true,
+        "totalRevenue": 9279,
+        "totalOperatingCosts": 6133,
+        "totalFixedCosts": 103710,
+        "repairCost": 0,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "daily": [
+          {
+            "day": 1,
+            "balance": 146543,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 0
+          },
+          {
+            "day": 2,
+            "balance": 144407,
+            "revenue": 2644,
+            "operatingCosts": 1323,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 3,
+            "balance": 140950,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 4,
+            "balance": 138690,
+            "revenue": 3130,
+            "operatingCosts": 1933,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 5,
+            "balance": 135233,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 6,
+            "balance": 132404,
+            "revenue": 3505,
+            "operatingCosts": 2877,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 7,
+            "balance": 128947,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 8,
+            "balance": 125490,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 9,
+            "balance": 122033,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 10,
+            "balance": 118576,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 11,
+            "balance": 115119,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 12,
+            "balance": 111662,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 13,
+            "balance": 108205,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 14,
+            "balance": 104748,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 15,
+            "balance": 101291,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 16,
+            "balance": 97834,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 17,
+            "balance": 94377,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 18,
+            "balance": 90920,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 19,
+            "balance": 87463,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 20,
+            "balance": 84006,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 21,
+            "balance": 80549,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 22,
+            "balance": 77092,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 23,
+            "balance": 73635,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 24,
+            "balance": 70178,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 25,
+            "balance": 66721,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 26,
+            "balance": 63264,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 27,
+            "balance": 59807,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 28,
+            "balance": 56350,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 29,
+            "balance": 52893,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 30,
+            "balance": 49436,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          }
+        ]
+      },
+      "day5Fault": {
+        "endCapital": 41756,
+        "lowestCapital": 41756,
+        "firstNegativeDay": null,
+        "positiveDaysWithin30": 30,
+        "daysBufferAfterDay30": 12,
+        "financiallyStableAtDay30": true,
+        "totalRevenue": 9279,
+        "totalOperatingCosts": 6133,
+        "totalFixedCosts": 103710,
+        "repairCost": 7680,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "daily": [
+          {
+            "day": 1,
+            "balance": 146543,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 0
+          },
+          {
+            "day": 2,
+            "balance": 144407,
+            "revenue": 2644,
+            "operatingCosts": 1323,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 3,
+            "balance": 140950,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 4,
+            "balance": 138690,
+            "revenue": 3130,
+            "operatingCosts": 1933,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 5,
+            "balance": 127553,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 7680,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 6,
+            "balance": 124724,
+            "revenue": 3505,
+            "operatingCosts": 2877,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 7,
+            "balance": 121267,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 8,
+            "balance": 117810,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 9,
+            "balance": 114353,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 10,
+            "balance": 110896,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 11,
+            "balance": 107439,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 12,
+            "balance": 103982,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 13,
+            "balance": 100525,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 14,
+            "balance": 97068,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 15,
+            "balance": 93611,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 16,
+            "balance": 90154,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 17,
+            "balance": 86697,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 18,
+            "balance": 83240,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 19,
+            "balance": 79783,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 20,
+            "balance": 76326,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 21,
+            "balance": 72869,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 22,
+            "balance": 69412,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 23,
+            "balance": 65955,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 24,
+            "balance": 62498,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 25,
+            "balance": 59041,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 26,
+            "balance": 55584,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 27,
+            "balance": 52127,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 28,
+            "balance": 48670,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 29,
+            "balance": 45213,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 30,
+            "balance": 41756,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          }
+        ]
+      },
+      "depot": {
+        "expansion": "3. Lok-Stellplatz",
+        "cost": 18000,
+        "unlockLevel": 2,
+        "initialCashSuffices": true,
+        "levelAtDay30": 1,
+        "xpAtDay30": 59,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "cashAtDay30": 49436
+      }
+    },
+    {
+      "startCapital": 200000,
+      "ordersDispatchable": true,
+      "ordersCompleted": 3,
+      "starterContribution": 3146,
+      "dailyFixedAtStart": 3457,
+      "normal": {
+        "endCapital": 99436,
+        "lowestCapital": 99436,
+        "firstNegativeDay": null,
+        "positiveDaysWithin30": 30,
+        "daysBufferAfterDay30": 28,
+        "financiallyStableAtDay30": true,
+        "totalRevenue": 9279,
+        "totalOperatingCosts": 6133,
+        "totalFixedCosts": 103710,
+        "repairCost": 0,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "daily": [
+          {
+            "day": 1,
+            "balance": 196543,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 0
+          },
+          {
+            "day": 2,
+            "balance": 194407,
+            "revenue": 2644,
+            "operatingCosts": 1323,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 3,
+            "balance": 190950,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 4,
+            "balance": 188690,
+            "revenue": 3130,
+            "operatingCosts": 1933,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 5,
+            "balance": 185233,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 6,
+            "balance": 182404,
+            "revenue": 3505,
+            "operatingCosts": 2877,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 7,
+            "balance": 178947,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 8,
+            "balance": 175490,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 9,
+            "balance": 172033,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 10,
+            "balance": 168576,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 11,
+            "balance": 165119,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 12,
+            "balance": 161662,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 13,
+            "balance": 158205,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 14,
+            "balance": 154748,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 15,
+            "balance": 151291,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 16,
+            "balance": 147834,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 17,
+            "balance": 144377,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 18,
+            "balance": 140920,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 19,
+            "balance": 137463,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 20,
+            "balance": 134006,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 21,
+            "balance": 130549,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 22,
+            "balance": 127092,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 23,
+            "balance": 123635,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 24,
+            "balance": 120178,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 25,
+            "balance": 116721,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 26,
+            "balance": 113264,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 27,
+            "balance": 109807,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 28,
+            "balance": 106350,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 29,
+            "balance": 102893,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 30,
+            "balance": 99436,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          }
+        ]
+      },
+      "day5Fault": {
+        "endCapital": 91756,
+        "lowestCapital": 91756,
+        "firstNegativeDay": null,
+        "positiveDaysWithin30": 30,
+        "daysBufferAfterDay30": 26,
+        "financiallyStableAtDay30": true,
+        "totalRevenue": 9279,
+        "totalOperatingCosts": 6133,
+        "totalFixedCosts": 103710,
+        "repairCost": 7680,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "daily": [
+          {
+            "day": 1,
+            "balance": 196543,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 0
+          },
+          {
+            "day": 2,
+            "balance": 194407,
+            "revenue": 2644,
+            "operatingCosts": 1323,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 3,
+            "balance": 190950,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 4,
+            "balance": 188690,
+            "revenue": 3130,
+            "operatingCosts": 1933,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 5,
+            "balance": 177553,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 7680,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 6,
+            "balance": 174724,
+            "revenue": 3505,
+            "operatingCosts": 2877,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 7,
+            "balance": 171267,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 8,
+            "balance": 167810,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 9,
+            "balance": 164353,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 10,
+            "balance": 160896,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 11,
+            "balance": 157439,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 12,
+            "balance": 153982,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 13,
+            "balance": 150525,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 14,
+            "balance": 147068,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 15,
+            "balance": 143611,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 16,
+            "balance": 140154,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 17,
+            "balance": 136697,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 18,
+            "balance": 133240,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 19,
+            "balance": 129783,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 20,
+            "balance": 126326,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 21,
+            "balance": 122869,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 22,
+            "balance": 119412,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 23,
+            "balance": 115955,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 24,
+            "balance": 112498,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 25,
+            "balance": 109041,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 26,
+            "balance": 105584,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 27,
+            "balance": 102127,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 28,
+            "balance": 98670,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 29,
+            "balance": 95213,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 30,
+            "balance": 91756,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          }
+        ]
+      },
+      "depot": {
+        "expansion": "3. Lok-Stellplatz",
+        "cost": 18000,
+        "unlockLevel": 2,
+        "initialCashSuffices": true,
+        "levelAtDay30": 1,
+        "xpAtDay30": 59,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "cashAtDay30": 99436
+      }
+    },
+    {
+      "startCapital": 210000,
+      "ordersDispatchable": true,
+      "ordersCompleted": 3,
+      "starterContribution": 3146,
+      "dailyFixedAtStart": 3457,
+      "normal": {
+        "endCapital": 109436,
+        "lowestCapital": 109436,
+        "firstNegativeDay": null,
+        "positiveDaysWithin30": 30,
+        "daysBufferAfterDay30": 31,
+        "financiallyStableAtDay30": true,
+        "totalRevenue": 9279,
+        "totalOperatingCosts": 6133,
+        "totalFixedCosts": 103710,
+        "repairCost": 0,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "daily": [
+          {
+            "day": 1,
+            "balance": 206543,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 0
+          },
+          {
+            "day": 2,
+            "balance": 204407,
+            "revenue": 2644,
+            "operatingCosts": 1323,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 3,
+            "balance": 200950,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 4,
+            "balance": 198690,
+            "revenue": 3130,
+            "operatingCosts": 1933,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 5,
+            "balance": 195233,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 6,
+            "balance": 192404,
+            "revenue": 3505,
+            "operatingCosts": 2877,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 7,
+            "balance": 188947,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 8,
+            "balance": 185490,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 9,
+            "balance": 182033,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 10,
+            "balance": 178576,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 11,
+            "balance": 175119,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 12,
+            "balance": 171662,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 13,
+            "balance": 168205,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 14,
+            "balance": 164748,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 15,
+            "balance": 161291,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 16,
+            "balance": 157834,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 17,
+            "balance": 154377,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 18,
+            "balance": 150920,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 19,
+            "balance": 147463,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 20,
+            "balance": 144006,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 21,
+            "balance": 140549,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 22,
+            "balance": 137092,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 23,
+            "balance": 133635,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 24,
+            "balance": 130178,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 25,
+            "balance": 126721,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 26,
+            "balance": 123264,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 27,
+            "balance": 119807,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 28,
+            "balance": 116350,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 29,
+            "balance": 112893,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 30,
+            "balance": 109436,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          }
+        ]
+      },
+      "day5Fault": {
+        "endCapital": 101756,
+        "lowestCapital": 101756,
+        "firstNegativeDay": null,
+        "positiveDaysWithin30": 30,
+        "daysBufferAfterDay30": 29,
+        "financiallyStableAtDay30": true,
+        "totalRevenue": 9279,
+        "totalOperatingCosts": 6133,
+        "totalFixedCosts": 103710,
+        "repairCost": 7680,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "daily": [
+          {
+            "day": 1,
+            "balance": 206543,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 0
+          },
+          {
+            "day": 2,
+            "balance": 204407,
+            "revenue": 2644,
+            "operatingCosts": 1323,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 3,
+            "balance": 200950,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 17
+          },
+          {
+            "day": 4,
+            "balance": 198690,
+            "revenue": 3130,
+            "operatingCosts": 1933,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 5,
+            "balance": 187553,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 7680,
+            "level": 1,
+            "xp": 37
+          },
+          {
+            "day": 6,
+            "balance": 184724,
+            "revenue": 3505,
+            "operatingCosts": 2877,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 7,
+            "balance": 181267,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 8,
+            "balance": 177810,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 9,
+            "balance": 174353,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 10,
+            "balance": 170896,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 11,
+            "balance": 167439,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 12,
+            "balance": 163982,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 13,
+            "balance": 160525,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 14,
+            "balance": 157068,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 15,
+            "balance": 153611,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 16,
+            "balance": 150154,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 17,
+            "balance": 146697,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 18,
+            "balance": 143240,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 19,
+            "balance": 139783,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 20,
+            "balance": 136326,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 21,
+            "balance": 132869,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 22,
+            "balance": 129412,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 23,
+            "balance": 125955,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 24,
+            "balance": 122498,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 25,
+            "balance": 119041,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 26,
+            "balance": 115584,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 27,
+            "balance": 112127,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 28,
+            "balance": 108670,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 29,
+            "balance": 105213,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          },
+          {
+            "day": 30,
+            "balance": 101756,
+            "revenue": 0,
+            "operatingCosts": 0,
+            "fixedCosts": 3457,
+            "repairCost": 0,
+            "level": 1,
+            "xp": 59
+          }
+        ]
+      },
+      "depot": {
+        "expansion": "3. Lok-Stellplatz",
+        "cost": 18000,
+        "unlockLevel": 2,
+        "initialCashSuffices": true,
+        "levelAtDay30": 1,
+        "xpAtDay30": 59,
+        "unlockReachedDay": null,
+        "firstActionableDay": null,
+        "cashAtDay30": 109436
+      }
+    }
+  ],
+  "recommendation": {
+    "capital": 150000,
+    "rationale": "In this conservative 30-day scenario it remains solvent after the injected Day-5 repair and retains a material operating buffer."
+  }
+}
