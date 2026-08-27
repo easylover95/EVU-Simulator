@@ -5,17 +5,21 @@ export const PERFORMANCE_SETTINGS_KEY = 'evu-performance-settings';
 export interface PerformanceSettings {
   powerSaving: boolean;
   webVitalsOptIn: boolean;
+  /** Lokale, nutzeraktivierte Web-Audio-Effekte; beim Erststart deaktiviert. */
+  soundEnabled: boolean;
 }
 
 const DEFAULT_SETTINGS: PerformanceSettings = {
   powerSaving: false,
   webVitalsOptIn: false,
+  soundEnabled: false,
 };
 
 function normalize(value: Partial<PerformanceSettings> | null | undefined): PerformanceSettings {
   return {
     powerSaving: Boolean(value?.powerSaving),
     webVitalsOptIn: Boolean(value?.webVitalsOptIn),
+    soundEnabled: Boolean(value?.soundEnabled),
   };
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Building2, MapPin, RotateCcw, ShieldAlert, Star, Train, Zap } from 'lucide-react';
+import { Building2, MapPin, RotateCcw, ShieldAlert, Star, Train, Volume2, Zap } from 'lucide-react';
 import { DEFAULT_EVU_NAME, DEFAULT_HQ_LOCATION } from '@/lib/companyProfile';
 
 interface CompanyFoundingModalProps {
@@ -15,6 +15,8 @@ interface CompanyFoundingModalProps {
   onTogglePowerSaving?: () => void;
   webVitalsOptIn?: boolean;
   onToggleWebVitalsOptIn?: () => void;
+  soundEnabled?: boolean;
+  onToggleSound?: () => void;
 }
 
 export function CompanyFoundingModal({
@@ -30,6 +32,8 @@ export function CompanyFoundingModal({
   onTogglePowerSaving,
   webVitalsOptIn = false,
   onToggleWebVitalsOptIn,
+  soundEnabled = false,
+  onToggleSound,
 }: CompanyFoundingModalProps) {
   const [name, setName] = useState(initialName?.trim() || DEFAULT_EVU_NAME);
   const [hqLocation, setHqLocation] = useState(initialLocation?.trim() || DEFAULT_HQ_LOCATION);
@@ -168,6 +172,27 @@ export function CompanyFoundingModal({
                 </button>
               </div>
               <p className={`mt-2 text-[10px] font-bold ${powerSaving ? 'text-emerald-300' : 'text-slate-500'}`}>{powerSaving ? 'Aktiv: reduzierte Darstellung wird auf diesem Gerät gespeichert.' : 'Inaktiv: vollständige Frachtimperium-Effekte sind aktiv.'}</p>
+            </section>
+          )}
+          {mode === 'edit' && onToggleSound && (
+            <section className="rounded-lg border border-amber-500/25 bg-amber-950/15 px-3 py-3" aria-labelledby="sound-effects-title">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 id="sound-effects-title" className="flex items-center gap-1.5 text-xs font-bold text-amber-100"><Volume2 className="h-3.5 w-3.5 text-amber-300" /> Soundeffekte</h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">Optionale Abfahrts-, Brems-, Bestätigungs- und Warnklänge. Sie werden lokal im Browser erzeugt und laden keine Audiodateien.</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={soundEnabled}
+                  aria-label="Soundeffekte umschalten"
+                  onClick={onToggleSound}
+                  className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full border transition-colors ${soundEnabled ? 'border-amber-300 bg-amber-500' : 'border-slate-600 bg-slate-900'}`}
+                >
+                  <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${soundEnabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <p className={`mt-2 text-[10px] font-bold ${soundEnabled ? 'text-amber-300' : 'text-slate-500'}`}>{soundEnabled ? 'Aktiv: Klänge werden nach bestätigten Spielaktionen abgespielt.' : 'Inaktiv: Das Spiel bleibt vollständig stumm.'}</p>
             </section>
           )}
           {mode === 'edit' && onToggleWebVitalsOptIn && (

@@ -53,6 +53,7 @@ import {
 import { GameClockProvider } from '@/lib/GameClockContext';
 import { atmosphereForView, type AppView } from '@/lib/navigation';
 import { applyPerformanceSettings, loadPerformanceSettings, savePerformanceSettings, type PerformanceSettings } from '@/lib/performanceSettings';
+import { playSoundEffect, type SoundEffect } from '@/lib/webAudio';
 import { startWebVitalsMonitoring } from '@/lib/webVitals';
 import { useNetworkStatus } from '@/lib/networkStatus';
 import { NetworkStatusNotice } from '@/components/NetworkStatusNotice';
@@ -460,6 +461,17 @@ function App() {
 
   function toggleWebVitalsOptIn() {
     setPerformanceSettings((current) => savePerformanceSettings({ ...current, webVitalsOptIn: !current.webVitalsOptIn }));
+  }
+
+  function playUiSound(effect: SoundEffect) {
+    playSoundEffect(effect, performanceSettings.soundEnabled);
+  }
+
+  function toggleSound() {
+    const soundEnabled = !performanceSettings.soundEnabled;
+    setPerformanceSettings((current) => savePerformanceSettings({ ...current, soundEnabled }));
+    // Der Schalter selbst ist eine Nutzerinteraktion und kann Browser-Audio sicher freigeben.
+    playSoundEffect('confirm', soundEnabled);
   }
 
   const headerRef = useRef<HTMLElement | null>(null);
@@ -1729,22 +1741,26 @@ function App() {
     const closed = orderBlockedByClosure(order, tick, eventsRef.current.closures);
     if (closed) {
       sendMessage('Warnung', 'Strecke gesperrt', closureBlockMessage(closed, tick), tick);
+      playUiSound('warning');
       return;
     }
     const dispatchBlock = networkDispatchBlock(order, loco);
     if (dispatchBlock) {
       sendMessage('Warnung', 'Netzzugang / ETCS', dispatchBlock, tick);
+      playUiSound('warning');
       return;
     }
     const seriesBlock = seriesDispatchBlock(loco, staffMetaRef.current[driverId]?.seriesIds);
     if (seriesBlock) {
       sendMessage('Warnung', 'Baureihe', seriesBlock, tick);
+      playUiSound('warning');
       return;
     }
     if (second) {
       const secondBlock = seriesDispatchBlock(loco, staffMetaRef.current[second.id]?.seriesIds);
       if (secondBlock) {
         sendMessage('Warnung', 'Baureihe', `Zweiter Tf: ${secondBlock}`, tick);
+        playUiSound('warning');
         return;
       }
     }
@@ -1856,6 +1872,7 @@ function App() {
       deploymentsRef.current = nextDeps;
       setDeployments(nextDeps);
     }
+    playUiSound('departure');
   }
 
   function handleLocalComplete(a: AssignmentWithDetails) {
@@ -2028,6 +2045,7 @@ function App() {
       setIndustrial(nextC);
       saveFreightContracts(nextC);
     }
+    playUiSound('brake');
   }
 
   function handleDisponierenFromLoco(loco?: Locomotive) {
@@ -2336,6 +2354,7 @@ function App() {
         created_at: tickToIso(current.tick),
       },
     ]);
+    playUiSound('confirm');
     return true;
   }
 
@@ -3249,6 +3268,8 @@ function App() {
             onTogglePowerSaving={foundingMode === 'edit' ? togglePowerSaving : undefined}
             webVitalsOptIn={performanceSettings.webVitalsOptIn}
             onToggleWebVitalsOptIn={foundingMode === 'edit' ? toggleWebVitalsOptIn : undefined}
+            soundEnabled={performanceSettings.soundEnabled}
+            onToggleSound={foundingMode === 'edit' ? toggleSound : undefined}
           />
         )}
         {tutorialOpen && !foundingOpen && (
