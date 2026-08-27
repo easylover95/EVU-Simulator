@@ -25,6 +25,7 @@ const terminal: Terminal = {
 const ballast: CargoType = {
   id: 'cargo-ballast',
   name: 'Schotter',
+  category: 'TRACK_BALLAST',
   weightTons: 60,
   requiresSpecialCrane: false,
   isOutOfGauge: false,
@@ -34,6 +35,7 @@ const ballast: CargoType = {
 const sleepers: CargoType = {
   id: 'cargo-sleepers',
   name: 'Gleisschwellen',
+  category: 'TRACK_SLEEPERS',
   weightTons: 50,
   requiresSpecialCrane: false,
   isOutOfGauge: false,
@@ -43,6 +45,7 @@ const sleepers: CargoType = {
 const bridgePart: CargoType = {
   id: 'cargo-bridge',
   name: 'Brückenteil',
+  category: 'BRIDGE_SECTION',
   weightTons: 100,
   requiresSpecialCrane: true,
   isOutOfGauge: true,
@@ -79,6 +82,7 @@ const validWagons: Wagon[] = [
     currentTerminalId: terminal.id,
     currentTrainId: validTrain.id,
     positionInTrain: 1,
+    status: 'ASSEMBLING',
   },
   {
     id: 'wagon-res',
@@ -89,6 +93,7 @@ const validWagons: Wagon[] = [
     currentTerminalId: terminal.id,
     currentTrainId: validTrain.id,
     positionInTrain: 2,
+    status: 'ASSEMBLING',
   },
 ];
 
@@ -131,6 +136,7 @@ const lueWagon: Wagon = {
   currentTerminalId: terminal.id,
   currentTrainId: validTrain.id,
   positionInTrain: 3,
+  status: 'ASSEMBLING',
 };
 const lueUnit = storedCargo('unit-bridge', bridgePart.id);
 const lueLoad: WagonLoad = { wagonId: lueWagon.id, cargoUnitId: lueUnit.id, cargoTypeId: bridgePart.id };

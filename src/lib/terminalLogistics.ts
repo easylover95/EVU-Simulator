@@ -7,90 +7,44 @@
  * is unloaded first at the construction site (Baustellenseite).
  */
 
-export type TerminalId = string;
-export type CargoTypeId = string;
-export type CargoUnitId = string;
-export type WagonId = string;
-export type TrainId = string;
-export type TrainEventId = string;
+export type {
+  CargoCategory,
+  CargoType,
+  CargoTypeId,
+  CargoUnit,
+  CargoUnitId,
+  CargoUnitStatus,
+  Terminal,
+  TerminalId,
+  Train,
+  TrainEvent,
+  TrainEventId,
+  TrainEventStatus,
+  TrainEventType,
+  TrainId,
+  TrainStatus,
+  Wagon,
+  WagonId,
+  WagonLoad,
+  WagonStatus,
+} from './terminalEntities';
 
-export type TrainStatus = 'ASSEMBLING' | 'IN_INSPECTION' | 'DISPATCHED' | 'DELIVERED';
-export type TrainEventType = 'LUE_GENEHMIGUNG_ERFORDERLICH';
-export type TrainEventStatus = 'OPEN' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-
-export interface Terminal {
-  id: TerminalId;
-  name: string;
-  /** Maximum usable formation length at the terminal's dispatch track. */
-  trackLengthMeters: number;
-  /** Maximum load per lifting operation, not an aggregate daily limit. */
-  maxCraneCapacityTons: number;
-  storageAreaSqm: number;
-  currentStorageUsedSqm: number;
-  /** Needed when a cargo type requires a dedicated heavy-lift crane. */
-  hasSpecialCrane: boolean;
-}
-
-export interface CargoType {
-  id: CargoTypeId;
-  name: string;
-  /** Mass of one cargo unit / lot represented by this record. */
-  weightTons: number;
-  requiresSpecialCrane: boolean;
-  isOutOfGauge: boolean;
-  /** Lower values must be unloaded earlier at the construction site. */
-  priorityOrderForConstructionSite: number;
-}
-
-/** A physical lot makes storage and one-time wagon assignment persistent. */
-export interface CargoUnit {
-  id: CargoUnitId;
-  cargoTypeId: CargoTypeId;
-  currentTerminalId: TerminalId;
-  storageAreaSqm: number;
-  status: 'EXPECTED' | 'IN_STORAGE' | 'LOADED' | 'DELIVERED';
-}
-
-export interface Wagon {
-  id: WagonId;
-  uicWagonType: string;
-  maxPayloadTons: number;
-  lengthOverBuffersMeters: number;
-  currentTerminalId: TerminalId;
-  currentTrainId: TrainId | null;
-  /** 1 = first wagon unloaded at the construction site. */
-  positionInTrain: number | null;
-  /** Empty wagon mass; optional for compatibility with the current fleet model. */
-  tareWeightTons?: number;
-}
-
-export interface WagonLoad {
-  wagonId: WagonId;
-  cargoUnitId: CargoUnitId;
-  cargoTypeId: CargoTypeId;
-}
-
-export interface Train {
-  id: TrainId;
-  terminalId: TerminalId;
-  destinationConstructionSite: string;
-  /** Derived and denormalized for list views; never entered manually. */
-  totalLengthMeters: number;
-  /** Derived as wagon tare + cargo payload. */
-  totalWeightTons: number;
-  status: TrainStatus;
-  /** Derived from wagon positions and cargo priority; never user-entered. */
-  isOrderValid: boolean;
-}
-
-export interface TrainEvent {
-  id: TrainEventId;
-  trainId: TrainId;
-  type: TrainEventType;
-  status: TrainEventStatus;
-  createdAt: string;
-  resolvedAt?: string | null;
-}
+import type {
+  CargoType,
+  CargoTypeId,
+  CargoUnit,
+  CargoUnitId,
+  Terminal,
+  TerminalId,
+  Train,
+  TrainEvent,
+  TrainEventStatus,
+  TrainEventType,
+  TrainId,
+  Wagon,
+  WagonId,
+  WagonLoad,
+} from './terminalEntities';
 
 export type ValidationCode =
   | 'INVALID_NUMERIC_VALUE'
