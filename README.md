@@ -9,7 +9,7 @@ Der **EVU Simulator** ist eine lokale, browserbasierte Wirtschafts- und Güterve
 | Karten | Leaflet mit auswählbaren schlüsselfreien Grundkarten und eigenen EVU-Fahrkorridoren |
 | Persistenz | Primär lokaler Browser-Speicher, optional Supabase |
 | Native Desktop-Variante | Tauri 2 mit demselben Vite-Frontend |
-| Mobile Nutzung | Responsive CSS mit Desktop-Topbar sowie mobiler Zeitsteuerung und Bottom-Bar |
+| Mobile Nutzung | App-ähnlicher Statuskopf, zentrale mobile Leitstelle, Zeitsteuerung und Fünfpunkt-Bottom-Navigation unter 768 px |
 | Installierbare Web-App | Web-App-Manifest, Service Worker und vorhandene App-Icons |
 
 ## Schnellstart
@@ -29,6 +29,19 @@ npm run preview -- --host 0.0.0.0 --port 4176
 ```
 
 > **Hinweis:** Ein lokaler Erststart erzeugt einen frischen, lokal gespeicherten Spielstand. Wird optional Supabase konfiguriert, greifen die Datenzugriffe auf den dafür vorgesehenen Client in `src/lib/supabase.ts` zurück.
+
+## Ruhmeshalle, JSON-Sicherung und globale Rangliste
+
+Die lokale Ruhmeshalle wird beim bestätigten Spielstand-Reset gesichert. Über **JSON exportieren** entsteht ein versionsbasiertes Backup ausschließlich der historischen Kennzahlen; **JSON importieren** prüft das Format, führt neue Einträge zusammen und überspringt bereits vorhandene Lauf-IDs. Lokale Spielstände, Personal- oder Fahrzeugdetails werden nicht exportiert.
+
+Die globale Rangliste ist bewusst optional. Für die Aktivierung wird zunächst die Migration `supabase/migrations/20260827124000_global_leaderboard.sql` in das zugehörige Supabase-Projekt eingespielt. Anschließend werden ausschließlich zur Build-Zeit diese öffentlichen Client-Werte gesetzt:
+
+```bash
+VITE_SUPABASE_URL=https://<projekt>.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon-key>
+```
+
+Ohne diese Konfiguration bleiben Ruhmeshalle, Umsatzgraph und JSON-Sicherung vollständig lokal nutzbar. Mit Konfiguration wird der Supabase-Client erst beim Laden oder bewussten Veröffentlichen der globalen Rangliste nachgeladen. Die Migration erlaubt nur Lesen und Einfügen: Bereits veröffentlichte Läufe können nicht im Client überschrieben oder gelöscht werden. Da das Spiel derzeit keine Benutzeranmeldung hat, sind Ranglistenwerte freiwillige, clientseitig eingereichte Spielstatistiken. Für eine öffentliche Produktionsrangliste mit Missbrauchsschutz sollten spätere Einreichungen über eine authentifizierte und rate-limitierte Edge Function erfolgen.
 
 ## Projektarchitektur
 

@@ -144,15 +144,21 @@ try {
 
   const checks = {};
   const views = [
-    ['home', 0],
-    ['fracht', 1],
-    ['flotte', 2],
-    ['bank', 3],
-    ['firma', 4],
-    ['disposition', 5],
+    ['home', { type: 'quick', index: 0 }],
+    ['fracht', { type: 'menu', label: 'AUFTRAGSMARKT' }],
+    ['flotte', { type: 'quick', index: 2 }],
+    ['bank', { type: 'quick', index: 3 }],
+    ['firma', { type: 'menu', label: 'FIRMA & PERSONAL' }],
+    ['disposition', { type: 'quick', index: 1 }],
   ];
-  for (const [name, index] of views) {
-    await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[${index}]?.click()`);
+  for (const [name, action] of views) {
+    if (action.type === 'quick') {
+      await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[${action.index}]?.click()`);
+    } else {
+      await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[4]?.click()`);
+      await wait(180);
+      await client.evaluate(`([...document.querySelectorAll('.app-mobile-menu-actions button')].find((button) => button.textContent?.toUpperCase().includes('${action.label}')))?.click()`);
+    }
     await wait(450);
     checks[name] = await capture(client, name);
     if (name === 'disposition') {
@@ -270,13 +276,9 @@ try {
     id: 'mobile-archive-fixture', companyName: 'Testbahn Nord', hqLocation: 'Hamburg', difficulty: 'hardcore', startCapital: 50000,
     startedTick: 0, completedTrips: 18, freightTonnes: 12450, totalRevenue: 184200, peakRevenue: 28900,
     archivedAt: '2026-08-27T12:00:00.000Z', endedTick: 315, endingBalance: 128500, endingLevel: 4, reputation: 73, source: 'reset'
-  }])); document.querySelectorAll('.app-mobile-quicknav-item')[0]?.click();`);
-  await wait(350);
-  await client.evaluate(`([...document.querySelectorAll('button')].find((button) => button.offsetParent && button.textContent?.toUpperCase().includes('PC ÖFFNEN')))?.click()`);
-  await wait(450);
-  await client.evaluate(`([...document.querySelectorAll('button')].find((button) => button.offsetParent && button.textContent?.toUpperCase().includes('ANALYSEN ÖFFNEN')))?.click()`);
-  await wait(500);
-  await client.evaluate(`([...document.querySelectorAll('button')].find((button) => button.offsetParent && button.textContent?.toUpperCase().includes('RUHMESHALLE')))?.click()`);
+  }])); document.querySelectorAll('.app-mobile-quicknav-item')[4]?.click();`);
+  await wait(220);
+  await client.evaluate(`([...document.querySelectorAll('.app-mobile-menu-actions button')].find((button) => button.textContent?.toUpperCase().includes('RUHMESHALLE')))?.click()`);
   await wait(550);
   checks.archive = await capture(client, 'ruhmeshalle');
   checks.archive.layout = await client.evaluate(`(() => {

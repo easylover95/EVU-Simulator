@@ -353,6 +353,7 @@ const InboxView = lazy(() => import('@/components/InboxView').then(({ InboxView 
 const ContractsView = lazy(() => import('@/views/ContractsView').then(({ ContractsView }) => ({ default: ContractsView })));
 const CentralView = lazy(() => import('@/views/CentralView').then(({ CentralView }) => ({ default: CentralView })));
 const StatisticsArchiveView = lazy(() => import('@/views/StatisticsArchiveView').then(({ StatisticsArchiveView }) => ({ default: StatisticsArchiveView })));
+const MobileCommandDashboard = lazy(() => import('@/views/MobileCommandDashboard').then(({ MobileCommandDashboard }) => ({ default: MobileCommandDashboard })));
 const BankView = lazy(() => import('@/views/BankView').then(({ BankView }) => ({ default: BankView })));
 const AdvertisingView = lazy(() => import('@/views/AdvertisingView').then(({ AdvertisingView }) => ({ default: AdvertisingView })));
 const DealerView = lazy(() => import('@/views/DealerView').then(({ DealerView }) => ({ default: DealerView })));
@@ -377,6 +378,7 @@ function AppLoadingFallback({ modal = false }: { modal?: boolean }) {
 
 function App() {
   const [view, setView] = useState<View>('zentrale');
+  const [isMobileViewport, setIsMobileViewport] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches);
   const [locomotives, setLocomotives] = useState<Locomotive[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -432,6 +434,14 @@ function App() {
   const [marketRefreshDay, setMarketRefreshDay] = useState<string | null>(() => loadMarketRefreshDay());
   const [achievements, setAchievements] = useState<AchievementState>(() => loadAchievementState());
   const [galleryOpen, setGalleryOpen] = useState(false);
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 767px)');
+    const updateViewport = () => setIsMobileViewport(query.matches);
+    updateViewport();
+    query.addEventListener('change', updateViewport);
+    return () => query.removeEventListener('change', updateViewport);
+  }, []);
 
   const headerRef = useRef<HTMLElement | null>(null);
   const companyRef = useRef(company);
@@ -2839,6 +2849,7 @@ function App() {
           onOpenInbox: () => setView('posteingang'),
           onEditCompany: openCompanyEditor,
           onHelp: handleHelp,
+          onOpenAchievements: () => setGalleryOpen(true),
           onLogout: handleLogout,
         }}
       >
@@ -2879,7 +2890,15 @@ function App() {
 
         <main className={glass ? 'relative z-10' : 'relative z-10 min-h-[100dvh] bg-transparent'}>
           <Suspense fallback={<AppLoadingFallback />}>
-          {view === 'zentrale' && (
+          {view === 'zentrale' && (isMobileViewport ? (
+            <MobileCommandDashboard
+              company={company}
+              orders={orders}
+              assignments={assignments}
+              locomotives={locomotives}
+              onNavigate={setView}
+            />
+          ) : (
             <OfficeHQView
               onNavigate={(dest) => setView(dest)}
               onEditCompany={openCompanyEditor}
@@ -2888,14 +2907,22 @@ function App() {
               galleryTotal={achievementCount()}
               galleryCategoryUnlocked={galleryCategoryUnlocked}
             />
-          )}
+          ))}
           {glass && (
             <div
               className="app-main-content"
               style={{ paddingTop: 'calc(var(--app-header-h) + 1.75rem)' }}
             >
               <SectionPulseProvider pulse={sectionPulse} onBack={backToZentrale}>
-              {view === 'dashboard' && (
+              {view === 'dashboard' && (isMobileViewport ? (
+                <MobileCommandDashboard
+                  company={company}
+                  orders={orders}
+                  assignments={assignments}
+                  locomotives={locomotives}
+                  onNavigate={setView}
+                />
+              ) : (
                 <PcDashboardView
                   active={view}
                   locomotives={locomotives}
@@ -2904,7 +2931,7 @@ function App() {
                   advisorAlerts={advisorAlerts}
                   onNavigate={setView}
                 />
-              )}
+              ))}
               {view === 'auswertungen' && (
                 <CentralView
                   company={company}

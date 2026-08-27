@@ -97,15 +97,11 @@ export function loadCurrentRunStatistics(): CurrentRunStatistics | null {
 export function loadStatisticsArchive(): HistoricalCompanyStatistics[] {
   const raw = loadJson<HistoricalCompanyStatistics[]>(STATISTICS_ARCHIVE_KEY, []);
   if (!Array.isArray(raw)) return [];
-  return raw
-    .map((entry) => normalizeHistorical(entry))
-    .filter((entry): entry is HistoricalCompanyStatistics => Boolean(entry))
-    .sort((a, b) =>
-      b.peakRevenue - a.peakRevenue ||
-      b.totalRevenue - a.totalRevenue ||
-      b.endingBalance - a.endingBalance ||
-      Date.parse(b.archivedAt) - Date.parse(a.archivedAt),
-    );
+  return sortedArchive(
+    raw
+      .map((entry) => normalizeHistorical(entry))
+      .filter((entry): entry is HistoricalCompanyStatistics => Boolean(entry)),
+  );
 }
 
 export function startStatisticsRun(input: Pick<CurrentRunStatistics, 'companyName' | 'hqLocation' | 'startCapital' | 'startedTick'>): CurrentRunStatistics {
@@ -190,4 +186,68 @@ export function formatRunDuration(startedTick: number, endedTick: number): strin
 
 export function difficultyLabel(id: DifficultyId): string {
   return DIFFICULTY_LEVELS.find((level) => level.id === id)?.label ?? 'Standard / Einsteiger';
+}
+
+export interface StatisticsArchiveExport {
+  format: 'evu-statistics-archive';
+  version: 1;
+  exportedAt: string;
+  archive: HistoricalCompanyStatistics[];
+}
+
+export interface StatisticsArchiveImportResult {
+  added: number;
+  skipped: number;
+  archive: HistoricalCompanyStatistics[];
+}
+
+function sortedArchive(entries: HistoricalCompanyStatistics[]): HistoricalCompanyStatistics[] {
+  return entries.sort((a, b) =>
+    b.peakRevenue - a.peakRevenue ||
+    b.totalRevenue - a.totalRevenue ||
+    b.endingBalance - a.endingBalance ||
+    Date.parse(b.archivedAt) - Date.parse(a.archivedAt),
+  );
+}
+
+/** Erstellt ein portables, versioniertes Backup ausschließlich der historischen Ruhmeshalle. */
+export function exportStatisticsArchive(): StatisticsArchiveExport {
+  return {
+    format: 'evu-statistics-archive',
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    archive: loadStatisticsArchive(),
+  };
+}
+
+/**
+ * Führt ein exportiertes Archiv ausschließlich nach einer strikten Strukturprüfung zusammen.
+ * Bestehende Läufe werden niemals überschrieben; identische IDs werden ausgelassen.
+ */
+export function importStatisticsArchive(value: unknown): StatisticsArchiveImportResult {
+  if (!value || typeof value !== 'object') {
+    throw new Error('Die Datei enthält kein gültiges Statistik-Archiv.');
+  }
+  const payload = value as Partial<StatisticsArchiveExport>;
+  if (payload.format !== 'evu-statistics-archive' || payload.version !== 1 || !Array.isArray(payload.archive)) {
+    throw new Error('Die Datei ist kein unterstütztes EVU-Statistikarchiv.');
+  }
+
+  const existing = loadStatisticsArchive();
+  const knownIds = new Set(existing.map((entry) => entry.id));
+  let added = 0;
+  let skipped = 0;
+  const imported = payload.archive.flatMap((entry) => {
+    const normalized = normalizeHistorical(entry);
+    if (!normalized || knownIds.has(normalized.id)) {
+      skipped += 1;
+      return [];
+    }
+    knownIds.add(normalized.id);
+    added += 1;
+    return [normalized];
+  });
+  const archive = sortedArchive([...existing, ...imported]).slice(0, ARCHIVE_LIMIT);
+  saveJson(STATISTICS_ARCHIVE_KEY, archive);
+  return { added, skipped, archive };
 }

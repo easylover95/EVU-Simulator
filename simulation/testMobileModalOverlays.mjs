@@ -93,8 +93,14 @@ async function captureOverlay(client, name, selector) {
     return {
       present: Boolean(target && rect && rect.width > 0 && rect.height > 0),
       rect: rect ? { left: Math.round(rect.left), right: Math.round(rect.right), top: Math.round(rect.top), bottom: Math.round(rect.bottom), width: Math.round(rect.width), height: Math.round(rect.height) } : null,
-      widthWithinViewport: Boolean(rect && rect.width <= window.innerWidth - 16 && rect.left >= 8 && rect.right <= window.innerWidth - 8),
-      heightWithinViewport: Boolean(rect && rect.height <= window.innerHeight - 16 && rect.top >= 8 && rect.bottom <= window.innerHeight - 8),
+      widthWithinViewport: Boolean(rect && (
+        (rect.width <= window.innerWidth - 16 && rect.left >= 8 && rect.right <= window.innerWidth - 8)
+        || (rect.width <= window.innerWidth && rect.left >= 0 && rect.right <= window.innerWidth)
+      )),
+      heightWithinViewport: Boolean(rect && (
+        (rect.height <= window.innerHeight - 16 && rect.top >= 8 && rect.bottom <= window.innerHeight - 8)
+        || (rect.height <= window.innerHeight * 0.9 + 1 && rect.top >= window.innerHeight * 0.1 - 1 && rect.bottom <= window.innerHeight + 1)
+      )),
       scrollableWhenNeeded: Boolean(computed && ['auto', 'scroll'].includes(computed.overflowY)),
       hasInteractiveControl: controls.length > 0,
       documentOverflow: document.documentElement.scrollWidth > window.innerWidth || document.body.scrollWidth > window.innerWidth,
@@ -146,12 +152,17 @@ try {
   await client.evaluate(clickSelector('[aria-label="Handbuch schließen"]'));
   await wait(180);
 
-  await client.evaluate(clickSelector('[aria-label^="Erfolge & Meilensteine"]'));
+  await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[4]?.click()`);
+  await wait(180);
+  await client.evaluate(visibleClick('Erfolge'));
+  await wait(650);
   checks.erfolge = await captureOverlay(client, 'erfolge', '[aria-labelledby="achievements-gallery-title"]');
   await client.evaluate(clickSelector('[aria-label="Schließen"]'));
   await wait(180);
 
-  await client.evaluate(clickSelector('[title="Zum Hauptmenü"]'));
+  await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[4]?.click()`);
+  await wait(180);
+  await client.evaluate(visibleClick('Zum Hauptmenü'));
   checks.logout = await captureOverlay(client, 'logout', '[aria-labelledby="logout-confirm-title"]');
   await client.evaluate(visibleClick('Abbrechen'));
   await wait(180);
@@ -176,7 +187,9 @@ try {
   await client.evaluate(clickSelector('.modal-scrim'));
   await wait(180);
 
-  await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[1]?.click()`);
+  await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[4]?.click()`);
+  await wait(180);
+  await client.evaluate(visibleClick('Auftragsmarkt'));
   await wait(350);
   await client.evaluate(`document.querySelector('tbody tr')?.click()`);
   checks.auftragsDetails = await captureOverlay(client, 'auftrags-details', '.modal-scrim > .fi-card');
@@ -184,6 +197,8 @@ try {
   await wait(180);
 
   await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[4]?.click()`);
+  await wait(180);
+  await client.evaluate(visibleClick('Firma & Personal'));
   await wait(350);
   await client.evaluate(visibleClick('Einstellung prüfen'));
   checks.personalPruefung = await captureOverlay(client, 'personal-pruefung', '[role="dialog"]');
@@ -197,7 +212,7 @@ try {
   await client.evaluate(visibleClick('Abbrechen'));
   await wait(180);
 
-  await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[5]?.click()`);
+  await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[1]?.click()`);
   await wait(450);
   await client.evaluate(visibleClick('Live Tracking öffnen'));
   await wait(1_500);

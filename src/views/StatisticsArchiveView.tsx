@@ -1,9 +1,15 @@
-import { Archive, ArrowLeft, Clock3, Medal, Package, TrendingUp, Trophy, Train, Wallet } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { Archive, ArrowLeft, Clock3, Download, Globe2, LoaderCircle, Medal, Package, Send, TrendingUp, Trophy, Train, Upload, Wallet } from 'lucide-react';
 import { SectionShell } from '@/components/SectionShell';
+import { RevenueHistoryChart } from '@/components/RevenueHistoryChart';
 import { formatEuro } from '@/lib/status';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { loadGlobalLeaderboard, publishHistoricalRun, type GlobalLeaderboardEntry } from '@/lib/globalLeaderboard';
 import {
   difficultyLabel,
+  exportStatisticsArchive,
   formatRunDuration,
+  importStatisticsArchive,
   loadCurrentRunStatistics,
   loadStatisticsArchive,
   type HistoricalCompanyStatistics,
@@ -61,8 +67,76 @@ function ArchiveMobileCard({ entry, rank }: { entry: HistoricalCompanyStatistics
 }
 
 export function StatisticsArchiveView({ onBack }: StatisticsArchiveViewProps) {
-  const archive = loadStatisticsArchive();
+  const [archive, setArchive] = useState(() => loadStatisticsArchive());
+  const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [globalEntries, setGlobalEntries] = useState<GlobalLeaderboardEntry[]>([]);
+  const [globalNotice, setGlobalNotice] = useState<string | null>(null);
+  const [globalLoading, setGlobalLoading] = useState(false);
+  const [selectedRunId, setSelectedRunId] = useState('');
+  const importInputRef = useRef<HTMLInputElement>(null);
   const current = loadCurrentRunStatistics();
+
+  function handleExport() {
+    const json = JSON.stringify(exportStatisticsArchive(), null, 2);
+    const file = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(file);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `evu-ruhmeshalle-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setImportNotice(`${archive.length} ${archive.length === 1 ? 'Lauf wurde' : 'Läufe wurden'} exportiert.`);
+  }
+
+  async function handleImport(file: File | null) {
+    if (!file) return;
+    try {
+      const result = importStatisticsArchive(JSON.parse(await file.text()));
+      setArchive(result.archive);
+      if (!selectedRunId && result.archive[0]) setSelectedRunId(result.archive[0].id);
+      setImportNotice(`${result.added} ${result.added === 1 ? 'Lauf wurde' : 'Läufe wurden'} importiert${result.skipped ? `, ${result.skipped} bereits vorhandene übersprungen` : ''}.`);
+    } catch (error) {
+      setImportNotice(error instanceof Error ? error.message : 'Die Archivdatei konnte nicht gelesen werden.');
+    } finally {
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
+  }
+
+  async function refreshGlobalLeaderboard() {
+    if (!isSupabaseConfigured) {
+      setGlobalNotice('Globale Rangliste ist für diese Installation nicht konfiguriert.');
+      return;
+    }
+    setGlobalLoading(true);
+    try {
+      const entries = await loadGlobalLeaderboard();
+      setGlobalEntries(entries);
+      setGlobalNotice(entries.length ? `${entries.length} globale Läufe geladen.` : 'Noch keine veröffentlichten Läufe vorhanden.');
+    } catch (error) {
+      setGlobalNotice(error instanceof Error ? error.message : 'Die globale Rangliste ist derzeit nicht erreichbar.');
+    } finally {
+      setGlobalLoading(false);
+    }
+  }
+
+  async function publishSelectedRun() {
+    const selected = archive.find((entry) => entry.id === (selectedRunId || archive[0]?.id));
+    if (!selected) {
+      setGlobalNotice('Wähle zuerst einen archivierten Lauf aus.');
+      return;
+    }
+    setGlobalLoading(true);
+    try {
+      const result = await publishHistoricalRun(selected);
+      setGlobalNotice(result.message);
+      if (result.status !== 'unavailable') await refreshGlobalLeaderboard();
+    } catch (error) {
+      setGlobalNotice(error instanceof Error ? error.message : 'Der Lauf konnte nicht veröffentlicht werden.');
+    } finally {
+      setGlobalLoading(false);
+    }
+  }
+
   const bestRevenue = archive.reduce((best, entry) => Math.max(best, entry.peakRevenue), 0);
   const totalFreight = archive.reduce((total, entry) => total + entry.freightTonnes, 0);
 
@@ -88,9 +162,27 @@ export function StatisticsArchiveView({ onBack }: StatisticsArchiveViewProps) {
               Beim bestätigten Spielstand-Reset wird der bisherige Lauf hier lokal gesichert. Das Archiv bleibt beim Neustart erhalten.
             </p>
           </div>
-          <div className="rounded-lg border border-amber-400/25 bg-slate-950/55 px-3 py-2 text-right">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Archivierte Läufe</p>
-            <p className="mt-1 text-xl font-black text-amber-200">{archive.length}</p>
+          <div className="flex flex-wrap items-stretch justify-end gap-2">
+            <div className="rounded-lg border border-amber-400/25 bg-slate-950/55 px-3 py-2 text-right">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Archivierte Läufe</p>
+              <p className="mt-1 text-xl font-black text-amber-200">{archive.length}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button type="button" className="btn-action btn-action-detail" onClick={handleExport}>
+                <Download className="h-3.5 w-3.5" /> JSON exportieren
+              </button>
+              <button type="button" className="btn-action btn-action-detail" onClick={() => importInputRef.current?.click()}>
+                <Upload className="h-3.5 w-3.5" /> JSON importieren
+              </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                className="sr-only"
+                accept="application/json,.json"
+                aria-label="Ruhmeshalle als JSON importieren"
+                onChange={(event) => void handleImport(event.target.files?.[0] ?? null)}
+              />
+            </div>
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-3">
@@ -98,6 +190,64 @@ export function StatisticsArchiveView({ onBack }: StatisticsArchiveViewProps) {
           <StatValue icon={<Package className="h-3 w-3 text-sky-300" />} label="Fracht im Archiv" value={`${totalFreight.toLocaleString('de-DE')} t`} />
           <StatValue icon={<Archive className="h-3 w-3 text-amber-300" />} label="Speicherort" value="Nur dieses Gerät" tone="text-amber-100" />
         </div>
+        {importNotice && <p className="mt-3 text-xs font-semibold text-sky-200" role="status">{importNotice}</p>}
+      </section>
+
+      <section className="game-box p-4" aria-label="Historische Umsatzentwicklung">
+        <RevenueHistoryChart entries={archive} />
+      </section>
+
+      <section className="game-box p-4" data-global-leaderboard>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.14em] text-sky-300">
+              <Globe2 className="h-3.5 w-3.5" /> Globale Rangliste
+            </p>
+            <h2 className="mt-1 text-base font-bold text-white">Ruhmeshalle im Vergleich</h2>
+            <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-400">
+              Veröffentliche nur bewusst einen abgeschlossenen Lauf. Übertragen werden Unternehmensname, Schwierigkeit und aggregierte Kennzahlen – niemals der lokale Spielstand.
+            </p>
+          </div>
+          <button type="button" className="btn-action btn-action-detail" onClick={() => void refreshGlobalLeaderboard()} disabled={globalLoading}>
+            {globalLoading ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <Globe2 className="h-3.5 w-3.5" />} Globale Rangliste laden
+          </button>
+        </div>
+
+        {!isSupabaseConfigured ? (
+          <p className="mt-3 rounded-lg border border-slate-700 bg-slate-950/40 px-3 py-2 text-xs leading-relaxed text-slate-400">
+            Für diese lokale Installation ist keine Supabase-Rangliste konfiguriert. Die Ruhmeshalle, der JSON-Export und der Import bleiben vollständig offline nutzbar.
+          </p>
+        ) : (
+          <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+            <label className="min-w-0 text-xs font-semibold text-slate-300">
+              Lokalen Lauf veröffentlichen
+              <select
+                className="mt-1 block w-full rounded-lg border border-slate-700 bg-slate-950/60 px-3 py-2 text-sm text-white"
+                value={selectedRunId || archive[0]?.id || ''}
+                onChange={(event) => setSelectedRunId(event.target.value)}
+                disabled={archive.length === 0 || globalLoading}
+              >
+                {archive.length === 0 && <option value="">Keine archivierten Läufe</option>}
+                {archive.map((entry) => <option key={entry.id} value={entry.id}>{entry.companyName} · {formatEuro(entry.peakRevenue)} · {difficultyLabel(entry.difficulty)}</option>)}
+              </select>
+            </label>
+            <button type="button" className="btn-action btn-action-primary self-end" onClick={() => void publishSelectedRun()} disabled={archive.length === 0 || globalLoading}>
+              <Send className="h-3.5 w-3.5" /> Global veröffentlichen
+            </button>
+          </div>
+        )}
+        {globalNotice && <p className="mt-3 text-xs font-semibold text-sky-200" role="status">{globalNotice}</p>}
+        {globalEntries.length > 0 && (
+          <div className="mt-4 space-y-2" aria-label="Globale Highscores">
+            {globalEntries.map((entry, index) => (
+              <div key={entry.id} className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-sky-400/15 bg-slate-950/35 px-3 py-2">
+                <span className="text-center text-sm font-black text-amber-300">{index + 1}</span>
+                <div className="min-w-0"><p className="truncate text-sm font-bold text-white">{entry.companyName}</p><p className="text-[10px] text-slate-500">{difficultyLabel(entry.difficulty)} · Lvl {entry.endingLevel} · {entry.completedTrips.toLocaleString('de-DE')} Fahrten</p></div>
+                <span className="text-right text-sm font-black tabular-nums text-emerald-300">{formatEuro(entry.peakRevenue)}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       {current && (

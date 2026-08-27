@@ -1,5 +1,5 @@
-import type { RefObject } from 'react';
-import { BriefcaseBusiness, ClipboardList, Home, Landmark, Mail, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound } from 'lucide-react';
+import { useState, type RefObject } from 'react';
+import { BarChart3, BriefcaseBusiness, ChevronRight, ClipboardList, Home, Landmark, Mail, Menu, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound, X } from 'lucide-react';
 import type { Company } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
@@ -21,6 +21,7 @@ export interface AppTopbarProps {
   onOpenInbox: () => void;
   onEditCompany: () => void;
   onHelp: () => void;
+  onOpenAchievements: () => void;
   onLogout: () => void;
 }
 
@@ -40,11 +41,24 @@ export function AppTopbar({
   onOpenInbox,
   onEditCompany,
   onHelp,
+  onOpenAchievements,
   onLogout,
 }: AppTopbarProps) {
   const cat = categoryForView(view);
   const def = categoryDef(cat);
   const subnav = showsSubnav(view);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileNavItems: Array<{ id: string; label: string; view: AppView; icon: typeof Home; active: boolean }> = [
+    { id: 'home', label: 'Home', view: 'zentrale', icon: Home, active: cat === 'zentrale' },
+    { id: 'dispo', label: 'Dispo', view: 'disposition', icon: ClipboardList, active: view === 'disposition' },
+    { id: 'flotte', label: 'Flotte', view: 'fuhrpark', icon: TrainFront, active: cat === 'fleet' },
+    { id: 'finanzen', label: 'Finanzen', view: 'bank', icon: Landmark, active: cat === 'finance' },
+  ];
+
+  function navigateMobile(viewId: AppView) {
+    setMobileMenuOpen(false);
+    onSetView(viewId);
+  }
   const compactNavLabels: Record<(typeof NAV_CATEGORIES)[number]['id'], string> = {
     zentrale: 'Home',
     transport: 'Fracht',
@@ -52,13 +66,6 @@ export function AppTopbar({
     finance: 'Bank',
     firma: 'Firma',
   };
-  const compactNavIcons = {
-    zentrale: Home,
-    transport: BriefcaseBusiness,
-    fleet: TrainFront,
-    finance: Landmark,
-    firma: UsersRound,
-  } as const;
 
   return (
     <header ref={headerRef as RefObject<HTMLElement>} className="app-topbar">
@@ -153,6 +160,24 @@ export function AppTopbar({
         </div>
       </div>
 
+      <div className="app-mobile-status-strip" aria-label="Mobiler Spielstatus">
+        <div className="app-mobile-status-company">
+          <span className="app-topbar-mark" aria-hidden>EVU</span>
+          <div className="min-w-0">
+            <p>{company?.name ?? 'AixRail GmbH'}</p>
+            <span>Lvl {company?.level ?? 1} · {company?.xp ?? 0} XP</span>
+          </div>
+        </div>
+        <div className="app-mobile-status-balance"><span>Konto</span><strong>{formatEuro(company?.balance ?? 0)}</strong></div>
+        <div className="app-mobile-status-actions">
+          <button type="button" className="app-topbar-ctrl relative" aria-label="Posteingang" onClick={onOpenInbox}>
+            <Mail className="h-3.5 w-3.5" />
+            {unreadCount > 0 && <span className="app-topbar-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+          </button>
+          <button type="button" className="app-topbar-ctrl" aria-label="Einstellungen" onClick={onEditCompany}><Settings className="h-3.5 w-3.5" /></button>
+        </div>
+      </div>
+
       <div className="app-mobile-clock" aria-label="Zeitsteuerung">
         <div className="app-mobile-clock-row">
           <button
@@ -228,34 +253,46 @@ export function AppTopbar({
       )}
 
       <nav className="app-mobile-quicknav" aria-label="Mobile Hauptnavigation">
-        {NAV_CATEGORIES.map((item) => {
-          const active = cat === item.id;
-          const Icon = compactNavIcons[item.id];
+        {mobileNavItems.map((item) => {
+          const Icon = item.icon;
           return (
             <button
               key={item.id}
               type="button"
-              title={item.label}
-              aria-label={`${compactNavLabels[item.id]} – ${item.label}`}
-              onClick={() => onSetView(item.defaultView)}
-              className={`app-mobile-quicknav-item ${active ? 'is-active' : ''}`}
+              aria-label={item.label}
+              onClick={() => navigateMobile(item.view)}
+              className={`app-mobile-quicknav-item ${item.active ? 'is-active' : ''}`}
             >
               <Icon className="app-mobile-quicknav-icon" aria-hidden />
-              <span>{compactNavLabels[item.id]}</span>
+              <span>{item.label}</span>
             </button>
           );
-          })}
-          <button
-            type="button"
-            title="Zugdisposition"
-            aria-label="Dispo – Zugdisposition"
-            onClick={() => onSetView('disposition')}
-            className={`app-mobile-quicknav-item app-mobile-quicknav-disposition ${view === 'disposition' ? 'is-active' : ''}`}
-          >
-            <ClipboardList className="app-mobile-quicknav-icon" aria-hidden />
-            <span>Dispo</span>
-          </button>
-        </nav>
+        })}
+        <button type="button" aria-label="Menü öffnen" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)} className={`app-mobile-quicknav-item ${mobileMenuOpen ? 'is-active' : ''}`}>
+          <Menu className="app-mobile-quicknav-icon" aria-hidden />
+          <span>Menü</span>
+        </button>
+      </nav>
+
+      {mobileMenuOpen && (
+        <div className="app-mobile-menu-layer" role="presentation">
+          <button type="button" className="app-mobile-menu-backdrop" aria-label="Menü schließen" onClick={() => setMobileMenuOpen(false)} />
+          <section className="app-mobile-menu-sheet" role="dialog" aria-modal="true" aria-label="Spielmenü">
+            <div className="app-mobile-menu-handle" aria-hidden />
+            <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-300">Leitstellen-Menü</p><h2 className="mt-1 text-base font-bold text-white">Verwaltung & Statistik</h2></div><button type="button" className="app-topbar-ctrl" aria-label="Menü schließen" onClick={() => setMobileMenuOpen(false)}><X className="h-4 w-4" /></button></div>
+            <div className="app-mobile-menu-actions">
+              <button type="button" onClick={() => navigateMobile('auftragsmarkt')}><BriefcaseBusiness /><span>Auftragsmarkt</span><ChevronRight /></button>
+              <button type="button" onClick={() => navigateMobile('vertraege')}><ClipboardList /><span>Verträge</span><ChevronRight /></button>
+              <button type="button" onClick={() => navigateMobile('personal')}><UsersRound /><span>Firma & Personal</span><ChevronRight /></button>
+              <button type="button" onClick={() => navigateMobile('auswertungen')}><BarChart3 /><span>Auswertungen</span><ChevronRight /></button>
+              <button type="button" onClick={() => { setMobileMenuOpen(false); onOpenAchievements(); }}><Star /><span>Erfolge</span><ChevronRight /></button>
+              <button type="button" onClick={() => navigateMobile('statistikarchiv')}><Star /><span>Ruhmeshalle</span><ChevronRight /></button>
+              <button type="button" onClick={() => { setMobileMenuOpen(false); onEditCompany(); }}><Settings /><span>Einstellungen</span><ChevronRight /></button>
+            </div>
+            <div className="mt-3 flex gap-2"><button type="button" className="btn-action btn-action-detail flex-1" onClick={() => { setMobileMenuOpen(false); onHelp(); }}>Handbuch</button><button type="button" className="btn-action btn-action-danger flex-1" onClick={() => { setMobileMenuOpen(false); onLogout(); }}>Zum Hauptmenü</button></div>
+          </section>
+        </div>
+      )}
       </header>
   );
 }
