@@ -32,7 +32,7 @@ export interface TerminalAlert {
   resolvedTick: number | null;
 }
 
-export interface AlertCandidate extends Omit<TerminalAlert, 'status' | 'createdTick' | 'lastObservedTick' | 'acknowledgedTick' | 'resolvedTick'> {}
+export type AlertCandidate = Omit<TerminalAlert, 'status' | 'createdTick' | 'lastObservedTick' | 'acknowledgedTick' | 'resolvedTick'>;
 
 export interface AlertEvaluation {
   alertsById: Record<string, TerminalAlert>;
