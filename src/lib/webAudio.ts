@@ -1,9 +1,21 @@
-export type SoundEffect = 'departure' | 'brake' | 'confirm' | 'warning';
+export type SoundEffect = 'departure' | 'brake' | 'confirm' | 'warning' | 'switch' | 'announcement';
 
 type OscillatorShape = OscillatorType;
 type WebAudioWindow = Window & { webkitAudioContext?: typeof AudioContext };
 
 let context: AudioContext | null = null;
+
+// Gleichzeitige Zugereignisse werden hörbar zusammengeführt statt Hunderte
+// von Audio-Knoten parallel zu planen. Die Simulation selbst bleibt unberührt.
+const EFFECT_COOLDOWN_MS: Record<SoundEffect, number> = {
+  departure: 140,
+  brake: 180,
+  confirm: 80,
+  warning: 220,
+  switch: 120,
+  announcement: 2_500,
+};
+const lastScheduledAt: Partial<Record<SoundEffect, number>> = {};
 
 function getContext(): AudioContext | null {
   if (typeof window === 'undefined') return null;
@@ -92,6 +104,36 @@ function playConfirm(audioContext: AudioContext, start: number): void {
   tone(audioContext, { frequency: 740, start: start + 0.09, duration: 0.12, volume: 0.04, shape: 'sine' });
 }
 
+function playSwitch(audioContext: AudioContext, start: number): void {
+  // Zwei kurze Schläge und leises Metallrauschen bilden ein dezentes Weichenrattern.
+  tone(audioContext, { frequency: 165, endFrequency: 95, start, duration: 0.055, volume: 0.032, shape: 'square' });
+  tone(audioContext, { frequency: 140, endFrequency: 82, start: start + 0.085, duration: 0.07, volume: 0.026, shape: 'square' });
+  filteredNoise(audioContext, start + 0.015, 0.14, 0.013);
+}
+
+function speakAnnouncement(): void {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') return;
+
+  try {
+    const utterance = new SpeechSynthesisUtterance('Zugfahrt freigegeben. Gute Fahrt.');
+    utterance.lang = 'de-DE';
+    utterance.rate = 1.05;
+    utterance.pitch = 0.9;
+    utterance.volume = 0.18;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    // Sprachansagen sind optional; der kurze Ansagegong bleibt als Fallback erhalten.
+  }
+}
+
+function playAnnouncement(audioContext: AudioContext, start: number): void {
+  // Dezenter Bahnsteiggong; die Sprachansage nutzt die lokale Browserstimme, sofern verfügbar.
+  tone(audioContext, { frequency: 660, start, duration: 0.09, volume: 0.03, shape: 'sine' });
+  tone(audioContext, { frequency: 880, start: start + 0.12, duration: 0.14, volume: 0.034, shape: 'sine' });
+  speakAnnouncement();
+}
+
 function playWarning(audioContext: AudioContext, start: number): void {
   tone(audioContext, { frequency: 470, start, duration: 0.11, volume: 0.04, shape: 'triangle' });
   tone(audioContext, { frequency: 360, start: start + 0.16, duration: 0.16, volume: 0.045, shape: 'triangle' });
@@ -112,11 +154,18 @@ export function playSoundEffect(effect: SoundEffect, enabled: boolean): void {
       void audioContext.resume().catch(() => undefined);
     }
 
+    const now = performance.now();
+    const previous = lastScheduledAt[effect] ?? -Infinity;
+    if (now - previous < EFFECT_COOLDOWN_MS[effect]) return;
+    lastScheduledAt[effect] = now;
+
     const start = audioContext.currentTime + 0.02;
     if (effect === 'departure') playDeparture(audioContext, start);
     if (effect === 'brake') playBrake(audioContext, start);
     if (effect === 'confirm') playConfirm(audioContext, start);
     if (effect === 'warning') playWarning(audioContext, start);
+    if (effect === 'switch') playSwitch(audioContext, start);
+    if (effect === 'announcement') playAnnouncement(audioContext, start);
   } catch {
     // Audio ist eine optionale UI-Verbesserung; ein Browserfehler darf nie das Spiel blockieren.
   }
@@ -126,4 +175,5 @@ export function playSoundEffect(effect: SoundEffect, enabled: boolean): void {
 export async function closeSoundContext(): Promise<void> {
   if (context && context.state !== 'closed') await context.close();
   context = null;
+  for (const effect of Object.keys(lastScheduledAt) as SoundEffect[]) delete lastScheduledAt[effect];
 }

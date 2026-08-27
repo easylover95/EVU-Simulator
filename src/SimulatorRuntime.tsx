@@ -1872,6 +1872,8 @@ function App() {
       deploymentsRef.current = nextDeps;
       setDeployments(nextDeps);
     }
+    playUiSound('switch');
+    playUiSound('announcement');
     playUiSound('departure');
   }
 
