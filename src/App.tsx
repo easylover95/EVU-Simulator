@@ -23,6 +23,7 @@ import {
 } from '@/lib/seed';
 import { CompanyFoundingModal } from '@/components/CompanyFoundingModal';
 import { MainMenuScreen } from '@/components/MainMenuScreen';
+import { ResetGameConfirmModal } from '@/components/ResetGameConfirmModal';
 import { TutorialOverlay } from '@/components/TutorialOverlay';
 import { SectionPulseProvider } from '@/components/SectionShell';
 import { Layout } from '@/layout/Layout';
@@ -66,6 +67,7 @@ import {
   type ClockSpeed,
 } from '@/lib/gameTime';
 import {
+  BANK_STATE_KEY,
   canChangeOverdraftLimit,
   canSpend,
   canSpendInvestment,
@@ -282,6 +284,7 @@ import {
   releaseWagonPacksByNeed,
 } from '@/lib/brh';
 import { hasSeenTutorial, markTutorialSeen } from '@/lib/tutorial';
+import { clearLocalGameState } from '@/lib/gameReset';
 import { isSessionActive, setSessionActive } from '@/lib/session';
 import { driverRestStatus, resolveRestTripRisk, REST_WARNING } from '@/lib/restRules';
 import {
@@ -391,6 +394,7 @@ function App() {
   const [tutorialEpoch, setTutorialEpoch] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
   const [logoutOpen, setLogoutOpen] = useState(false);
+  const [resetGameOpen, setResetGameOpen] = useState(false);
   const [atMainMenu, setAtMainMenu] = useState(() => !isSessionActive());
   const [wagonJobs, setWagonJobs] = useState<WagonJob[]>(() => loadWagonJobs());
   const [bank, setBank] = useState<BankState>(() =>
@@ -1983,13 +1987,51 @@ function App() {
     }
   }
 
-  function handleSaveCompany(name: string, hqLocation: string) {
+  function handleSaveCompany(name: string, hqLocation: string, startCapital?: number) {
     saveCompanyProfile({ name, hq_location: hqLocation });
     const current = companyRef.current;
-    if (current) {
+
+    if (foundingMode === 'found') {
+      const balance = startCapital ?? SEED_COMPANY.balance;
+      const newCompany: Company = {
+        ...SEED_COMPANY,
+        name,
+        hq_location: hqLocation,
+        balance,
+      };
+
+      // Der Bankzustand wird schon beim App-Start vorbereitet. Für die tatsächlich
+      // gewählte Stufe erzeugen wir deshalb einen neuen Eröffnungsstand.
+      window.localStorage.removeItem(BANK_STATE_KEY);
+      const freshBank = loadBankState(newCompany.tick, balance, newCompany.updated_at);
+      bankRef.current = freshBank;
+      setBank(freshBank);
+      persistCompany(newCompany);
+    } else if (current) {
       persistCompany({ ...current, name, hq_location: hqLocation });
     }
+
     setFoundingOpen(false);
+  }
+
+  function requestGameReset() {
+    setFoundingOpen(false);
+    setResetGameOpen(true);
+  }
+
+  function cancelGameReset() {
+    setResetGameOpen(false);
+    setFoundingMode('edit');
+    setFoundingOpen(true);
+  }
+
+  function confirmGameReset() {
+    setClockRunning(false);
+    clearLocalGameState();
+    // Eine aktive Sitzung überspringt nach dem Reload bewusst das Hauptmenü und
+    // führt direkt in die neue Unternehmensgründung mit Schwierigkeitsauswahl.
+    setSessionActive(true);
+    window.location.reload();
   }
 
   function handleStartWagonJob(wagonId: string, kind: WagonJobKind): boolean {
@@ -3103,6 +3145,7 @@ function App() {
                   }
                 : undefined
             }
+            onResetGame={foundingMode === 'edit' ? requestGameReset : undefined}
           />
         )}
         {tutorialOpen && !foundingOpen && (
@@ -3126,6 +3169,7 @@ function App() {
         {logoutOpen && (
           <LogoutConfirmModal onCancel={() => setLogoutOpen(false)} onConfirm={confirmLogoutToMenu} />
         )}
+        {resetGameOpen && <ResetGameConfirmModal onCancel={cancelGameReset} onConfirm={confirmGameReset} />}
         </Suspense>
       </Layout>
       )}

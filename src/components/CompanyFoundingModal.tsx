@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Building2, MapPin, Star, Train } from 'lucide-react';
+import { Building2, MapPin, RotateCcw, ShieldAlert, Star, Train } from 'lucide-react';
 import { DEFAULT_EVU_NAME, DEFAULT_HQ_LOCATION } from '@/lib/companyProfile';
 
 interface CompanyFoundingModalProps {
@@ -7,9 +7,10 @@ interface CompanyFoundingModalProps {
   initialName?: string;
   initialLocation?: string;
   corporateRankLabel?: string;
-  onSave: (name: string, hqLocation: string) => void;
+  onSave: (name: string, hqLocation: string, startCapital?: number) => void;
   onCancel?: () => void;
   onReplayTutorial?: () => void;
+  onResetGame?: () => void;
 }
 
 export function CompanyFoundingModal({
@@ -20,9 +21,11 @@ export function CompanyFoundingModal({
   onSave,
   onCancel,
   onReplayTutorial,
+  onResetGame,
 }: CompanyFoundingModalProps) {
   const [name, setName] = useState(initialName?.trim() || DEFAULT_EVU_NAME);
   const [hqLocation, setHqLocation] = useState(initialLocation?.trim() || DEFAULT_HQ_LOCATION);
+  const [startCapital, setStartCapital] = useState(150_000);
 
   useEffect(() => {
     setName(initialName?.trim() || DEFAULT_EVU_NAME);
@@ -31,7 +34,7 @@ export function CompanyFoundingModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    onSave(name.trim() || DEFAULT_EVU_NAME, hqLocation.trim() || DEFAULT_HQ_LOCATION);
+    onSave(name.trim() || DEFAULT_EVU_NAME, hqLocation.trim() || DEFAULT_HQ_LOCATION, mode === 'found' ? startCapital : undefined);
   }
 
   const canCancel = mode === 'edit' && Boolean(onCancel);
@@ -40,7 +43,7 @@ export function CompanyFoundingModal({
     <div className="modal-scrim fixed inset-0 z-[70] flex items-center justify-center p-4">
       <form
         onSubmit={handleSubmit}
-        className="fi-card w-full max-w-md overflow-hidden shadow-[0_0_40px_rgba(251,191,36,0.12)]"
+        className="fi-card max-h-[calc(100dvh-1.5rem)] w-full max-w-md overflow-y-auto shadow-[0_0_40px_rgba(251,191,36,0.12)]"
       >
         <div className="fi-card-header flex items-center gap-2">
           <Train className="h-3.5 w-3.5 text-amber-400" />
@@ -49,7 +52,7 @@ export function CompanyFoundingModal({
         <div className="space-y-4 p-5">
           <p className="text-xs leading-relaxed text-slate-400">
             {mode === 'found'
-              ? 'Willkommen. Lege Namen und Sitz deines Eisenbahnverkehrsunternehmens fest. Bestand, Kontostand und Spielstand bleiben erhalten.'
+              ? 'Willkommen. Lege Namen, Sitz und Startbedingungen deines Eisenbahnverkehrsunternehmens fest.'
               : 'Name und Standort werden in der Kopfzeile, der Zentrale und im Büro übernommen.'}
           </p>
           {mode === 'edit' && corporateRankLabel && (
@@ -60,6 +63,58 @@ export function CompanyFoundingModal({
               <p className="mt-1 text-sm font-bold text-amber-100">{corporateRankLabel}</p>
               <p className="mt-1 text-[11px] leading-relaxed text-slate-400">Details und dauerhafte Meilensteinpunkte findest du unter Auswertungen. Der Rang löst keinen Spielstands-Reset aus.</p>
             </div>
+          )}
+          {mode === 'found' && (
+            <fieldset>
+              <legend className="mb-2 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <ShieldAlert className="h-3 w-3 text-amber-400" /> Startkapital &amp; Schwierigkeitsgrad
+              </legend>
+              <div className="grid gap-2">
+                {[
+                  {
+                    capital: 50_000,
+                    title: 'Hardcore Simulation',
+                    description: '50.000 € · Enge Puffer, hohes Risiko',
+                    accent: 'border-rose-500/45 bg-rose-950/20 text-rose-100',
+                  },
+                  {
+                    capital: 150_000,
+                    title: 'Standard / Einsteiger',
+                    description: '150.000 € · Ausgewogene Balance',
+                    accent: 'border-amber-400/60 bg-amber-950/35 text-amber-100',
+                  },
+                  {
+                    capital: 250_000,
+                    title: 'Komfort Modus',
+                    description: '250.000 € · Hohe Fehlertoleranz',
+                    accent: 'border-sky-400/45 bg-sky-950/20 text-sky-100',
+                  },
+                ].map((option) => {
+                  const selected = startCapital === option.capital;
+                  return (
+                    <label
+                      key={option.capital}
+                      className={`flex min-h-16 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
+                        selected ? option.accent : 'border-slate-700 bg-slate-950/35 text-slate-300 hover:border-slate-500'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="start-capital"
+                        value={option.capital}
+                        checked={selected}
+                        onChange={() => setStartCapital(option.capital)}
+                        className="h-4 w-4 shrink-0 accent-amber-400"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-sm font-bold">{option.title}</span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-slate-400">{option.description}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
           )}
           <label className="block">
             <span className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-500">
@@ -86,6 +141,27 @@ export function CompanyFoundingModal({
               placeholder={DEFAULT_HQ_LOCATION}
             />
           </label>
+          {mode === 'edit' && onResetGame && (
+            <section className="rounded-lg border border-rose-500/30 bg-rose-950/20 px-3 py-3" aria-labelledby="new-company-title">
+              <div className="flex items-start gap-2">
+                <RotateCcw className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-300" aria-hidden />
+                <div className="min-w-0">
+                  <h3 id="new-company-title" className="text-xs font-bold text-rose-100">Neues Unternehmen gründen</h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+                    Löscht den lokalen Spielstand und öffnet anschließend die Schwierigkeitsauswahl.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onResetGame}
+                    className="mt-2 btn-action border-rose-500/60 bg-rose-950/50 text-rose-100 hover:bg-rose-900/60"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                    Spiel zurücksetzen
+                  </button>
+                </div>
+              </div>
+            </section>
+          )}
           <div className="flex flex-wrap justify-end gap-2 pt-1">
             {mode === 'edit' && onReplayTutorial && (
               <button

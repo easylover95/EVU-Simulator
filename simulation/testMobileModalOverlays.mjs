@@ -158,6 +158,10 @@ try {
 
   await client.evaluate(clickSelector('[title="Firma bearbeiten"]'));
   checks.firmaBearbeiten = await captureOverlay(client, 'firma-bearbeiten', '.modal-scrim form');
+  await client.evaluate(visibleClick('Spiel zurücksetzen'));
+  checks.spielstandReset = await captureOverlay(client, 'spielstand-reset', '[aria-labelledby="reset-game-confirm-title"]');
+  await client.evaluate(visibleClick('Abbrechen'));
+  await wait(180);
   await client.evaluate(visibleClick('Abbrechen'));
   await wait(180);
 

@@ -41,7 +41,7 @@ export const TUTORIAL_STEPS: TutorialStep[] = [
   {
     title: 'Willkommen in der Leitstelle',
     description:
-      'Das ist dein Büro — die Zentrale deines EVU. Du startest mit 150.000 €. Oben siehst du Konto, Uhr und Post. Die goldenen Markierungen im Raum sind dein Hauptmenü: klicke die Gegenstände, um Bereiche zu öffnen.',
+      'Das ist dein Büro — die Zentrale deines EVU. Oben siehst du dein Startkapital, Uhr und Post. Die goldenen Markierungen im Raum sind dein Hauptmenü: klicke die Gegenstände, um Bereiche zu öffnen.',
     icon: LayoutDashboard,
     view: 'zentrale',
     targetId: 'tutorial-office-intro',
