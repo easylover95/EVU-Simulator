@@ -27,7 +27,7 @@ export function AdvertisingView({ company, ads, onStartCampaign }: AdvertisingVi
   return (
     <SectionShell
       title="Werbeagentur"
-      subtitle="Teure, langsame Kampagnen — Bekanntheit 0–100, nur über viele Spieltage plus echte Frachten"
+      subtitle="Gestaffelte Reichweite für wachsende EVUs — Bekanntheit 0–100 und höhere Verträge durch konsequente Marktpräsenz"
     >
 
       <Card>

@@ -54,7 +54,9 @@ export function responsivePhotoSources(src: string): ResponsivePhotoSources | nu
   return {
     avifSrcSet: srcSet('avif'),
     webpSrcSet: srcSet('webp'),
-    sizes: '(max-width: 639px) calc(100vw - 2rem), (max-width: 1023px) 33vw, 20rem',
+    // Fahrzeugkarten zeigen ein detailreiches Motiv. Die 640w-Variante verhindert,
+    // dass 320w auf hochauflösenden Mobil- und Händlerkarten weich hochskaliert wird.
+    sizes: '(max-width: 767px) 640px, (max-width: 1023px) 640px, (max-width: 1535px) 50vw, 40rem',
   };
 }
 
