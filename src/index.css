@@ -640,7 +640,7 @@ body,
   background-color: #121418;
   background-image:
     linear-gradient(rgba(18, 20, 24, 0.83), rgba(18, 20, 24, 0.85)),
-    url('/bg-rail-atmosphere.jpg');
+    url('/bg-rail-atmosphere.webp');
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
@@ -672,7 +672,7 @@ body,
   inset: -24px;
   background:
     linear-gradient(rgba(12, 14, 18, 0.35), rgba(12, 14, 18, 0.55)),
-    url('/assets/leitstelle_bg.png') center / cover no-repeat;
+    url('/assets/leitstelle_bg.webp') center / cover no-repeat;
   filter: blur(8px) saturate(0.9) brightness(0.72);
   transform: scale(1.08);
 }
@@ -745,7 +745,7 @@ body,
   margin: 0;
   overflow: hidden;
   background-color: #121418;
-  background-image: url('/assets/leitstelle_bg.png');
+  background-image: url('/assets/leitstelle_bg.webp');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -2104,5 +2104,18 @@ body,
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Serve a smaller, composition-preserving office background on narrow phones. */
+@media (max-width: 640px) {
+  .main-menu-photo {
+    background-image:
+      linear-gradient(rgba(12, 14, 18, 0.35), rgba(12, 14, 18, 0.55)),
+      url('/assets/leitstelle_bg-mobile.webp');
+  }
+
+  .office-scene {
+    background-image: url('/assets/leitstelle_bg-mobile.webp');
   }
 }

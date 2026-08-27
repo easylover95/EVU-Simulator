@@ -3,7 +3,7 @@
  * Increment CACHE_VERSION whenever a breaking asset or shell change needs a
  * guaranteed cache refresh. Hashed Vite assets are additionally cached on use.
  */
-const CACHE_VERSION = 'evu-simulator-v1';
+const CACHE_VERSION = 'evu-simulator-v2';
 const APP_SHELL = [
   '/',
   '/index.html',

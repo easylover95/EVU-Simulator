@@ -1,11 +1,15 @@
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { rmSync } from 'node:fs';
 import { setTimeout as wait } from 'node:timers/promises';
 
-const width = 390;
-const height = 844;
+const width = Number(process.argv[3] ?? 390);
+const height = Number(process.argv[4] ?? 844);
 const debugPort = 9225;
+const profileDir = '/tmp/evu-mobile-clock-chrome';
 const url = process.argv[2] ?? 'http://localhost:4175/';
+
+rmSync(profileDir, { recursive: true, force: true });
 const outputDir = '/home/ubuntu/evu-work/EVU-Simulator/simulation/mobile-clock-check';
 
 class CdpClient {
@@ -73,7 +77,7 @@ async function waitForDebugTarget() {
 
 async function capture(client, name) {
   const screenshot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
-  await writeFile(`${outputDir}/${name}-390x844.png`, Buffer.from(screenshot.data, 'base64'));
+  await writeFile(`${outputDir}/${name}-${width}x${height}.png`, Buffer.from(screenshot.data, 'base64'));
   return client.evaluate(`(() => {
     const clock = document.querySelector('.app-mobile-clock');
     const rect = clock?.getBoundingClientRect();
@@ -98,7 +102,7 @@ const browser = spawn('chromium', [
   '--hide-scrollbars',
   `--remote-debugging-port=${debugPort}`,
   '--remote-allow-origins=*',
-  '--user-data-dir=/tmp/evu-mobile-clock-chrome',
+  `--user-data-dir=${profileDir}`,
   `--window-size=${width},${height}`,
   url,
 ], { stdio: 'ignore' });
@@ -121,12 +125,12 @@ try {
   await wait(900);
 
   await client.evaluate(`(() => {
-    const button = [...document.querySelectorAll('button')].find((entry) => entry.offsetParent && entry.textContent?.trim().toUpperCase() === 'UNTERNEHMEN GRÜNDEN');
+    const button = [...document.querySelectorAll('button')].find((entry) => entry.offsetParent && entry.textContent?.toUpperCase().includes('UNTERNEHMEN GRÜNDEN'));
     button?.click();
   })()`);
   await wait(350);
   await client.evaluate(`(() => {
-    const button = [...document.querySelectorAll('button')].find((entry) => entry.offsetParent && entry.textContent?.trim().toUpperCase() === 'ÜBERSPRINGEN');
+    const button = [...document.querySelectorAll('button')].find((entry) => entry.offsetParent && entry.textContent?.toUpperCase().includes('ÜBERSPRINGEN'));
     button?.click();
   })()`);
   await wait(500);
@@ -191,7 +195,7 @@ try {
         };
       })()`);
       const legendScreenshot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
-      await writeFile(`${outputDir}/disposition-legend-390x844.png`, Buffer.from(legendScreenshot.data, 'base64'));
+      await writeFile(`${outputDir}/disposition-legend-${width}x${height}.png`, Buffer.from(legendScreenshot.data, 'base64'));
       await client.evaluate(`document.querySelector('[data-map-legend-trigger]')?.click()`);
       await wait(120);
 
@@ -206,7 +210,7 @@ try {
         const opened = await client.evaluate(`(() => { const trigger = document.querySelector('[data-map-style-trigger]'); trigger?.click(); return { exists: Boolean(trigger), open: Boolean(document.querySelector('[data-map-style-option]')) }; })()`);
         await wait(120);
         const selected = await client.evaluate(`(() => { const option = document.querySelector('[data-map-style-option="${style}"]'); option?.click(); return { exists: Boolean(option) }; })()`);
-        await wait(style === 'satellite' ? 7_000 : 2_200);
+        await wait(style === 'satellite' || style === 'dark' ? 9_000 : 5_000);
         const layerSnapshot = await client.evaluate(`(() => {
           const tiles = [...document.querySelectorAll('.fi-live-map .leaflet-tile')];
           const loaded = tiles.filter((tile) => tile.complete && tile.naturalWidth > 0);
@@ -238,20 +242,20 @@ try {
     const bodyRect = rect(body);
     const actionsRect = rect(actions);
     const buttonRects = card ? [...card.querySelectorAll('button')].map(rect).filter(Boolean) : [];
-    const actionButtonsAreFullWidth = buttonRects.length > 0 && buttonRects.every((button) => button.width >= 280);
+    const actionButtonsAreFullWidth = buttonRects.length > 0 && buttonRects.every((button) => button.width >= Math.round(window.innerWidth * 0.8));
     return {
       cardPresent: Boolean(card),
       card: cardRect,
       body: bodyRect,
       actions: actionsRect,
       actionButtonsAreFullWidth,
-      contentHasWidth: Boolean(bodyRect && bodyRect.width >= 300),
+      contentHasWidth: Boolean(bodyRect && bodyRect.width >= Math.round(window.innerWidth * 0.8)),
       actionsBelowText: Boolean(bodyRect && actionsRect && actionsRect.top >= bodyRect.bottom + 8),
       cardUsesViewportWidth: Boolean(cardRect && cardRect.width >= Math.round(window.innerWidth * 0.9)),
     };
   })()`);
   const inboxScreenshot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
-  await writeFile(`${outputDir}/posteingang-390x844.png`, Buffer.from(inboxScreenshot.data, 'base64'));
+  await writeFile(`${outputDir}/posteingang-${width}x${height}.png`, Buffer.from(inboxScreenshot.data, 'base64'));
 
   const report = {
     viewport: { width, height },

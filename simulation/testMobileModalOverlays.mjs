@@ -2,8 +2,8 @@ import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { setTimeout as wait } from 'node:timers/promises';
 
-const width = 390;
-const height = 844;
+const width = Number(process.argv[3] ?? 390);
+const height = Number(process.argv[4] ?? 844);
 const debugPort = 9227;
 const url = process.argv[2] ?? 'http://localhost:4176/';
 const outputDir = '/home/ubuntu/evu-work/EVU-Simulator/simulation/modal-mobile-check';
@@ -101,7 +101,7 @@ async function captureOverlay(client, name, selector) {
     };
   })()`);
   const screenshot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
-  await writeFile(`${outputDir}/${name}-390x844.png`, Buffer.from(screenshot.data, 'base64'));
+  await writeFile(`${outputDir}/${name}-${width}x${height}.png`, Buffer.from(screenshot.data, 'base64'));
   return snapshot;
 }
 

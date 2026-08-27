@@ -136,7 +136,7 @@ export const ATMOSPHERE_SRC: Record<SubmenuAtmosphere, string> = {
   hall: '/assets/bg-fleet-hall.png',
   yard: '/assets/bg-transport-yard.png',
   network: '/assets/bg-network-stellwerk.png',
-  office: '/assets/leitstelle_bg.png',
+  office: '/assets/leitstelle_bg.webp',
 };
 
 export function atmosphereForView(view: AppView): SubmenuAtmosphere | null {

@@ -236,7 +236,7 @@ export function AppTopbar({
               key={item.id}
               type="button"
               title={item.label}
-              aria-label={item.label}
+              aria-label={`${compactNavLabels[item.id]} – ${item.label}`}
               onClick={() => onSetView(item.defaultView)}
               className={`app-mobile-quicknav-item ${active ? 'is-active' : ''}`}
             >
@@ -248,7 +248,7 @@ export function AppTopbar({
           <button
             type="button"
             title="Zugdisposition"
-            aria-label="Zugdisposition"
+            aria-label="Dispo – Zugdisposition"
             onClick={() => onSetView('disposition')}
             className={`app-mobile-quicknav-item app-mobile-quicknav-disposition ${view === 'disposition' ? 'is-active' : ''}`}
           >
