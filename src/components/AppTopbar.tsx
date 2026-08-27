@@ -4,6 +4,8 @@ import type { Company } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
 import { NAV_CATEGORIES, categoryDef, categoryForView, prefetchAssetsForView, showsSubnav, type AppView } from '@/lib/navigation';
+import { NetworkStatusNotice } from '@/components/NetworkStatusNotice';
+import type { NetworkStatus } from '@/lib/networkStatus';
 
 export interface AppTopbarProps {
   headerRef: RefObject<HTMLElement | null>;
@@ -15,6 +17,8 @@ export interface AppTopbarProps {
   clockSpeed: ClockSpeed;
   gameNow: Date;
   unreadCount: number;
+  networkStatus: NetworkStatus;
+  onRefreshNetwork: () => void;
   onSetView: (view: AppView) => void;
   onSetClockRunning: (running: boolean) => void;
   onSetClockSpeed: (speed: ClockSpeed) => void;
@@ -35,6 +39,8 @@ export function AppTopbar({
   clockSpeed,
   gameNow,
   unreadCount,
+  networkStatus,
+  onRefreshNetwork,
   onSetView,
   onSetClockRunning,
   onSetClockSpeed,
@@ -133,6 +139,7 @@ export function AppTopbar({
         </div>
 
         <div className="app-topbar-actions">
+          <NetworkStatusNotice status={networkStatus} onRefresh={onRefreshNetwork} variant="desktop" />
           <div className="app-topbar-konto" data-tutorial="tutorial-konto">
             <span>Konto</span>
             <strong>{formatEuro(company?.balance ?? 0)}</strong>

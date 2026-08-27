@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 680" role="img" aria-labelledby="title desc">
+  <title id="title">EVU Offline-Betriebskarte</title>
+  <desc id="desc">Stilisierte Deutschland- und Mitteleuropa-Karte für Güterverkehrs- und Baugleisdisposition.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111d"/>
+      <stop offset="1" stop-color="#101b27"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="46%" r="62%">
+      <stop offset="0" stop-color="#12324c" stop-opacity=".7"/>
+      <stop offset="1" stop-color="#07111d" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#5c7c96" stroke-opacity=".13" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1000" height="680" fill="url(#bg)"/>
+  <rect width="1000" height="680" fill="url(#glow)"/>
+  <rect width="1000" height="680" fill="url(#grid)"/>
+  <path d="M430 70L535 93 589 148 650 164 684 230 674 293 738 344 721 415 758 463 701 554 601 584 542 544 495 558 441 511 373 529 317 469 271 430 278 350 224 312 259 224 322 201 341 128Z" fill="#14283a" stroke="#4c7393" stroke-opacity=".7" stroke-width="3"/>
+  <path d="M187 148C294 196 360 227 449 245C589 274 691 251 841 191" fill="none" stroke="#1c506d" stroke-width="12" stroke-linecap="round" opacity=".45"/>
+  <path d="M152 468C301 426 370 391 520 394C675 398 753 452 888 518" fill="none" stroke="#1c506d" stroke-width="12" stroke-linecap="round" opacity=".4"/>
+  <path d="M283 247L432 237 535 290 652 259 716 332 658 415 552 463 421 436 336 382Z" fill="none" stroke="#0ea5e9" stroke-opacity=".45" stroke-width="4" stroke-dasharray="8 11"/>
+  <path d="M283 247L432 237 535 290 652 259 716 332 658 415 552 463 421 436 336 382Z" fill="none" stroke="#38bdf8" stroke-opacity=".82" stroke-width="1.8" stroke-dasharray="8 11"/>
+  <g fill="#0b2032" stroke="#7dd3fc" stroke-width="2.4">
+    <circle cx="283" cy="247" r="8"/><circle cx="432" cy="237" r="8"/><circle cx="535" cy="290" r="8"/><circle cx="652" cy="259" r="8"/><circle cx="716" cy="332" r="8"/><circle cx="658" cy="415" r="8"/><circle cx="552" cy="463" r="8"/><circle cx="421" cy="436" r="8"/><circle cx="336" cy="382" r="8"/>
+  </g>
+  <g fill="#b6e9ff" font-family="system-ui, sans-serif" font-size="15" font-weight="700">
+    <text x="296" y="237">Ruhrgebiet</text><text x="445" y="227">Hannover</text><text x="548" y="280">Berlin</text><text x="665" y="249">Dresden</text><text x="729" y="322">Leipzig</text><text x="671" y="405">Nürnberg</text><text x="565" y="453">Frankfurt</text><text x="434" y="426">Köln</text><text x="349" y="372">Duisburg</text>
+  </g>
+  <g transform="translate(36 612)">
+    <rect width="402" height="39" rx="8" fill="#07111d" fill-opacity=".86" stroke="#31516b"/>
+    <circle cx="20" cy="19" r="6" fill="#fbbf24"/><text x="35" y="24" fill="#fef3c7" font-family="system-ui, sans-serif" font-size="14" font-weight="700">Offline-Betriebskarte · lokale Korridore &amp; Zugpositionen</text>
+  </g>
+</svg>

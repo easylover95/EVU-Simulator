@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
+import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
 import {
   ClipboardList,
   Train,
@@ -66,10 +66,8 @@ import {
 import { closureBlockMessage, orderBlockedByClosure, type WorldEventState } from '@/lib/events';
 import { seriesDispatchBlock, seriesIdForLoco, seriesLabel } from '@/lib/personal';
 import type { StaffMeta } from '@/lib/jobcenter';
-
-const LiveTrackingMap = lazy(() =>
-  import('@/components/LiveTrackingMap').then((m) => ({ default: m.LiveTrackingMap })),
-);
+import { TrackingMapSurface } from '@/components/TrackingMapSurface';
+import type { NetworkStatus } from '@/lib/networkStatus';
 
 interface DispatchViewProps {
   orders: Order[];
@@ -100,6 +98,7 @@ interface DispatchViewProps {
   worldEvents?: WorldEventState;
   staffMeta?: Record<string, StaffMeta>;
   onOpenNetworkDealer?: (pack?: string) => void;
+  networkStatus?: NetworkStatus;
 }
 
 type AzfMode = 'none' | 'eigen' | 'pdl';
@@ -155,6 +154,7 @@ export function DispatchView({
   worldEvents,
   staffMeta = {},
   onOpenNetworkDealer,
+  networkStatus = 'online',
 }: DispatchViewProps) {
   const { gameNow, tick } = useGameClock();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(preselectOrder ?? null);
@@ -534,8 +534,9 @@ export function DispatchView({
                   <div className="flex h-full items-center justify-center text-xs text-slate-500">Karte wird geladen…</div>
                 }
               >
-                <LiveTrackingMap
-                  assignments={activeAssignments}
+                <TrackingMapSurface
+                  networkStatus={networkStatus}
+                  assignments={assignments}
                   wagons={wagons}
                   tick={tick}
                   locomotives={locomotives}

@@ -54,6 +54,8 @@ import { GameClockProvider } from '@/lib/GameClockContext';
 import { atmosphereForView, type AppView } from '@/lib/navigation';
 import { applyPerformanceSettings, loadPerformanceSettings, savePerformanceSettings, type PerformanceSettings } from '@/lib/performanceSettings';
 import { startWebVitalsMonitoring } from '@/lib/webVitals';
+import { useNetworkStatus } from '@/lib/networkStatus';
+import { NetworkStatusNotice } from '@/components/NetworkStatusNotice';
 import {
   applyTickToAssignments,
   applyTickToDrivers,
@@ -439,6 +441,7 @@ function App() {
   const [achievements, setAchievements] = useState<AchievementState>(() => loadAchievementState());
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [performanceSettings, setPerformanceSettings] = useState<PerformanceSettings>(() => loadPerformanceSettings());
+  const { status: networkStatus, refresh: refreshNetworkStatus } = useNetworkStatus();
 
   useEffect(() => {
     applyPerformanceSettings(performanceSettings);
@@ -2885,6 +2888,8 @@ function App() {
           clockSpeed,
           gameNow,
           unreadCount,
+          networkStatus,
+          onRefreshNetwork: refreshNetworkStatus,
           onSetView: setView,
           onSetClockRunning: setClockRunning,
           onSetClockSpeed: setClockSpeed,
@@ -2895,6 +2900,7 @@ function App() {
           onLogout: handleLogout,
         }}
       >
+        <NetworkStatusNotice status={networkStatus} onRefresh={refreshNetworkStatus} variant="mobile" />
 
         {(sanierung.active || sanierung.insolvent) && (
           <div
@@ -3055,6 +3061,7 @@ function App() {
                     setDealerNetworkHighlight(null);
                     setView('haendler');
                   }}
+                  networkStatus={networkStatus}
                 />
               )}
               {view === 'tourenplaner' && (

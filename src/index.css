@@ -2634,3 +2634,186 @@ body,
 .fi-deferred-list-row {
   contain-intrinsic-size: auto 4.5rem;
 }
+
+/* PWA connectivity status: informational only, never blocks local simulator controls. */
+.network-status-button {
+  display: inline-flex;
+  min-height: 1.7rem;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid rgba(52, 211, 153, 0.25);
+  border-radius: 999px;
+  padding: 0.16rem 0.48rem;
+  background: rgba(6, 78, 59, 0.28);
+  color: #a7f3d0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.network-status-button--checking {
+  border-color: rgba(56, 189, 248, 0.3);
+  background: rgba(7, 89, 133, 0.2);
+  color: #bae6fd;
+}
+.network-status-button--offline {
+  border-color: rgba(251, 191, 36, 0.42);
+  background: rgba(120, 53, 15, 0.35);
+  color: #fde68a;
+}
+.network-status-banner {
+  display: none;
+}
+.network-status-retry {
+  display: inline-flex;
+  min-height: 1.9rem;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid rgba(253, 230, 138, 0.34);
+  border-radius: 0.45rem;
+  padding: 0.2rem 0.42rem;
+  color: #fef3c7;
+  font-size: 10px;
+  font-weight: 800;
+}
+.network-status-spin {
+  animation: fi-network-spin 1.1s linear infinite;
+}
+@keyframes fi-network-spin { to { transform: rotate(360deg); } }
+
+/* Self-owned map fallback; no third-party raster tiles are required while offline. */
+.fi-offline-rail-map {
+  position: relative;
+  min-height: 420px;
+  overflow: hidden;
+  background: #07111d;
+  isolation: isolate;
+}
+.fi-offline-rail-map__base,
+.fi-offline-rail-map__routes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.fi-offline-rail-map__base {
+  object-fit: cover;
+  opacity: 0.96;
+}
+.fi-offline-rail-map__routes {
+  z-index: 1;
+  pointer-events: none;
+}
+.fi-offline-rail-map__routes polyline {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.fi-offline-rail-map__routes .is-live {
+  stroke: #fbbf24;
+  stroke-width: 0.85;
+  filter: drop-shadow(0 0 2px #f59e0b);
+}
+.fi-offline-rail-map__routes .is-planned {
+  stroke: #38bdf8;
+  stroke-width: 0.55;
+  stroke-dasharray: 1.2 1.3;
+  opacity: 0.85;
+}
+.fi-offline-rail-map__status {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  z-index: 3;
+  display: inline-flex;
+  min-height: 1.9rem;
+  align-items: center;
+  gap: 0.38rem;
+  border: 1px solid rgba(251, 191, 36, 0.36);
+  border-radius: 0.45rem;
+  padding: 0.28rem 0.52rem;
+  background: rgba(8, 15, 25, 0.9);
+  color: #fef3c7;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.fi-offline-rail-map__count {
+  border-left: 1px solid rgba(251, 191, 36, 0.25);
+  padding-left: 0.38rem;
+  color: #cbd5e1;
+}
+.fi-offline-rail-map__marker {
+  position: absolute;
+  z-index: 4;
+  display: flex;
+  width: 1.85rem;
+  height: 1.85rem;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #e0f2fe;
+  border-radius: 999px;
+  transform: translate(-50%, -50%);
+  color: #07111d;
+  box-shadow: 0 0 0 4px rgba(7, 17, 29, 0.72), 0 0 16px rgba(56, 189, 248, 0.42);
+}
+.fi-offline-rail-map__marker.is-live { background: #fbbf24; border-color: #fef3c7; }
+.fi-offline-rail-map__marker.is-planned { background: #38bdf8; }
+.fi-offline-rail-map__marker.is-parked { background: #94a3b8; border-color: #e2e8f0; }
+.fi-offline-rail-map__marker.is-selected { outline: 3px solid rgba(251, 191, 36, 0.85); outline-offset: 3px; }
+.fi-offline-rail-map__marker:focus-visible,
+.network-status-button:focus-visible,
+.network-status-retry:focus-visible {
+  outline: 2px solid #fde68a;
+  outline-offset: 3px;
+}
+.fi-offline-rail-map__selection {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 5;
+  width: min(20rem, calc(100% - 1.5rem));
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: 0.65rem;
+  padding: 0.72rem 2.25rem 0.72rem 0.78rem;
+  background: rgba(5, 12, 21, 0.94);
+  color: #e2e8f0;
+  box-shadow: 0 12px 28px rgba(2, 6, 23, 0.62);
+}
+.fi-offline-rail-map__selection h3 { margin: 0; color: #f8fafc; font-size: 12px; font-weight: 800; }
+.fi-offline-rail-map__selection p { margin: 0.26rem 0 0; font-size: 11px; line-height: 1.35; }
+.fi-offline-rail-map__eyebrow { color: #fbbf24; font-size: 9px !important; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.fi-offline-rail-map__detail { color: #94a3b8; }
+.fi-offline-rail-map__close { position: absolute; top: 0.45rem; right: 0.45rem; display: grid; width: 1.6rem; height: 1.6rem; place-items: center; border-radius: 0.35rem; color: #94a3b8; }
+.fi-offline-rail-map__dispatch { margin-top: 0.62rem; }
+
+@media (max-width: 767px) {
+  .network-status-button { display: none; }
+  .network-status-banner {
+    position: fixed;
+    top: var(--app-header-h);
+    left: 0.5rem;
+    right: 0.5rem;
+    z-index: 55;
+    display: flex;
+    min-height: 2.45rem;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid rgba(251, 191, 36, 0.46);
+    border-radius: 0.65rem;
+    padding: 0.38rem 0.5rem;
+    background: rgba(69, 26, 3, 0.96);
+    color: #fef3c7;
+    box-shadow: 0 10px 26px rgba(2, 6, 23, 0.5);
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1.2;
+  }
+  .network-status-retry span { display: none; }
+  .network-status-retry { width: 1.9rem; justify-content: center; padding: 0; }
+  .fi-offline-rail-map { min-height: 360px; }
+  .fi-offline-rail-map__status { top: 0.55rem; left: 0.55rem; }
+  .fi-offline-rail-map__selection { right: 0.55rem; bottom: 0.55rem; width: calc(100% - 1.1rem); }
+}
