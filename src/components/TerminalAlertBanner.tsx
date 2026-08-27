@@ -2,6 +2,16 @@ import { useMemo } from 'react';
 import { AlertTriangle, BellRing, ChevronRight } from 'lucide-react';
 
 import { useTerminalSimulation } from '@/state/terminalSimulationStore';
+import type { TerminalAlert } from '@/lib/terminalAlerts';
+
+const EMPTY_ALERTS: Record<string, never> = {};
+
+export function selectActiveTerminalAlerts(alertsById: Record<string, TerminalAlert>): TerminalAlert[] {
+  const priority = { CRITICAL: 0, WARNING: 1, INFO: 2 } as const;
+  return Object.values(alertsById)
+    .filter((alert) => alert?.status === 'ACTIVE')
+    .sort((left, right) => priority[left.severity] - priority[right.severity] || right.lastObservedTick - left.lastObservedTick);
+}
 
 function severityStyle(severity: 'CRITICAL' | 'WARNING' | 'INFO'): string {
   if (severity === 'CRITICAL') return 'border-rose-400/55 bg-rose-950/35 text-rose-100';
@@ -11,13 +21,8 @@ function severityStyle(severity: 'CRITICAL' | 'WARNING' | 'INFO'): string {
 
 /** Compact visual entry point. The full, acknowledged history stays in the alert centre. */
 export function TerminalAlertBanner({ onOpenAlerts }: { onOpenAlerts: () => void }) {
-  const alertsById = useTerminalSimulation((state) => state.alertsById ?? {});
-  const alerts = useMemo(() => Object.values(alertsById)
-    .filter((alert) => alert?.status === 'ACTIVE')
-    .sort((left, right) => {
-      const priority = { CRITICAL: 0, WARNING: 1, INFO: 2 };
-      return priority[left.severity] - priority[right.severity] || right.lastObservedTick - left.lastObservedTick;
-    }), [alertsById]);
+  const alertsById = useTerminalSimulation((state) => state.alertsById ?? EMPTY_ALERTS);
+  const alerts = useMemo(() => selectActiveTerminalAlerts(alertsById), [alertsById]);
   const primary = alerts[0] ?? null;
   if (!primary) return null;
 

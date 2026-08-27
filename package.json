@@ -28,6 +28,7 @@
     "test:terminal-tycoon": "tsx --tsconfig tsconfig.scripts.json scripts/testTerminalTycoon.ts",
     "test:terminal-analytics": "tsx --tsconfig tsconfig.scripts.json scripts/testTerminalAnalytics.ts",
     "test:terminal-alerts": "tsx --tsconfig tsconfig.scripts.json scripts/testTerminalAlerts.ts",
+    "benchmark:terminal-alerts": "tsx --tsconfig tsconfig.app.json simulation/benchmarkTerminalAlerts.ts",
     "test:terminal-audio": "tsx --tsconfig tsconfig.scripts.json scripts/testTerminalAudio.ts",
     "typecheck:terminal-state": "tsc --noEmit -p tsconfig.terminal-state-test.json",
     "tauri": "tauri",
