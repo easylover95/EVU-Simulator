@@ -6,7 +6,7 @@ Der **EVU Simulator** ist eine lokale, browserbasierte Wirtschafts- und Güterve
 | --- | --- |
 | Client | React 18, TypeScript und Vite |
 | Darstellung | Tailwind CSS, eigene Frachtimperium-Styles und Lucide Icons |
-| Karten | Leaflet mit auswählbaren Grundkarten und OpenRailwayMap-Overlay |
+| Karten | Leaflet mit auswählbaren schlüsselfreien Grundkarten und eigenen EVU-Fahrkorridoren |
 | Persistenz | Primär lokaler Browser-Speicher, optional Supabase |
 | Native Desktop-Variante | Tauri 2 mit demselben Vite-Frontend |
 | Mobile Nutzung | Responsive CSS mit Desktop-Topbar sowie mobiler Zeitsteuerung und Bottom-Bar |

@@ -155,16 +155,26 @@ try {
       checks[name].map = await client.evaluate(`(() => {
         const tiles = [...document.querySelectorAll('.fi-live-map .leaflet-tile')];
         const loaded = tiles.filter((tile) => tile.complete && tile.naturalWidth > 0);
+        const overlap = (a, b) => Boolean(a && b && a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top);
+        const status = document.querySelector('[data-map-status]');
+        const picker = document.querySelector('[data-map-style-trigger]');
+        const zoom = document.querySelector('.fi-live-map .leaflet-control-zoom');
+        const statusRect = status?.getBoundingClientRect();
+        const pickerRect = picker?.getBoundingClientRect();
+        const zoomRect = zoom?.getBoundingClientRect();
         return {
           tileCount: tiles.length,
           loadedTileCount: loaded.length,
-          usesVoyager: loaded.some((tile) => tile.currentSrc.includes('/rastertiles/voyager/')),
-          railwayTileCount: loaded.filter((tile) => tile.currentSrc.includes('tiles.openrailwaymap.org/standard/')).length,
+          usesOpenStreetMap: loaded.some((tile) => tile.currentSrc.includes('tile.openstreetmap.org')),
           mapStyle: document.querySelector('.fi-live-map')?.getAttribute('data-map-style') ?? '',
-          filterPresent: Boolean(document.querySelector('[data-map-style-trigger]')),
+          filterPresent: Boolean(picker),
           mapVisible: Boolean(document.querySelector('.fi-live-map')),
+          apiKeyWatermarkAbsent: !document.querySelector('.fi-live-map')?.textContent?.includes('API KEY REQUIRED'),
+          zoomBelowHeader: Boolean(zoomRect && statusRect && zoomRect.top > statusRect.bottom),
+          zoomClearOfLayerPicker: !overlap(zoomRect, pickerRect),
         };
       })()`);
+      checks[name].legendInitial = await client.evaluate(`document.querySelector('[data-map-legend-trigger]')?.getAttribute('aria-expanded') === 'false'`);
       await client.evaluate(`document.querySelector('[data-map-legend-trigger]')?.click()`);
       await wait(160);
       checks[name].legend = await client.evaluate(`(() => {
@@ -176,6 +186,7 @@ try {
           expanded: trigger?.getAttribute('aria-expanded') === 'true',
           panelVisible: Boolean(rect && rect.width > 0 && rect.height > 0),
           panelWidth: rect ? Math.round(rect.width) : 0,
+          panelBottom: rect ? Math.round(rect.bottom) : 0,
           panelText: panel?.textContent?.replace(/\s+/g, ' ').trim() ?? '',
         };
       })()`);
@@ -187,8 +198,8 @@ try {
       const styles = [
         ['satellite', 'server.arcgisonline.com'],
         ['dark', '/dark_all/'],
-        ['railway', ''],
         ['voyager', '/rastertiles/voyager/'],
+        ['osm', 'tile.openstreetmap.org'],
       ];
       const styleChecks = {};
       for (const [style, sourceFragment] of styles) {
@@ -201,8 +212,8 @@ try {
           const loaded = tiles.filter((tile) => tile.complete && tile.naturalWidth > 0);
           return {
             selected: document.querySelector('.fi-live-map')?.dataset.mapStyle ?? '',
-            matchingBaseTiles: '${sourceFragment}' ? loaded.filter((tile) => tile.currentSrc.includes('${sourceFragment}')).length : 0,
-            railwayTileCount: loaded.filter((tile) => tile.currentSrc.includes('tiles.openrailwaymap.org/standard/')).length,
+            matchingBaseTiles: loaded.filter((tile) => tile.currentSrc.includes('${sourceFragment}')).length,
+            apiKeyWatermarkAbsent: !document.querySelector('.fi-live-map')?.textContent?.includes('API KEY REQUIRED'),
           };
         })()`);
         styleChecks[style] = { ...layerSnapshot, opened, selectedOption: selected };
@@ -217,19 +228,27 @@ try {
     pass: Object.values(checks).every((entry) => entry.clockVisible && entry.documentScrollWidth <= width && entry.bodyScrollWidth <= width)
       && checks.disposition?.view === 'Disposition'
       && checks.disposition?.map?.mapVisible
+      && checks.disposition?.map?.mapStyle === 'osm'
+      && checks.disposition?.map?.usesOpenStreetMap
+      && checks.disposition?.map?.apiKeyWatermarkAbsent
+      && checks.disposition?.map?.zoomBelowHeader
+      && checks.disposition?.map?.zoomClearOfLayerPicker
+      && checks.disposition?.legendInitial
       && checks.disposition?.legend?.triggerPresent
       && checks.disposition?.legend?.expanded
       && checks.disposition?.legend?.panelVisible
       && checks.disposition?.legend?.panelWidth <= width
-      && checks.disposition?.legend?.panelText.includes('Signalmarker')
+      && checks.disposition?.legend?.panelBottom <= height
+      && checks.disposition?.legend?.panelText.includes('Bahnknoten')
       && checks.disposition?.mapStyleChecks?.satellite?.selected === 'satellite'
       && checks.disposition?.mapStyleChecks?.satellite?.matchingBaseTiles > 0
       && checks.disposition?.mapStyleChecks?.dark?.selected === 'dark'
       && checks.disposition?.mapStyleChecks?.dark?.matchingBaseTiles > 0
-      && checks.disposition?.mapStyleChecks?.railway?.selected === 'railway'
-      && checks.disposition?.mapStyleChecks?.railway?.railwayTileCount > 0
       && checks.disposition?.mapStyleChecks?.voyager?.selected === 'voyager'
       && checks.disposition?.mapStyleChecks?.voyager?.matchingBaseTiles > 0
+      && checks.disposition?.mapStyleChecks?.osm?.selected === 'osm'
+      && checks.disposition?.mapStyleChecks?.osm?.matchingBaseTiles > 0
+      && checks.disposition?.mapStyleChecks?.osm?.apiKeyWatermarkAbsent
       && speedAfterClick === '5×'
       && pauseAfterClick === 'Spiel pausieren',
   };

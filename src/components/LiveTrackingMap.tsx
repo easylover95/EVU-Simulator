@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { CircleDot, ClipboardList, Gauge, Layers3, RadioTower, Train, User, Wrench, X } from 'lucide-react';
+import { CircleDot, ClipboardList, Gauge, Info, Layers3, RadioTower, Train, User, Wrench, X } from 'lucide-react';
 import type { AssignmentWithDetails, Locomotive, Wagon } from '@/lib/supabase';
 import { RAIL_STATIONS, lookupStation, TRUNK_CORRIDORS } from '@/lib/stations';
 import { buildTrackedTrains, locoMarkerId, type TrackedTrain } from '@/lib/tracking';
 import { getAssignmentPillClass, getLocoPillClass, getLocoStatusConfig } from '@/lib/status';
 import { getLocoDisplayName } from '@/lib/locoPhotos';
 
-type MapStyle = 'voyager' | 'satellite' | 'dark' | 'railway';
+type MapStyle = 'voyager' | 'satellite' | 'dark' | 'osm';
 
 type BaseLayerPreset = {
   url: string;
@@ -16,7 +17,7 @@ type BaseLayerPreset = {
   className?: string;
 };
 
-const BASE_LAYER_PRESETS: Record<Exclude<MapStyle, 'railway'>, BaseLayerPreset> = {
+const BASE_LAYER_PRESETS: Record<MapStyle, BaseLayerPreset> = {
   voyager: {
     url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     attribution: '&copy; OpenStreetMap &copy; CARTO Voyager',
@@ -32,13 +33,18 @@ const BASE_LAYER_PRESETS: Record<Exclude<MapStyle, 'railway'>, BaseLayerPreset> 
     attribution: '&copy; OpenStreetMap &copy; CARTO Dark Matter',
     className: 'fi-map-base-dark',
   },
+  osm: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap-Mitwirkende',
+    className: 'fi-map-base-osm',
+  },
 };
 
 const MAP_STYLE_OPTIONS: Array<{ id: MapStyle; label: string; description: string }> = [
   { id: 'voyager', label: 'Standard', description: 'Topografie & Grenzen' },
-  { id: 'satellite', label: 'Satellit', description: 'Luftbild mit Gleisoverlay' },
+  { id: 'satellite', label: 'Satellit', description: 'Luftbild mit EVU-Korridoren' },
   { id: 'dark', label: 'Dunkel', description: 'Nacht-Leitstelle' },
-  { id: 'railway', label: 'OpenRailwayMap pur', description: 'Nur Schieneninfrastruktur' },
+  { id: 'osm', label: 'OpenStreetMap', description: 'Freie Basiskarte' },
 ];
 
 interface LiveTrackingMapProps {
@@ -124,7 +130,7 @@ export function LiveTrackingMap({
   const tracksRef = useRef<TrackedTrain[]>([]);
   const parkedRef = useRef<ParkedLoco[]>([]);
   const [internalSelected, setInternalSelected] = useState<string | null>(null);
-  const [mapStyle, setMapStyle] = useState<MapStyle>('voyager');
+  const [mapStyle, setMapStyle] = useState<MapStyle>('osm');
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
 
@@ -174,21 +180,12 @@ export function LiveTrackingMap({
       zoom: 6,
       minZoom: 5,
       maxZoom: 12,
-      zoomControl: true,
+      zoomControl: false,
       attributionControl: true,
     });
 
-    const railwayPane = map.createPane('fi-railway-overlay');
-    railwayPane.style.zIndex = '260';
-    railwayPane.style.pointerEvents = 'none';
-    L.tileLayer('https://tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png', {
-      pane: 'fi-railway-overlay',
-      attribution: 'Schienen: &copy; OpenStreetMap-Mitwirkende, Style: OpenRailwayMap (CC-BY-SA 2.0)',
-      minZoom: 2,
-      maxZoom: 19,
-      tileSize: 256,
-      opacity: 0.82,
-    }).addTo(map);
+    // Keep native Leaflet zoom controls away from the compact map header on all viewports.
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
     const corridorPane = map.createPane('fi-corridors');
     corridorPane.style.zIndex = '330';
@@ -249,7 +246,6 @@ export function LiveTrackingMap({
 
     baseLayerRef.current?.remove();
     baseLayerRef.current = null;
-    if (mapStyle === 'railway') return;
 
     const preset = BASE_LAYER_PRESETS[mapStyle];
     const options: L.TileLayerOptions = {
@@ -399,59 +395,52 @@ export function LiveTrackingMap({
   const mapBlock = (
     <div className="relative h-full min-h-[360px] w-full">
       <div ref={containerRef} data-map-style={mapStyle} className={`${variant === 'fill' ? 'h-full min-h-[420px]' : 'h-[440px]'} fi-live-map w-full`} />
-      <div className="pointer-events-none absolute left-3 top-3 z-[500] flex items-center gap-2 rounded-md border border-sky-400/25 bg-slate-950/80 px-2.5 py-1.5 shadow-[0_0_20px_rgba(14,165,233,0.16)] backdrop-blur-sm">
+      <div data-map-status className="pointer-events-none absolute left-3 top-3 z-[500] flex items-center gap-2 rounded-md border border-sky-400/25 bg-slate-950/80 px-2.5 py-1.5 shadow-[0_0_20px_rgba(14,165,233,0.16)] backdrop-blur-sm">
         <RadioTower className="h-3.5 w-3.5 text-sky-300" />
         <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-sky-100">Live-Leitstelle</span>
         <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
         <span className="text-[10px] font-semibold tabular-nums text-slate-300">{trains.filter((train) => train.status === 'aktiv').length} aktiv</span>
       </div>
-      <div className="absolute left-3 top-3 z-[500] pointer-events-auto">
+      <div className="absolute left-3 top-14 z-[500] pointer-events-auto">
         <button
           type="button"
-          title="OpenRailwayMap-Legende öffnen"
-          aria-label="OpenRailwayMap-Legende öffnen"
+          title="Kartenlegende öffnen"
+          aria-label="Kartenlegende öffnen"
           aria-expanded={legendOpen}
           data-map-legend-trigger
           onClick={() => setLegendOpen((open) => !open)}
-          className="ml-40 flex min-h-8 items-center gap-1.5 rounded-md border border-orange-300/35 bg-slate-950/88 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-orange-100 shadow-[0_0_16px_rgba(249,115,22,0.16)] backdrop-blur-sm md:ml-0"
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-orange-300/35 bg-slate-950/90 text-orange-100 shadow-[0_0_16px_rgba(249,115,22,0.16)] backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-300"
         >
-          <CircleDot className="h-3.5 w-3.5 text-orange-300" />
-          <span className="text-[9px] md:hidden">LEG.</span>
-          <span className="hidden md:inline">Legende</span>
+          <Info className="h-4 w-4 text-orange-300" />
+          <span className="sr-only">Legende</span>
         </button>
-        {legendOpen && (
-          <div data-map-legend-panel className="absolute left-0 top-9 max-h-[124px] w-56 overflow-y-auto overscroll-contain rounded-md border border-orange-300/30 bg-slate-950/95 p-2.5 text-slate-200 shadow-[0_10px_30px_rgba(2,6,23,0.6)] backdrop-blur-sm md:static md:mt-1.5 md:max-h-none md:overflow-visible">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-orange-200">OpenRailwayMap-Schlüssel</span>
-              <span className="rounded bg-orange-300/10 px-1.5 py-0.5 text-[8px] font-bold uppercase text-orange-200">Standard</span>
-            </div>
-            <div className="space-y-1.5">
-              <LegendRow label="Haupt- & Schnellfahrstrecke" detail="orange Linien · Infrastruktur im Standardlayer">
-                <span className="block h-1.5 w-8 rounded-full bg-orange-400 shadow-[0_0_6px_rgba(251,146,60,0.85)]" />
-              </LegendRow>
-              <LegendRow label="Neben-/Anschlussgleis" detail="hellere, feinere Gleisdarstellung">
-                <span className="block h-1 w-8 rounded-full bg-amber-200/95 shadow-[0_0_5px_rgba(253,230,138,0.75)]" />
-              </LegendRow>
-              <LegendRow label="Weiche / Abzweig" detail="Verzweigung im Infrastrukturverlauf">
-                <span className="relative block h-3 w-8"><span className="absolute left-0 top-1 h-1 w-8 rounded-full bg-orange-300" /><span className="absolute left-4 top-0 h-1 w-5 origin-left rotate-[28deg] rounded-full bg-orange-300" /></span>
-              </LegendRow>
-              <LegendRow label="Signalmarker" detail="Signal- und Sicherungszeichen je Zoom & Datenstand">
-                <span className="flex h-3 w-8 items-center gap-0.5"><i className="h-2 w-2 rounded-full bg-rose-400 shadow-[0_0_5px_rgba(251,113,133,0.9)]" /><i className="h-2 w-2 rounded-full bg-amber-300 shadow-[0_0_5px_rgba(252,211,77,0.9)]" /><i className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_5px_rgba(74,222,128,0.9)]" /></span>
-              </LegendRow>
-            </div>
-            <div className="my-2 h-px bg-slate-700/80" />
-            <div className="mb-1 text-[9px] font-bold uppercase tracking-[0.12em] text-sky-300">EVU-Live-Tracking</div>
-            <div className="space-y-1.5">
-              <LegendRow label="Fahrkorridor" detail="hellblau · geplante/aktive Spielroute">
-                <span className="block h-1.5 w-8 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.9)]" />
-              </LegendRow>
-              <LegendRow label="Aktive Lok" detail="goldener Marker · Bewegung laut Spieltick">
-                <span className="relative block h-3 w-8"><span className="absolute left-3 top-0 h-3 w-3 rounded-sm border border-amber-100 bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.9)]" /></span>
-              </LegendRow>
-            </div>
-          </div>
-        )}
       </div>
+      {legendOpen && (
+        <>
+          <div className="absolute left-3 top-14 z-[700] hidden max-h-[300px] w-72 overflow-y-auto overscroll-contain rounded-lg border border-orange-300/30 bg-slate-950/95 p-3 text-slate-200 shadow-[0_14px_34px_rgba(2,6,23,0.72)] backdrop-blur-sm md:block">
+            <MapLegendContent onClose={() => setLegendOpen(false)} />
+          </div>
+          {createPortal(
+            <div className="md:hidden">
+              <button
+                type="button"
+                aria-label="Kartenlegende schließen"
+                className="fixed inset-0 z-[650] bg-slate-950/35"
+                onClick={() => setLegendOpen(false)}
+              />
+              <div
+                role="dialog"
+                aria-label="Karten- und Live-Tracking-Legende"
+                data-map-legend-panel
+                className="fixed inset-x-3 bottom-[calc(8rem+env(safe-area-inset-bottom))] z-[700] max-h-[calc(100dvh-10rem)] overflow-y-auto overscroll-contain rounded-lg border border-orange-300/30 bg-slate-950/95 p-3 text-slate-200 shadow-[0_14px_34px_rgba(2,6,23,0.72)] backdrop-blur-sm"
+              >
+                <MapLegendContent onClose={() => setLegendOpen(false)} />
+              </div>
+            </div>,
+            document.body,
+          )}
+        </>
+      )}
       <div className="absolute right-3 top-3 z-[500] pointer-events-auto">
         <button
           type="button"
@@ -524,6 +513,39 @@ export function LiveTrackingMap({
       </div>
       {mapBlock}
     </div>
+  );
+}
+
+function MapLegendContent({ onClose }: { onClose: () => void }) {
+  return (
+    <>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-orange-200">Karten- & Tracking-Legende</span>
+        <button
+          type="button"
+          title="Legende schließen"
+          aria-label="Legende schließen"
+          onClick={onClose}
+          className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-orange-300"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <div className="space-y-2">
+        <LegendRow label="EVU-Fahrkorridor" detail="Hellblau: geplante oder aktive Spielroute">
+          <span className="block h-1.5 w-8 rounded-full bg-sky-400 shadow-[0_0_6px_rgba(56,189,248,0.9)]" />
+        </LegendRow>
+        <LegendRow label="Aktive Lok" detail="Goldener Marker: Fortschritt laut Spieltick">
+          <span className="relative block h-3 w-8"><span className="absolute left-3 top-0 h-3 w-3 rounded-sm border border-amber-100 bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.9)]" /></span>
+        </LegendRow>
+        <LegendRow label="Bahnknoten" detail="Blauer Doppelmarker: Station im Spielnetz">
+          <span className="relative block h-4 w-8"><span className="absolute left-3 top-0.5 h-3 w-3 rounded-full border-2 border-sky-100 bg-sky-800" /><span className="absolute left-[13px] top-[5px] h-1.5 w-1.5 rounded-full bg-sky-300" /></span>
+        </LegendRow>
+        <LegendRow label="Grundkarte" detail="Freie, schlüssellose Basiskarte; weitere Stile oben rechts">
+          <span className="block h-3 w-8 rounded-sm border border-emerald-200/70 bg-[linear-gradient(135deg,#d7efe2_0%,#b4cfe1_48%,#d9e4b4_100%)]" />
+        </LegendRow>
+      </div>
+    </>
   );
 }
 
