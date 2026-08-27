@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Building2, MapPin, RotateCcw, ShieldAlert, Star, Train, Zap } from 'lucide-react';
+import { Building2, MapPin, RotateCcw, ShieldAlert, Star, Train, Volume2, VolumeX, Zap } from 'lucide-react';
+import type { TerminalAudioSettings } from '@/lib/terminalAudio';
 import { DEFAULT_EVU_NAME, DEFAULT_HQ_LOCATION } from '@/lib/companyProfile';
 
 interface CompanyFoundingModalProps {
@@ -15,6 +16,10 @@ interface CompanyFoundingModalProps {
   onTogglePowerSaving?: () => void;
   webVitalsOptIn?: boolean;
   onToggleWebVitalsOptIn?: () => void;
+  audioSettings?: TerminalAudioSettings;
+  onToggleAudio?: () => void;
+  onChangeAudioVolume?: (volume: number) => void;
+  onPreviewAudio?: () => void;
 }
 
 export function CompanyFoundingModal({
@@ -30,6 +35,10 @@ export function CompanyFoundingModal({
   onTogglePowerSaving,
   webVitalsOptIn = false,
   onToggleWebVitalsOptIn,
+  audioSettings,
+  onToggleAudio,
+  onChangeAudioVolume,
+  onPreviewAudio,
 }: CompanyFoundingModalProps) {
   const [name, setName] = useState(initialName?.trim() || DEFAULT_EVU_NAME);
   const [hqLocation, setHqLocation] = useState(initialLocation?.trim() || DEFAULT_HQ_LOCATION);
@@ -189,6 +198,42 @@ export function CompanyFoundingModal({
                 </button>
               </div>
               <p className={`mt-2 text-[10px] font-bold ${webVitalsOptIn ? 'text-sky-300' : 'text-slate-500'}`}>{webVitalsOptIn ? 'Aktiv: Werte werden nur lokal in diesem Browser gepuffert.' : 'Inaktiv: Es werden keine Web-Vitals erfasst.'}</p>
+            </section>
+          )}
+          {mode === 'edit' && audioSettings && onToggleAudio && onChangeAudioVolume && (
+            <section className="rounded-lg border border-cyan-500/25 bg-cyan-950/15 px-3 py-3" aria-labelledby="audio-settings-title">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 id="audio-settings-title" className="flex items-center gap-1.5 text-xs font-bold text-cyan-100">{audioSettings.enabled ? <Volume2 className="h-3.5 w-3.5 text-cyan-300" /> : <VolumeX className="h-3.5 w-3.5 text-slate-500" />} Leitstellen-Sound</h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">Synthetische Klick-, Abfahrts-, Kran- und Alarmtöne. Keine Audiodateien und keine Übertragung von Daten.</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={audioSettings.enabled}
+                  aria-label="Leitstellen-Sound umschalten"
+                  onClick={onToggleAudio}
+                  className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full border transition-colors ${audioSettings.enabled ? 'border-cyan-300 bg-cyan-500' : 'border-slate-600 bg-slate-900'}`}
+                >
+                  <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${audioSettings.enabled ? 'translate-x-5' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <div className="mt-3 flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="1"
+                  value={Math.round(audioSettings.volume * 100)}
+                  disabled={!audioSettings.enabled}
+                  onChange={(event) => onChangeAudioVolume(Number(event.target.value) / 100)}
+                  aria-label="Soundlautstärke"
+                  className="min-h-8 flex-1 accent-cyan-400 disabled:opacity-40"
+                />
+                <span className="w-9 text-right text-xs font-bold tabular-nums text-cyan-200">{Math.round(audioSettings.volume * 100)}%</span>
+                <button type="button" onClick={onPreviewAudio} disabled={!audioSettings.enabled} className="min-h-9 rounded-lg border border-cyan-400/40 px-2.5 text-xs font-bold text-cyan-100 hover:bg-cyan-950/50 disabled:opacity-40">Test</button>
+              </div>
+              <p className={`mt-2 text-[10px] font-bold ${audioSettings.enabled ? 'text-cyan-300' : 'text-slate-500'}`}>{audioSettings.enabled ? 'Aktiv: Einstellung wird lokal in diesem Browser gespeichert.' : 'Stumm: keine Soundeffekte werden erzeugt.'}</p>
             </section>
           )}
           {mode === 'edit' && onResetGame && (

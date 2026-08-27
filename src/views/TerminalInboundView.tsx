@@ -212,9 +212,17 @@ export function TerminalInboundView({
                       <p className="mt-1 text-xs text-slate-400">{arrival.mode === 'SHIP' ? 'Binnenschiff am Liegeplatz' : 'Frachtflugzeug im Umschlagfenster'}</p>
                     </div>
                   </div>
-                  <div className="mt-3 flex items-center justify-between border-t border-slate-700/60 pt-2 text-xs">
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-700/60 pt-2 text-xs">
                     <span className={feeStartsIn === 0 ? 'font-bold text-rose-300' : 'text-slate-400'}>{feeStartsIn === 0 ? 'Liegegebühr aktiv' : `Freiliegezeit: ${feeStartsIn} h`}</span>
                     <span className="font-bold tabular-nums text-amber-300">{formatNumber(arrival.laytimeFeeCentsPerTick / 100, 0)} € / h</span>
+                    <Button
+                      variant="secondary"
+                      disabled={effectiveCraneCapacity <= 0}
+                      className="min-h-10"
+                      onClick={() => state.setInboundArrivalStatus(arrival.id, 'UNLOADED')}
+                    >
+                      Umschlag abschließen
+                    </Button>
                   </div>
                 </div>
               );

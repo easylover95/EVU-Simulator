@@ -24,6 +24,7 @@ import {
   SEED_WAGONS,
 } from '@/lib/seed';
 import { CompanyFoundingModal } from '@/components/CompanyFoundingModal';
+import { TerminalAudioBridge } from '@/components/TerminalAudioBridge';
 import { MainMenuScreen } from '@/components/MainMenuScreen';
 import { ResetGameConfirmModal } from '@/components/ResetGameConfirmModal';
 import { TutorialOverlay } from '@/components/TutorialOverlay';
@@ -52,6 +53,7 @@ import {
 } from '@/lib/wagonJobs';
 import { GameClockProvider } from '@/lib/GameClockContext';
 import { atmosphereForView, type AppView } from '@/lib/navigation';
+import { playTerminalSound, loadTerminalAudioSettings, saveTerminalAudioSettings, type TerminalAudioSettings } from '@/lib/terminalAudio';
 import { applyPerformanceSettings, loadPerformanceSettings, savePerformanceSettings, type PerformanceSettings } from '@/lib/performanceSettings';
 import { startWebVitalsMonitoring } from '@/lib/webVitals';
 import { useNetworkStatus } from '@/lib/networkStatus';
@@ -444,6 +446,7 @@ function App() {
   const [achievements, setAchievements] = useState<AchievementState>(() => loadAchievementState());
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [performanceSettings, setPerformanceSettings] = useState<PerformanceSettings>(() => loadPerformanceSettings());
+  const [audioSettings, setAudioSettings] = useState<TerminalAudioSettings>(() => loadTerminalAudioSettings());
   const { status: networkStatus, refresh: refreshNetworkStatus } = useNetworkStatus();
 
   useEffect(() => {
@@ -465,6 +468,12 @@ function App() {
 
   function toggleWebVitalsOptIn() {
     setPerformanceSettings((current) => savePerformanceSettings({ ...current, webVitalsOptIn: !current.webVitalsOptIn }));
+  }
+  function toggleTerminalAudio() {
+    setAudioSettings((current) => saveTerminalAudioSettings({ ...current, enabled: !current.enabled }));
+  }
+  function changeTerminalAudioVolume(volume: number) {
+    setAudioSettings((current) => saveTerminalAudioSettings({ ...current, volume }));
   }
 
   const headerRef = useRef<HTMLElement | null>(null);
@@ -2869,7 +2878,8 @@ function App() {
 
   return (
     <GameClockProvider value={clockValue}>
-      {atMainMenu ? (
+      <TerminalAudioBridge />
+      <div>{atMainMenu ? (
         <MainMenuScreen
           companyName={company?.name ?? 'AixRail GmbH'}
           hqLocation={company?.hq_location?.trim() || 'Aachen'}
@@ -3259,6 +3269,10 @@ function App() {
             onTogglePowerSaving={foundingMode === 'edit' ? togglePowerSaving : undefined}
             webVitalsOptIn={performanceSettings.webVitalsOptIn}
             onToggleWebVitalsOptIn={foundingMode === 'edit' ? toggleWebVitalsOptIn : undefined}
+            audioSettings={audioSettings}
+            onToggleAudio={foundingMode === 'edit' ? toggleTerminalAudio : undefined}
+            onChangeAudioVolume={foundingMode === 'edit' ? changeTerminalAudioVolume : undefined}
+            onPreviewAudio={foundingMode === 'edit' ? () => playTerminalSound('TRAIN_DEPARTURE') : undefined}
           />
         )}
         {tutorialOpen && !foundingOpen && (
@@ -3285,7 +3299,7 @@ function App() {
         {resetGameOpen && <ResetGameConfirmModal onCancel={cancelGameReset} onConfirm={confirmGameReset} />}
         </Suspense>
       </Layout>
-      )}
+      )}</div>
     </GameClockProvider>
   );
 }

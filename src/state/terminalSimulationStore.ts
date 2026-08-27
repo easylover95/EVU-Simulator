@@ -120,6 +120,7 @@ export type TerminalSimulationEventType =
   | 'TRAIN_DISPATCH_BLOCKED'
   | 'TRAIN_DISPATCHED'
   | 'INBOUND_ARRIVED'
+  | 'INBOUND_UNLOADED'
   | 'GAMEPLAY_EVENT_OFFERED'
   | 'GAMEPLAY_EVENT_RESOLVED'
   | 'CONSTRUCTION_SITE_BLOCKED'
@@ -1265,12 +1266,21 @@ export function createTerminalSimulationStore(
         const arrival = state.inboundArrivalsById[arrivalId];
         if (!arrival) return state;
         updated = true;
-        return {
+        const nextSnapshot: TerminalSimulationSnapshot = {
+          ...snapshotFromState(state),
           inboundArrivalsById: {
             ...state.inboundArrivalsById,
             [arrivalId]: { ...arrival, status },
           },
         };
+        if (status !== 'UNLOADED' || arrival.status === 'UNLOADED') return nextSnapshot;
+        return appendEventDrafts(nextSnapshot, [{
+          tick: state.currentTick,
+          type: 'INBOUND_UNLOADED',
+          severity: 'SUCCESS',
+          entityId: arrivalId,
+          message: `Kran-Umschlag abgeschlossen: ${arrival.label} wurde entladen.`,
+        }]).snapshot;
       });
       return updated;
     },

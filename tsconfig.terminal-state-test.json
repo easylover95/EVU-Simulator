@@ -9,12 +9,14 @@
     "src/lib/terminalPersistence.ts",
     "src/lib/terminalAnalytics.ts",
     "src/lib/terminalAlerts.ts",
+    "src/lib/terminalAudio.ts",
     "src/state/terminalSimulationStore.ts",
     "scripts/testTerminalSimulationStore.ts",
     "scripts/testTerminalGameplay.ts",
     "scripts/testTerminalTycoon.ts",
     "scripts/testTerminalAnalytics.ts",
-    "scripts/testTerminalAlerts.ts"
+    "scripts/testTerminalAlerts.ts",
+    "scripts/testTerminalAudio.ts"
   ],
   "compilerOptions": {
     "noEmit": true
