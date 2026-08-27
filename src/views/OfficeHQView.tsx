@@ -45,7 +45,7 @@ const HOTSPOTS: OfficeHotspot[] = [
     id: 'gallery',
     label: 'Erfolge & Meilensteine',
     dest: 'gallery',
-    // Source % of leitstelle_bg.png: upper-right steam-loco wood frame, left of window 1.
+    // Source % of leitstelle_bg.png: upper-left steam-loco wood frame, left of window 1.
     x: 14.2,
     y: 16.4,
     w: 11.0,
