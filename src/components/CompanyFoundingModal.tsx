@@ -13,6 +13,8 @@ interface CompanyFoundingModalProps {
   onResetGame?: () => void;
   powerSaving?: boolean;
   onTogglePowerSaving?: () => void;
+  webVitalsOptIn?: boolean;
+  onToggleWebVitalsOptIn?: () => void;
 }
 
 export function CompanyFoundingModal({
@@ -26,6 +28,8 @@ export function CompanyFoundingModal({
   onResetGame,
   powerSaving = false,
   onTogglePowerSaving,
+  webVitalsOptIn = false,
+  onToggleWebVitalsOptIn,
 }: CompanyFoundingModalProps) {
   const [name, setName] = useState(initialName?.trim() || DEFAULT_EVU_NAME);
   const [hqLocation, setHqLocation] = useState(initialLocation?.trim() || DEFAULT_HQ_LOCATION);
@@ -164,6 +168,27 @@ export function CompanyFoundingModal({
                 </button>
               </div>
               <p className={`mt-2 text-[10px] font-bold ${powerSaving ? 'text-emerald-300' : 'text-slate-500'}`}>{powerSaving ? 'Aktiv: reduzierte Darstellung wird auf diesem Gerät gespeichert.' : 'Inaktiv: vollständige Frachtimperium-Effekte sind aktiv.'}</p>
+            </section>
+          )}
+          {mode === 'edit' && onToggleWebVitalsOptIn && (
+            <section className="rounded-lg border border-sky-500/25 bg-sky-950/15 px-3 py-3" aria-labelledby="web-vitals-title">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 id="web-vitals-title" className="flex items-center gap-1.5 text-xs font-bold text-sky-100">Anonyme Leistungsdaten</h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">Erfasst ausschließlich LCP, CLS und INP lokal. Es werden keine Spielstände, Finanzwerte oder persönlichen Daten übertragen.</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={webVitalsOptIn}
+                  aria-label="Anonyme Leistungsdaten umschalten"
+                  onClick={onToggleWebVitalsOptIn}
+                  className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full border transition-colors ${webVitalsOptIn ? 'border-sky-300 bg-sky-500' : 'border-slate-600 bg-slate-900'}`}
+                >
+                  <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${webVitalsOptIn ? 'translate-x-5' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <p className={`mt-2 text-[10px] font-bold ${webVitalsOptIn ? 'text-sky-300' : 'text-slate-500'}`}>{webVitalsOptIn ? 'Aktiv: Werte werden nur lokal in diesem Browser gepuffert.' : 'Inaktiv: Es werden keine Web-Vitals erfasst.'}</p>
             </section>
           )}
           {mode === 'edit' && onResetGame && (

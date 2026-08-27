@@ -53,6 +53,7 @@ import {
 import { GameClockProvider } from '@/lib/GameClockContext';
 import { atmosphereForView, type AppView } from '@/lib/navigation';
 import { applyPerformanceSettings, loadPerformanceSettings, savePerformanceSettings, type PerformanceSettings } from '@/lib/performanceSettings';
+import { startWebVitalsMonitoring } from '@/lib/webVitals';
 import {
   applyTickToAssignments,
   applyTickToDrivers,
@@ -439,6 +440,7 @@ function App() {
 
   useEffect(() => {
     applyPerformanceSettings(performanceSettings);
+    startWebVitalsMonitoring(performanceSettings.webVitalsOptIn);
   }, [performanceSettings]);
 
   useEffect(() => {
@@ -451,6 +453,10 @@ function App() {
 
   function togglePowerSaving() {
     setPerformanceSettings((current) => savePerformanceSettings({ ...current, powerSaving: !current.powerSaving }));
+  }
+
+  function toggleWebVitalsOptIn() {
+    setPerformanceSettings((current) => savePerformanceSettings({ ...current, webVitalsOptIn: !current.webVitalsOptIn }));
   }
 
   const headerRef = useRef<HTMLElement | null>(null);
@@ -3234,6 +3240,8 @@ function App() {
             onResetGame={foundingMode === 'edit' ? requestGameReset : undefined}
             powerSaving={performanceSettings.powerSaving}
             onTogglePowerSaving={foundingMode === 'edit' ? togglePowerSaving : undefined}
+            webVitalsOptIn={performanceSettings.webVitalsOptIn}
+            onToggleWebVitalsOptIn={foundingMode === 'edit' ? toggleWebVitalsOptIn : undefined}
           />
         )}
         {tutorialOpen && !foundingOpen && (

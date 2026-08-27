@@ -13,7 +13,26 @@ interface MainMenuScreenProps {
 export function MainMenuScreen({ companyName, hqLocation, balance, level, onContinue }: MainMenuScreenProps) {
   return (
     <div className="main-menu-screen">
-      <div className="main-menu-photo" aria-hidden />
+      <picture className="main-menu-photo" aria-hidden="true">
+        <source
+          media="(max-width: 767px)"
+          type="image/avif"
+          srcSet="/assets/leitstelle_bg-mobile-soft.avif"
+        />
+        <source
+          media="(max-width: 767px)"
+          type="image/webp"
+          srcSet="/assets/leitstelle_bg-mobile-soft.webp"
+        />
+        <source type="image/avif" srcSet="/assets/leitstelle_bg-desktop-soft.avif" />
+        <source type="image/webp" srcSet="/assets/leitstelle_bg-desktop-soft.webp" />
+        <img
+          src="/assets/leitstelle_bg.webp"
+          alt=""
+          fetchPriority="high"
+          decoding="auto"
+        />
+      </picture>
       <div className="main-menu-veil" aria-hidden />
       <div className="app-glass main-menu-card">
         <div className="flex items-center gap-3">
