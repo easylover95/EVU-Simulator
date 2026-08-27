@@ -287,6 +287,7 @@ import {
 } from '@/lib/brh';
 import { hasSeenTutorial, markTutorialSeen } from '@/lib/tutorial';
 import { clearLocalGameState } from '@/lib/gameReset';
+import { archiveCurrentRun, recordCompletedRun, startStatisticsRun } from '@/lib/statisticsArchive';
 import { isSessionActive, setSessionActive } from '@/lib/session';
 import { driverRestStatus, resolveRestTripRisk, REST_WARNING } from '@/lib/restRules';
 import {
@@ -351,6 +352,7 @@ const PcDashboardView = lazy(() => import('@/views/PcDashboardView').then(({ PcD
 const InboxView = lazy(() => import('@/components/InboxView').then(({ InboxView }) => ({ default: InboxView })));
 const ContractsView = lazy(() => import('@/views/ContractsView').then(({ ContractsView }) => ({ default: ContractsView })));
 const CentralView = lazy(() => import('@/views/CentralView').then(({ CentralView }) => ({ default: CentralView })));
+const StatisticsArchiveView = lazy(() => import('@/views/StatisticsArchiveView').then(({ StatisticsArchiveView }) => ({ default: StatisticsArchiveView })));
 const BankView = lazy(() => import('@/views/BankView').then(({ BankView }) => ({ default: BankView })));
 const AdvertisingView = lazy(() => import('@/views/AdvertisingView').then(({ AdvertisingView }) => ({ default: AdvertisingView })));
 const DealerView = lazy(() => import('@/views/DealerView').then(({ DealerView }) => ({ default: DealerView })));
@@ -1369,6 +1371,7 @@ function App() {
         if (assignment) {
           persistAchievements(noteCompletedTrip(achievementsRef.current, { ...assignment, order }, false));
         }
+        if (order) recordCompletedRun(order);
       }
     }
     if (einsatzTick.freedLocoIds.length > 0) {
@@ -1915,6 +1918,7 @@ function App() {
       awardPostCapMilestoneXp(nextCo, xp.milestoneXpGain);
     }
     persistAchievements(noteCompletedTrip(achievementsRef.current, a, late));
+    if (a.order) recordCompletedRun(a.order);
     return grantAchievements(nextCo, atTick);
   }, [
     awardPostCapMilestoneXp,
@@ -2017,6 +2021,12 @@ function App() {
       const freshBank = loadBankState(newCompany.tick, balance, newCompany.updated_at);
       bankRef.current = freshBank;
       setBank(freshBank);
+      startStatisticsRun({
+        companyName: newCompany.name,
+        hqLocation: newCompany.hq_location ?? '',
+        startCapital: balance,
+        startedTick: newCompany.tick,
+      });
       persistCompany(newCompany);
     } else if (current) {
       persistCompany({ ...current, name, hq_location: hqLocation });
@@ -2038,6 +2048,8 @@ function App() {
 
   function confirmGameReset() {
     setClockRunning(false);
+    const current = companyRef.current;
+    if (current) archiveCurrentRun(current, achievementsRef.current.counters);
     clearLocalGameState();
     // Eine aktive Sitzung überspringt nach dem Reload bewusst das Hauptmenü und
     // führt direkt in die neue Unternehmensgründung mit Schwierigkeitsauswahl.
@@ -2904,8 +2916,10 @@ function App() {
                   dailyFixed={dailyFixed}
                   corporateMilestones={corporateMilestones}
                   onEditCompany={openCompanyEditor}
+                  onOpenArchive={() => setView('statistikarchiv')}
                 />
               )}
+              {view === 'statistikarchiv' && <StatisticsArchiveView onBack={() => setView('auswertungen')} />}
               {view === 'posteingang' && (
                 <InboxView
                   messages={inbox}

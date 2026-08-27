@@ -7,6 +7,7 @@ import {
   Boxes,
   Star,
   AlertTriangle,
+  Archive,
 } from 'lucide-react';
 import type {
   Company,
@@ -39,6 +40,7 @@ interface CentralViewProps {
   dailyFixed?: DailyFixedCosts;
   corporateMilestones: CorporateMilestoneState;
   onEditCompany?: () => void;
+  onOpenArchive?: () => void;
 }
 
 export function CentralView({
@@ -51,6 +53,7 @@ export function CentralView({
   dailyFixed,
   corporateMilestones,
   onEditCompany,
+  onOpenArchive,
 }: CentralViewProps) {
   const activeAssignments = assignments.filter(
     (a) => a.status === 'geplant' || a.status === 'aktiv',
@@ -90,11 +93,19 @@ export function CentralView({
       title="Auswertungen"
       subtitle="Kennzahlen, Erlöse und Betriebsstatus"
       actions={
-        onEditCompany ? (
-          <button type="button" onClick={onEditCompany} className="btn-action btn-action-detail">
-            Firma bearbeiten
-          </button>
-        ) : undefined
+        <div className="flex flex-wrap gap-2">
+          {onOpenArchive && (
+            <button type="button" onClick={onOpenArchive} className="btn-action btn-action-detail">
+              <Archive className="h-3.5 w-3.5" />
+              Ruhmeshalle
+            </button>
+          )}
+          {onEditCompany && (
+            <button type="button" onClick={onEditCompany} className="btn-action btn-action-detail">
+              Firma bearbeiten
+            </button>
+          )}
+        </div>
       }
     >
 

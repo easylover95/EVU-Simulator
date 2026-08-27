@@ -266,6 +266,35 @@ try {
   const inboxScreenshot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
   await writeFile(`${outputDir}/posteingang-${width}x${height}.png`, Buffer.from(inboxScreenshot.data, 'base64'));
 
+  await client.evaluate(`localStorage.setItem('evu-statistics-archive', JSON.stringify([{
+    id: 'mobile-archive-fixture', companyName: 'Testbahn Nord', hqLocation: 'Hamburg', difficulty: 'hardcore', startCapital: 50000,
+    startedTick: 0, completedTrips: 18, freightTonnes: 12450, totalRevenue: 184200, peakRevenue: 28900,
+    archivedAt: '2026-08-27T12:00:00.000Z', endedTick: 315, endingBalance: 128500, endingLevel: 4, reputation: 73, source: 'reset'
+  }])); document.querySelectorAll('.app-mobile-quicknav-item')[0]?.click();`);
+  await wait(350);
+  await client.evaluate(`([...document.querySelectorAll('button')].find((button) => button.offsetParent && button.textContent?.toUpperCase().includes('PC ÖFFNEN')))?.click()`);
+  await wait(450);
+  await client.evaluate(`([...document.querySelectorAll('button')].find((button) => button.offsetParent && button.textContent?.toUpperCase().includes('ANALYSEN ÖFFNEN')))?.click()`);
+  await wait(500);
+  await client.evaluate(`([...document.querySelectorAll('button')].find((button) => button.offsetParent && button.textContent?.toUpperCase().includes('RUHMESHALLE')))?.click()`);
+  await wait(550);
+  checks.archive = await capture(client, 'ruhmeshalle');
+  checks.archive.layout = await client.evaluate(`(() => {
+    const entries = [...document.querySelectorAll('[data-statistics-archive-entry]')];
+    const rect = (element) => {
+      const value = element.getBoundingClientRect();
+      return { left: Math.round(value.left), right: Math.round(value.right), width: Math.round(value.width), top: Math.round(value.top), bottom: Math.round(value.bottom) };
+    };
+    return {
+      screenPresent: Boolean(document.querySelector('[data-statistics-archive]')),
+      entries: entries.map(rect),
+      cardLayoutActive: entries.length > 0,
+      entryText: entries[0]?.textContent?.replace(/\\s+/g, ' ').trim() ?? '',
+    };
+  })()`);
+  const archiveScreenshot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+  await writeFile(`${outputDir}/ruhmeshalle-${width}x${height}.png`, Buffer.from(archiveScreenshot.data, 'base64'));
+
   const report = {
     viewport: { width, height },
     interaction: { selectedSpeed: speedAfterClick, selectedClockControl: pauseAfterClick },
@@ -301,6 +330,12 @@ try {
       && checks.inbox?.layout?.contentHasWidth
       && checks.inbox?.layout?.actionsBelowText
       && checks.inbox?.layout?.actionButtonsAreFullWidth
+      && checks.archive?.view === 'Ruhmeshalle'
+      && checks.archive?.layout?.screenPresent
+      && checks.archive?.layout?.cardLayoutActive
+      && checks.archive?.layout?.entries?.every((entry) => entry.left >= 0 && entry.right <= width)
+      && checks.archive?.layout?.entryText.includes('Testbahn Nord')
+      && checks.archive?.layout?.entryText.includes('12.450 t')
       && speedAfterClick === '5×'
       && pauseAfterClick === 'Spiel pausieren',
   };

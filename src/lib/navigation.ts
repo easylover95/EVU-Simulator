@@ -8,6 +8,7 @@ export type AppView =
   | 'personal'
   | 'finanzen'
   | 'auswertungen'
+  | 'statistikarchiv'
   | 'posteingang'
   | 'vertraege'
   | 'spielerboerse'
@@ -92,6 +93,7 @@ const VIEW_CATEGORY: Record<AppView, NavCategory> = {
   zentrale: 'zentrale',
   dashboard: 'zentrale',
   auswertungen: 'zentrale',
+  statistikarchiv: 'zentrale',
   posteingang: 'firma',
   auftragsmarkt: 'transport',
   spielerboerse: 'transport',

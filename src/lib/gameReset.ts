@@ -1,4 +1,7 @@
+import { STATISTICS_ARCHIVE_KEY } from '@/lib/statisticsArchive';
+
 const GAME_STORAGE_PREFIX = 'evu-';
+const PRESERVED_GAME_STORAGE_KEYS = new Set([STATISTICS_ARCHIVE_KEY]);
 
 /**
  * Entfernt ausschließlich den lokalen Spielstand des EVU-Simulators.
@@ -9,7 +12,7 @@ export function clearLocalGameState(): void {
 
   for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
     const key = window.localStorage.key(index);
-    if (key?.startsWith(GAME_STORAGE_PREFIX)) {
+    if (key?.startsWith(GAME_STORAGE_PREFIX) && !PRESERVED_GAME_STORAGE_KEYS.has(key)) {
       window.localStorage.removeItem(key);
     }
   }
