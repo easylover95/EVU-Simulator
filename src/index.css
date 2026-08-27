@@ -1554,21 +1554,33 @@ body,
 
 
 .office-hotspot--gallery {
-  /* Same rectangular interaction frame as the Firma tile; position is defined in OfficeHQView. */
-  border-radius: 12px;
+  /* This button is mapped to the wood picture frame itself. Keep every visible
+     affordance inside that exact cover-mapped rectangle. */
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 2px solid rgba(245, 158, 11, 0.72);
+  border-radius: 8px;
+  padding: 0.34rem;
+  background: rgba(24, 17, 7, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(253, 230, 138, 0.18);
 }
 
 .office-hotspot--gallery .office-hotspot-chip {
-  position: absolute;
-  left: 50%;
-  top: 100%;
-  margin-top: 0.35rem;
-  transform: translateX(-50%);
+  position: static;
+  z-index: 1;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.3rem 0.48rem;
+  font-size: clamp(8px, 0.72vw, 11px);
+  line-height: 1.1;
+  text-align: center;
+  white-space: normal;
+  transform: none;
 }
 
 .office-hotspot--gallery:hover .office-hotspot-chip,
 .office-hotspot--gallery:focus-visible .office-hotspot-chip {
-  transform: translateX(-50%) translateY(-3px) scale(1.06);
+  transform: scale(1.02);
 }
 
 .achievements-gallery-hero {
