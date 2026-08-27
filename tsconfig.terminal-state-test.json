@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.app.json",
+  "include": [
+    "src/lib/terminalEntities.ts",
+    "src/lib/terminalLogistics.ts",
+    "src/state/terminalSimulationStore.ts",
+    "scripts/testTerminalSimulationStore.ts"
+  ],
+  "compilerOptions": {
+    "noEmit": true
+  }
+}
