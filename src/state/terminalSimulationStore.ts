@@ -1162,7 +1162,7 @@ export function createTerminalSimulationStore(
 ): TerminalSimulationStore {
   const initial = createInitialSnapshot(initialSnapshot);
 
-  return createStore<TerminalSimulationState>()((set) => ({
+  return createStore<TerminalSimulationState>()((set, get) => ({
     ...initial,
 
     replaceSnapshot: (snapshot) => set(() => normaliseSnapshot(snapshot)),

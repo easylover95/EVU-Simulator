@@ -6,6 +6,7 @@ export type AppView =
   | 'auftragsmarkt'
   | 'terminal'
   | 'terminalmanagement'
+  | 'terminalanalytics'
   | 'zugbildung'
   | 'disposition'
   | 'personal'
@@ -54,6 +55,7 @@ export const NAV_CATEGORIES: NavCategoryDef[] = [
       { id: 'auftragsmarkt', label: 'Frachtbörse' },
       { id: 'terminal', label: 'Terminal' },
       { id: 'terminalmanagement', label: 'Management' },
+      { id: 'terminalanalytics', label: 'Terminal-Analyse' },
       { id: 'zugbildung', label: 'Baugleis-Zug' },
       { id: 'spielerboerse', label: 'Spieler-Börse' },
       { id: 'disposition', label: 'Disposition' },
@@ -104,6 +106,7 @@ const VIEW_CATEGORY: Record<AppView, NavCategory> = {
   auftragsmarkt: 'transport',
   terminal: 'transport',
   terminalmanagement: 'transport',
+  terminalanalytics: 'transport',
   zugbildung: 'transport',
   spielerboerse: 'transport',
   disposition: 'transport',
@@ -164,6 +167,7 @@ export function atmosphereForView(view: AppView): SubmenuAtmosphere | null {
     case 'auftragsmarkt':
     case 'terminal':
     case 'terminalmanagement':
+    case 'terminalanalytics':
     case 'zugbildung':
     case 'spielerboerse':
     case 'tourenplaner':

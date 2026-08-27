@@ -350,6 +350,7 @@ const FleetView = lazy(() => import('@/views/FleetView').then(({ FleetView }) =>
 const WagonParkView = lazy(() => import('@/views/WagonParkView').then(({ WagonParkView }) => ({ default: WagonParkView })));
 const TerminalInboundView = lazy(() => import('@/views/TerminalInboundView').then(({ TerminalInboundView }) => ({ default: TerminalInboundView })));
 const TerminalManagementView = lazy(() => import('@/views/TerminalManagementView').then(({ TerminalManagementView }) => ({ default: TerminalManagementView })));
+const TerminalAnalyticsView = lazy(() => import('@/views/TerminalAnalyticsView').then(({ TerminalAnalyticsView }) => ({ default: TerminalAnalyticsView })));
 const TrainConfigurationView = lazy(() => import('@/views/TrainConfigurationView').then(({ TrainConfigurationView }) => ({ default: TrainConfigurationView })));
 const OrderMarketView = lazy(() => import('@/views/OrderMarketView').then(({ OrderMarketView }) => ({ default: OrderMarketView })));
 const DispatchView = lazy(() => import('@/views/DispatchView').then(({ DispatchView }) => ({ default: DispatchView })));
@@ -3033,7 +3034,8 @@ function App() {
                 />
               )}
               {view === 'terminal' && <TerminalInboundView onOpenConfiguration={() => setView('zugbildung')} onOpenManagement={() => setView('terminalmanagement')} />}
-              {view === 'terminalmanagement' && <TerminalManagementView onOpenTerminal={() => setView('terminal')} />}
+              {view === 'terminalmanagement' && <TerminalManagementView onOpenTerminal={() => setView('terminal')} onOpenAnalytics={() => setView('terminalanalytics')} />}
+              {view === 'terminalanalytics' && <TerminalAnalyticsView onOpenManagement={() => setView('terminalmanagement')} />}
               {view === 'zugbildung' && <TrainConfigurationView onBack={() => setView('terminal')} />}
               {view === 'spielerboerse' && <PlayerMarketView />}
               {view === 'disposition' && (
