@@ -1,4 +1,4 @@
-import type { CargoCategory, CargoType, Train, Wagon } from '@/lib/terminalEntities';
+import type { CargoCategory, Train, Wagon } from '@/lib/terminalEntities';
 import type { TerminalSimulationEvent, TerminalSimulationSnapshot } from '@/state/terminalSimulationStore';
 
 export type AnalyticsExpenseCategory = 'PERSONAL' | 'AUSBAU' | 'LIEGEGEBUEHR' | 'EREIGNISSTRAFE';
