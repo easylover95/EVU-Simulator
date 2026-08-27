@@ -712,6 +712,34 @@ body,
   transform: scale(1.06);
 }
 
+/* AVIF is preferred where supported; WebP preserves a compact fallback path. */
+.submenu-atmosphere-photo--hall {
+  background-image: image-set(
+    url('/assets/responsive/bg-fleet-hall-1536.avif') type('image/avif') 1x,
+    url('/assets/responsive/bg-fleet-hall-1536.webp') type('image/webp') 1x
+  );
+}
+
+.submenu-atmosphere-photo--yard {
+  background-image: image-set(
+    url('/assets/responsive/bg-transport-yard-1536.avif') type('image/avif') 1x,
+    url('/assets/responsive/bg-transport-yard-1536.webp') type('image/webp') 1x
+  );
+}
+
+.submenu-atmosphere-photo--network {
+  background-image: image-set(
+    url('/assets/responsive/bg-network-stellwerk-1536.avif') type('image/avif') 1x,
+    url('/assets/responsive/bg-network-stellwerk-1536.webp') type('image/webp') 1x
+  );
+}
+
+.submenu-atmosphere-photo--office {
+  background-image: image-set(
+    url('/assets/leitstelle_bg.webp') type('image/webp') 1x
+  );
+}
+
 .submenu-atmosphere-veil {
   position: absolute;
   inset: 0;
@@ -2500,6 +2528,29 @@ body,
   }
 }
 
+@media (max-width: 767px) {
+  .submenu-atmosphere-photo--hall {
+    background-image: image-set(
+      url('/assets/responsive/bg-fleet-hall-768.avif') type('image/avif') 1x,
+      url('/assets/responsive/bg-fleet-hall-768.webp') type('image/webp') 1x
+    );
+  }
+
+  .submenu-atmosphere-photo--yard {
+    background-image: image-set(
+      url('/assets/responsive/bg-transport-yard-768.avif') type('image/avif') 1x,
+      url('/assets/responsive/bg-transport-yard-768.webp') type('image/webp') 1x
+    );
+  }
+
+  .submenu-atmosphere-photo--network {
+    background-image: image-set(
+      url('/assets/responsive/bg-network-stellwerk-768.avif') type('image/avif') 1x,
+      url('/assets/responsive/bg-network-stellwerk-768.webp') type('image/webp') 1x
+    );
+  }
+}
+
 @media (max-width: 640px) {
   .main-menu-photo {
     background-image:
@@ -2507,7 +2558,8 @@ body,
       url('/assets/leitstelle_bg-mobile.webp');
   }
 
-  .office-scene {
+  .office-scene,
+  .submenu-atmosphere-photo--office {
     background-image: url('/assets/leitstelle_bg-mobile.webp');
   }
 }

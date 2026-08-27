@@ -1,63 +1,62 @@
 /**
- * Local Wikimedia-sourced JPEGs in /public/locos (1280px thumbs, HTTP 200 verified).
- * LocoPhoto walks the list on img onError, then falls back to a glass technical badge (lucide icons).
- *
- * Sources (Commons Special:FilePath?width=1280):
- *   v60.jpg         363 200 Frankfurt-Hauptbahnhof 09052009.JPG
- *   v90.jpg         294 845-3 Köln-Gremberg 2015-10-10-02.JPG
- *   br218.jpg       DB 218 835 in Stuttgart Hbf.jpg
- *   g1206.jpg       Vossloh G 1206 (52510680855).jpg
- *   g2000.jpg       Vossloh G2000-1BB.jpg
- *   br140.jpg       Eilenburg Baureihe 140.jpg
- *   traxx185.jpg    Königswinter DB Raillion 185 152 (52184320574).jpg
- *   vectron193.jpg  Siemens Vectron 193 837.jpg
- *   vectron248.jpg  Siemens Vectron Dual Mode 248 001 in Brake (Utw.).jpg
- *   eurodual159.jpg Regensburg Hbf - Stadler Eurodual - VTG 159 222 - 002.jpg
- *   smartron.jpg    Egoo 192 001 Oldenburg Hbf.jpg
- *   koef3.jpg       DB 333.jpg
- *   br232.jpg       DB-BR 232 (8148176075).jpg
- *   de18.jpg        Vossloh DE 18 (52783883020).jpg
- *   facns.jpg       Schotterzug (4631470229).jpg
- *   zans.jpg        33 80 7844 588-3, 1, Bitterfeld, Bitterfeld-Wolfen, Landkreis Anhalt-Bitterfeld.jpg
- *   sggrss.jpg      Nagykőrös D-VTGCH Sggrss 37 80 4980 208-5 teherkocsi 2022-06-21.JPG
- *   res.jpg         J41 849 Bf Gröbers, Flachwagen Gattung Res.jpg
- *   /wagons/hbbillns.jpg  21 RIV 85 245 7 502-2 Hbbillns Châtillens 28.02.2012.jpg
- */
-/**
- * Photo previews for fleet / dealer / depot cards.
- * Dirty Wikimedia JPEGs with DB / Railion cookies stay on disk unused.
- * Clean rasters: original private-operator JPEGs, or *-clean.jpg without those marks.
+ * Responsive local photo derivatives for fleet, dealer and depot cards.
+ * `scripts/generateResponsiveAssets.py` produces the 320w/640w/960w AVIF and
+ * WebP files from the locally archived, attribution-documented source photos.
+ * The 640w WebP is the universal fallback; `LocoPhoto` selects a smaller or
+ * modern-format source through `<picture>` whenever the browser supports it.
  */
 export const LOCO_PHOTO_URLS = {
-  kof3: ['/locos/koef3-clean.jpg'],
-  v60: ['/locos/v60-clean.jpg'],
-  v90: ['/locos/v90-clean.jpg'],
-  br218: ['/locos/br218-clean.jpg'],
-  br232: ['/locos/br232-clean.jpg'],
-  g1206: ['/locos/g1206.jpg'],
-  g2000: ['/locos/g2000.jpg'],
-  de18: ['/locos/de18.jpg'],
-  br140: ['/locos/br140-clean.jpg'],
-  traxx: ['/locos/traxx185-clean.jpg'],
-  vectron: ['/locos/vectron193.jpg'],
-  smartron: ['/locos/smartron.jpg'],
-  vectronDm: ['/locos/vectron248.jpg'],
-  eurodual: ['/locos/eurodual159.jpg'],
+  kof3: ['/locos/responsive/koef3-clean-640.webp'],
+  v60: ['/locos/responsive/v60-clean-640.webp'],
+  v90: ['/locos/responsive/v90-clean-640.webp'],
+  br218: ['/locos/responsive/br218-clean-640.webp'],
+  br232: ['/locos/responsive/br232-clean-640.webp'],
+  g1206: ['/locos/responsive/g1206-640.webp'],
+  g2000: ['/locos/responsive/g2000-640.webp'],
+  de18: ['/locos/responsive/de18-640.webp'],
+  br140: ['/locos/responsive/br140-clean-640.webp'],
+  traxx: ['/locos/responsive/traxx185-clean-640.webp'],
+  vectron: ['/locos/responsive/vectron193-640.webp'],
+  smartron: ['/locos/responsive/smartron-640.webp'],
+  vectronDm: ['/locos/responsive/vectron248-640.webp'],
+  eurodual: ['/locos/responsive/eurodual159-640.webp'],
 } as const;
 
-/** Wikimedia HD fallback when /public/wagons/hbbillns.jpg is missing at runtime. */
+/** Wikimedia HD fallback when the packaged Hbbillns derivative is unavailable. */
 export const HBBILLNS_WIKIMEDIA_FALLBACK =
   'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fe/21_RIV_85_245_7_502-2_Hbbillns_Ch%C3%A2tillens_28.02.2012.jpg/1920px-21_RIV_85_245_7_502-2_Hbbillns_Ch%C3%A2tillens_28.02.2012.jpg';
 
 export const WAGON_PHOTO_URLS = {
-  facns: ['/locos/facns.jpg'],
-  zans: ['/locos/zans.jpg'],
-  sggrss: ['/locos/sggrss.jpg'],
-  res: ['/locos/res.jpg'],
-  eanos: ['/locos/facns.jpg'],
-  tads: ['/locos/facns.jpg'],
-  hbbillns: ['/wagons/hbbillns.jpg', HBBILLNS_WIKIMEDIA_FALLBACK],
+  facns: ['/locos/responsive/facns-640.webp'],
+  zans: ['/locos/responsive/zans-640.webp'],
+  sggrss: ['/locos/responsive/sggrss-640.webp'],
+  res: ['/locos/responsive/res-640.webp'],
+  eanos: ['/locos/responsive/facns-640.webp'],
+  tads: ['/locos/responsive/facns-640.webp'],
+  hbbillns: ['/wagons/responsive/hbbillns-640.webp', HBBILLNS_WIKIMEDIA_FALLBACK],
 } as const;
+
+export interface ResponsivePhotoSources {
+  avifSrcSet: string;
+  webpSrcSet: string;
+  sizes: string;
+}
+
+/** Returns responsive source sets only for packaged local vehicle derivatives. */
+export function responsivePhotoSources(src: string): ResponsivePhotoSources | null {
+  const match = src.match(/^(.*)-640\.webp$/);
+  if (!match || (!src.startsWith('/locos/responsive/') && !src.startsWith('/wagons/responsive/'))) return null;
+
+  const base = match[1];
+  const srcSet = (extension: 'avif' | 'webp') =>
+    [320, 640, 960].map((width) => `${base}-${width}.${extension} ${width}w`).join(', ');
+
+  return {
+    avifSrcSet: srcSet('avif'),
+    webpSrcSet: srcSet('webp'),
+    sizes: '(max-width: 639px) calc(100vw - 2rem), (max-width: 1023px) 33vw, 20rem',
+  };
+}
 
 /** Dealer catalog IDs → photo thumbs (locos / wagons). */
 export const PHOTO_BY_CATALOG_ID: Record<string, string[]> = {
@@ -76,13 +75,13 @@ export const PHOTO_BY_CATALOG_ID: Record<string, string[]> = {
   vectron: [...LOCO_PHOTO_URLS.vectron],
   'vectron-dm': [...LOCO_PHOTO_URLS.vectronDm],
   eurodual: [...LOCO_PHOTO_URLS.eurodual],
-  facns: ['/locos/facns.jpg'],
-  res: ['/locos/res.jpg'],
-  zans: ['/locos/zans.jpg'],
-  sggrss: ['/locos/sggrss.jpg'],
-  eanos: ['/locos/facns.jpg'],
-  tads: ['/locos/facns.jpg'],
-  hbbillns: ['/wagons/hbbillns.jpg', HBBILLNS_WIKIMEDIA_FALLBACK],
+  facns: [...WAGON_PHOTO_URLS.facns],
+  res: [...WAGON_PHOTO_URLS.res],
+  zans: [...WAGON_PHOTO_URLS.zans],
+  sggrss: [...WAGON_PHOTO_URLS.sggrss],
+  eanos: [...WAGON_PHOTO_URLS.eanos],
+  tads: [...WAGON_PHOTO_URLS.tads],
+  hbbillns: [...WAGON_PHOTO_URLS.hbbillns],
 };
 
 /** EBA class BR 272 = Vossloh G 2000 BB (heavy mainline / construction-train diesel). */

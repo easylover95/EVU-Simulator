@@ -1,6 +1,6 @@
 import { AlertTriangle, BarChart3, BriefcaseBusiness, ChevronRight, Landmark, MapPinned, TrainFront } from 'lucide-react';
 import type { Assignment, Company, Locomotive, Order } from '@/lib/supabase';
-import type { AppView } from '@/lib/navigation';
+import { prefetchAssetsForView, type AppView } from '@/lib/navigation';
 import { formatEuro } from '@/lib/status';
 
 interface MobileCommandDashboardProps {
@@ -20,6 +20,7 @@ function deadlineLabel(value: string | null): string {
 
 /** Mobile-First-Leitstelle: priorisiert einen echten nächsten Einsatz und zentrale Einhand-Aktionen. */
 export function MobileCommandDashboard({ company, orders, assignments, locomotives, onNavigate }: MobileCommandDashboardProps) {
+  const prepareView = (view: AppView) => prefetchAssetsForView(view);
   const activeAssignments = assignments.filter((assignment) => assignment.status === 'aktiv' || assignment.status === 'geplant');
   const activeOrder = activeAssignments
     .map((assignment) => orders.find((order) => order.id === assignment.order_id))
@@ -53,7 +54,7 @@ export function MobileCommandDashboard({ company, orders, assignments, locomotiv
               <span>{formatEuro(focusOrder.yield)}</span>
               <span>{deadlineLabel(focusOrder.deadline)}</span>
             </div>
-            <button type="button" className="btn-action btn-action-primary w-full" onClick={() => onNavigate('disposition')}>
+            <button type="button" className="btn-action btn-action-primary w-full" onPointerEnter={() => prepareView('disposition')} onFocus={() => prepareView('disposition')} onTouchStart={() => prepareView('disposition')} onClick={() => onNavigate('disposition')}>
               {focusIsActive ? 'Zur Zugdisposition' : 'Auftrag disponieren'} <ChevronRight className="h-4 w-4" />
             </button>
           </>
@@ -61,7 +62,7 @@ export function MobileCommandDashboard({ company, orders, assignments, locomotiv
           <>
             <h2>Leitstelle bereit</h2>
             <p>Aktuell wartet kein offener Auftrag. Prüfe den Markt oder plane die nächste Fahrt.</p>
-            <button type="button" className="btn-action btn-action-primary w-full" onClick={() => onNavigate('auftragsmarkt')}>
+            <button type="button" className="btn-action btn-action-primary w-full" onPointerEnter={() => prepareView('auftragsmarkt')} onFocus={() => prepareView('auftragsmarkt')} onTouchStart={() => prepareView('auftragsmarkt')} onClick={() => onNavigate('auftragsmarkt')}>
               Zum Auftragsmarkt <ChevronRight className="h-4 w-4" />
             </button>
           </>
@@ -69,11 +70,11 @@ export function MobileCommandDashboard({ company, orders, assignments, locomotiv
       </section>
 
       <section className="mobile-command-quick-actions" aria-label="Schnellzugriffe">
-        <button type="button" onClick={() => onNavigate('auftragsmarkt')}><BriefcaseBusiness /><span>Frachtmarkt</span><small>{orders.filter((order) => order.status === 'offen').length} offen</small></button>
-        <button type="button" onClick={() => onNavigate('disposition')}><MapPinned /><span>Disposition</span><small>{activeAssignments.length} im Plan</small></button>
-        <button type="button" onClick={() => onNavigate('fuhrpark')}><TrainFront /><span>Fuhrpark</span><small>{freeLocos}/{locomotives.length} frei</small></button>
-        <button type="button" onClick={() => onNavigate('bank')}><Landmark /><span>Finanzen</span><small>{formatEuro(company?.balance ?? 0)}</small></button>
-        <button type="button" onClick={() => onNavigate('auswertungen')}><BarChart3 /><span>Auswertungen</span><small>KPIs & Archiv</small></button>
+        <button type="button" onPointerEnter={() => prepareView('auftragsmarkt')} onFocus={() => prepareView('auftragsmarkt')} onTouchStart={() => prepareView('auftragsmarkt')} onClick={() => onNavigate('auftragsmarkt')}><BriefcaseBusiness /><span>Frachtmarkt</span><small>{orders.filter((order) => order.status === 'offen').length} offen</small></button>
+        <button type="button" onPointerEnter={() => prepareView('disposition')} onFocus={() => prepareView('disposition')} onTouchStart={() => prepareView('disposition')} onClick={() => onNavigate('disposition')}><MapPinned /><span>Disposition</span><small>{activeAssignments.length} im Plan</small></button>
+        <button type="button" onPointerEnter={() => prepareView('fuhrpark')} onFocus={() => prepareView('fuhrpark')} onTouchStart={() => prepareView('fuhrpark')} onClick={() => onNavigate('fuhrpark')}><TrainFront /><span>Fuhrpark</span><small>{freeLocos}/{locomotives.length} frei</small></button>
+        <button type="button" onPointerEnter={() => prepareView('bank')} onFocus={() => prepareView('bank')} onTouchStart={() => prepareView('bank')} onClick={() => onNavigate('bank')}><Landmark /><span>Finanzen</span><small>{formatEuro(company?.balance ?? 0)}</small></button>
+        <button type="button" onPointerEnter={() => prepareView('auswertungen')} onFocus={() => prepareView('auswertungen')} onTouchStart={() => prepareView('auswertungen')} onClick={() => onNavigate('auswertungen')}><BarChart3 /><span>Auswertungen</span><small>KPIs & Archiv</small></button>
       </section>
     </div>
   );

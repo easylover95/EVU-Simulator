@@ -5,8 +5,8 @@
 | Asset | Use | File / source | Status |
 | --- | --- | --- | --- |
 | EVU Tycoon UI reference | Visual QA target for the handbook and personnel workflows | `/home/ubuntu/webdev-static-assets/evu-tycoon-ui-reference.png` | Generated |
-| Headquarters office background | Existing 2D office context behind management UI | `public/office-hq-bg.png`, `src/assets/office-bg-4k.jpg` | Existing |
-| Railway locomotive images | Existing fleet and qualification context | `public/locos/*` | Existing |
+| Headquarters office background | Responsive 2D office context behind management UI | `public/assets/leitstelle_bg.webp`, `public/assets/leitstelle_bg-mobile.webp` | Optimized |
+| Railway locomotive images | Responsive fleet and qualification images | `public/locos/responsive/*`, `public/wagons/responsive/*` | Optimized |
 
 ## Reference-image prompt
 

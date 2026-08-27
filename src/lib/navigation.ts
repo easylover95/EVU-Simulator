@@ -134,10 +134,11 @@ export function isPcAppView(view: AppView): boolean {
 /** Thematic fullscreen photo behind submenu UI (Zentrale uses the sharp office plate). */
 export type SubmenuAtmosphere = 'hall' | 'yard' | 'network' | 'office';
 
+/** Compact universal fallbacks for predictive cache warming; the renderer itself uses CSS image-set(). */
 export const ATMOSPHERE_SRC: Record<SubmenuAtmosphere, string> = {
-  hall: '/assets/bg-fleet-hall.png',
-  yard: '/assets/bg-transport-yard.png',
-  network: '/assets/bg-network-stellwerk.png',
+  hall: '/assets/responsive/bg-fleet-hall-1536.webp',
+  yard: '/assets/responsive/bg-transport-yard-1536.webp',
+  network: '/assets/responsive/bg-network-stellwerk-1536.webp',
   office: '/assets/leitstelle_bg.webp',
 };
 
@@ -158,5 +159,79 @@ export function atmosphereForView(view: AppView): SubmenuAtmosphere | null {
       return 'yard';
     default:
       return 'office';
+  }
+}
+
+type NetworkInformationLike = {
+  saveData?: boolean;
+  effectiveType?: string;
+};
+
+const prefetchedAssets = new Set<string>();
+
+function shouldSkipAssetPrefetch(): boolean {
+  if (typeof window === 'undefined') return true;
+  if (document.documentElement.dataset.performanceMode === 'power-saver') return true;
+
+  const connection = (navigator as Navigator & { connection?: NetworkInformationLike }).connection;
+  return Boolean(connection?.saveData || connection?.effectiveType === 'slow-2g' || connection?.effectiveType === '2g');
+}
+
+function browserPrefersAvif(): boolean {
+  return typeof CSS !== 'undefined' && CSS.supports('background-image', "image-set(url('asset.avif') type('image/avif') 1x)");
+}
+
+function responsiveAtmosphereAsset(theme: SubmenuAtmosphere): string | null {
+  if (theme === 'office') return null;
+  const nameByTheme: Record<Exclude<SubmenuAtmosphere, 'office'>, string> = {
+    hall: 'bg-fleet-hall',
+    yard: 'bg-transport-yard',
+    network: 'bg-network-stellwerk',
+  };
+  const width = window.matchMedia('(max-width: 767px)').matches ? 768 : 1536;
+  const extension = browserPrefersAvif() ? 'avif' : 'webp';
+  return `/assets/responsive/${nameByTheme[theme]}-${width}.${extension}`;
+}
+
+function vehiclePreviewAssets(view: AppView): string[] {
+  const extension = browserPrefersAvif() ? 'avif' : 'webp';
+  if (view === 'fuhrpark' || view === 'haendler') {
+    return [
+      `/locos/responsive/br218-clean-640.${extension}`,
+      `/locos/responsive/v90-clean-640.${extension}`,
+    ];
+  }
+  if (view === 'wagenpark') {
+    return [
+      `/locos/responsive/facns-640.${extension}`,
+      `/wagons/responsive/hbbillns-640.${extension}`,
+    ];
+  }
+  return [];
+}
+
+/**
+ * Warm only the likely next local images after a navigation intent. The low
+ * priority browser prefetch is purposely disabled for the user's power-saver
+ * mode and metered or very slow connections.
+ */
+export function prefetchAssetsForView(view: AppView): void {
+  if (shouldSkipAssetPrefetch()) return;
+
+  const atmosphere = atmosphereForView(view);
+  const assets = [
+    ...(atmosphere ? [responsiveAtmosphereAsset(atmosphere)].filter((asset): asset is string => Boolean(asset)) : []),
+    ...vehiclePreviewAssets(view),
+  ];
+
+  for (const asset of assets) {
+    if (prefetchedAssets.has(asset)) continue;
+    prefetchedAssets.add(asset);
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.as = 'image';
+    link.href = asset;
+    if (asset.endsWith('.avif')) link.type = 'image/avif';
+    document.head.append(link);
   }
 }

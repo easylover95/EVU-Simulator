@@ -3,7 +3,7 @@ import { BarChart3, BriefcaseBusiness, ChevronRight, ClipboardList, Home, Landma
 import type { Company } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
-import { NAV_CATEGORIES, categoryDef, categoryForView, showsSubnav, type AppView } from '@/lib/navigation';
+import { NAV_CATEGORIES, categoryDef, categoryForView, prefetchAssetsForView, showsSubnav, type AppView } from '@/lib/navigation';
 
 export interface AppTopbarProps {
   headerRef: RefObject<HTMLElement | null>;
@@ -55,7 +55,12 @@ export function AppTopbar({
     { id: 'finanzen', label: 'Finanzen', view: 'bank', icon: Landmark, active: cat === 'finance' },
   ];
 
+  function warmViewAssets(viewId: AppView) {
+    prefetchAssetsForView(viewId);
+  }
+
   function navigateMobile(viewId: AppView) {
+    warmViewAssets(viewId);
     setMobileMenuOpen(false);
     onSetView(viewId);
   }
@@ -226,6 +231,9 @@ export function AppTopbar({
                 type="button"
                 title={item.label}
                 aria-label={item.label}
+                onPointerEnter={() => warmViewAssets(item.defaultView)}
+                onFocus={() => warmViewAssets(item.defaultView)}
+                onTouchStart={() => warmViewAssets(item.defaultView)}
                 onClick={() => onSetView(item.defaultView)}
                 className={`app-nav-tab ${active ? 'is-active' : ''}`}
               >
@@ -243,6 +251,9 @@ export function AppTopbar({
             <button
               key={item.id}
               type="button"
+              onPointerEnter={() => warmViewAssets(item.id)}
+              onFocus={() => warmViewAssets(item.id)}
+              onTouchStart={() => warmViewAssets(item.id)}
               onClick={() => onSetView(item.id)}
               className={`app-sub-tab ${view === item.id ? 'is-active' : ''}`}
             >
@@ -260,6 +271,9 @@ export function AppTopbar({
               key={item.id}
               type="button"
               aria-label={item.label}
+              onPointerEnter={() => warmViewAssets(item.view)}
+              onFocus={() => warmViewAssets(item.view)}
+              onTouchStart={() => warmViewAssets(item.view)}
               onClick={() => navigateMobile(item.view)}
               className={`app-mobile-quicknav-item ${item.active ? 'is-active' : ''}`}
             >
@@ -281,12 +295,12 @@ export function AppTopbar({
             <div className="app-mobile-menu-handle" aria-hidden />
             <div className="flex items-center justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-300">Leitstellen-Menü</p><h2 className="mt-1 text-base font-bold text-white">Verwaltung & Statistik</h2></div><button type="button" className="app-topbar-ctrl" aria-label="Menü schließen" onClick={() => setMobileMenuOpen(false)}><X className="h-4 w-4" /></button></div>
             <div className="app-mobile-menu-actions">
-              <button type="button" onClick={() => navigateMobile('auftragsmarkt')}><BriefcaseBusiness /><span>Auftragsmarkt</span><ChevronRight /></button>
-              <button type="button" onClick={() => navigateMobile('vertraege')}><ClipboardList /><span>Verträge</span><ChevronRight /></button>
-              <button type="button" onClick={() => navigateMobile('personal')}><UsersRound /><span>Firma & Personal</span><ChevronRight /></button>
-              <button type="button" onClick={() => navigateMobile('auswertungen')}><BarChart3 /><span>Auswertungen</span><ChevronRight /></button>
+              <button type="button" onPointerEnter={() => warmViewAssets('auftragsmarkt')} onFocus={() => warmViewAssets('auftragsmarkt')} onTouchStart={() => warmViewAssets('auftragsmarkt')} onClick={() => navigateMobile('auftragsmarkt')}><BriefcaseBusiness /><span>Auftragsmarkt</span><ChevronRight /></button>
+              <button type="button" onPointerEnter={() => warmViewAssets('vertraege')} onFocus={() => warmViewAssets('vertraege')} onTouchStart={() => warmViewAssets('vertraege')} onClick={() => navigateMobile('vertraege')}><ClipboardList /><span>Verträge</span><ChevronRight /></button>
+              <button type="button" onPointerEnter={() => warmViewAssets('personal')} onFocus={() => warmViewAssets('personal')} onTouchStart={() => warmViewAssets('personal')} onClick={() => navigateMobile('personal')}><UsersRound /><span>Firma & Personal</span><ChevronRight /></button>
+              <button type="button" onPointerEnter={() => warmViewAssets('auswertungen')} onFocus={() => warmViewAssets('auswertungen')} onTouchStart={() => warmViewAssets('auswertungen')} onClick={() => navigateMobile('auswertungen')}><BarChart3 /><span>Auswertungen</span><ChevronRight /></button>
               <button type="button" onClick={() => { setMobileMenuOpen(false); onOpenAchievements(); }}><Star /><span>Erfolge</span><ChevronRight /></button>
-              <button type="button" onClick={() => navigateMobile('statistikarchiv')}><Star /><span>Ruhmeshalle</span><ChevronRight /></button>
+              <button type="button" onPointerEnter={() => warmViewAssets('statistikarchiv')} onFocus={() => warmViewAssets('statistikarchiv')} onTouchStart={() => warmViewAssets('statistikarchiv')} onClick={() => navigateMobile('statistikarchiv')}><Star /><span>Ruhmeshalle</span><ChevronRight /></button>
               <button type="button" onClick={() => { setMobileMenuOpen(false); onEditCompany(); }}><Settings /><span>Einstellungen</span><ChevronRight /></button>
             </div>
             <div className="mt-3 flex gap-2"><button type="button" className="btn-action btn-action-detail flex-1" onClick={() => { setMobileMenuOpen(false); onHelp(); }}>Handbuch</button><button type="button" className="btn-action btn-action-danger flex-1" onClick={() => { setMobileMenuOpen(false); onLogout(); }}>Zum Hauptmenü</button></div>

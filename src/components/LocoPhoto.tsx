@@ -6,6 +6,7 @@ import {
   getWagonPhotoUrls,
   inferDriveKind,
   locoGlassTone,
+  responsivePhotoSources,
 } from '@/lib/locoPhotos';
 
 export const PHOTO_CARD_IMG_CLASS = 'w-full h-40 object-cover rounded-t-xl border-b border-amber-500/20';
@@ -67,23 +68,38 @@ export function LocoPhoto({ designation, catalogId, kind = 'loco', alt, classNam
     );
   }
 
-  return (
+  const src = urls[index];
+  const responsiveSources = responsivePhotoSources(src);
+  const handleError = () => {
+    if (index + 1 < urls.length) {
+      setIndex((i) => i + 1);
+    } else {
+      setExhausted(true);
+    }
+  };
+
+  const image = (
     <img
       key={`${kind}-${catalogId ?? designation}-${index}`}
-      src={urls[index]}
+      src={src}
       alt={alt ?? designation}
       className={className ?? 'h-full w-full object-cover'}
       loading="lazy"
       decoding="async"
       referrerPolicy="no-referrer"
-      onError={() => {
-        if (index + 1 < urls.length) {
-          setIndex((i) => i + 1);
-        } else {
-          setExhausted(true);
-        }
-      }}
+      sizes={responsiveSources?.sizes}
+      onError={handleError}
     />
+  );
+
+  if (!responsiveSources) return image;
+
+  return (
+    <picture>
+      <source type="image/avif" srcSet={responsiveSources.avifSrcSet} sizes={responsiveSources.sizes} />
+      <source type="image/webp" srcSet={responsiveSources.webpSrcSet} sizes={responsiveSources.sizes} />
+      {image}
+    </picture>
   );
 }
 
