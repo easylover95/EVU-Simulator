@@ -8,15 +8,14 @@ import {
   Gauge,
   PackagePlus,
   Plus,
-  Scale,
   TrainFront,
   X,
 } from 'lucide-react';
 
 import { Button, Card, CardFlush, CardHeader, StatPill } from '@/components/ui';
 import { createTerminalDemoSnapshot } from '@/lib/terminalDemo';
-import { checkTrainFeasibility, type TrainFeasibilityResult } from '@/lib/terminalLogistics';
-import type { CargoType, CargoUnit, Train, Wagon } from '@/lib/terminalEntities';
+import { checkTrainFeasibility } from '@/lib/terminalLogistics';
+import type { CargoType, CargoUnit, Wagon } from '@/lib/terminalEntities';
 import { useTerminalSimulation } from '@/state/terminalSimulationStore';
 
 function formatNumber(value: number, maximumFractionDigits = 1): string {
