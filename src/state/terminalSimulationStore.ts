@@ -7,6 +7,21 @@ import {
   type TrainFeasibilityResult,
   type ValidationCode,
 } from '@/lib/terminalLogistics';
+import {
+  createGameplayEventEngine,
+  createTerminalGameProgress,
+  createTerminalOperationalState,
+  evaluateTerminalGameProgress,
+  isConstructionSiteClosed,
+  resolveGameplayEvent as resolveGameplayEventEffect,
+  rollGameplayEvent,
+  type GameplayEvent,
+  type GameplayEventChoiceId,
+  type GameplayEventEngine,
+  type MajorProject,
+  type TerminalGameProgress,
+  type TerminalOperationalState,
+} from '@/lib/terminalGameplay';
 import type {
   CargoType,
   CargoTypeId,
@@ -49,6 +64,8 @@ export interface InboundArrival {
   label: string;
   cargoUnitIds: CargoUnitId[];
   status: InboundArrivalStatus;
+  /** Fällige Simulationsstunde für eine geplante Ankunft; nur für `SCHEDULED` gesetzt. */
+  expectedArrivalTick?: number | null;
   /** The first tick after which the terminal invoices laytime, inclusive. */
   freeBerthUntilTick: number;
   /** Charge in euro cents for each occupied tick after free time. */
@@ -81,7 +98,15 @@ export type TerminalSimulationEventType =
   | 'BERTH_FEE_BOOKED'
   | 'LUE_APPROVAL_REQUIRED'
   | 'TRAIN_DISPATCH_BLOCKED'
-  | 'TRAIN_DISPATCHED';
+  | 'TRAIN_DISPATCHED'
+  | 'INBOUND_ARRIVED'
+  | 'GAMEPLAY_EVENT_OFFERED'
+  | 'GAMEPLAY_EVENT_RESOLVED'
+  | 'CONSTRUCTION_SITE_BLOCKED'
+  | 'MAJOR_PROJECT_COMPLETED'
+  | 'LIQUIDITY_WARNING'
+  | 'GAME_WON'
+  | 'TERMINAL_INSOLVENT';
 
 export interface TerminalSimulationEvent {
   id: string;
@@ -99,7 +124,7 @@ export interface DispatchAttemptResult {
   dispatched: boolean;
   feasibility: TrainFeasibilityResult | null;
   /** A lifecycle problem outside the Phase-2 feasibility calculation. */
-  reason?: 'TRAIN_NOT_FOUND' | 'TERMINAL_NOT_FOUND' | 'TRAIN_NOT_IN_INSPECTION';
+  reason?: 'TRAIN_NOT_FOUND' | 'TERMINAL_NOT_FOUND' | 'TRAIN_NOT_IN_INSPECTION' | 'GAME_NOT_ACTIVE';
 }
 
 export interface AdvanceTickResult {
@@ -137,13 +162,20 @@ export interface TerminalSimulationSnapshot {
   inboundArrivalsById: Record<string, InboundArrival>;
   berthChargesById: Record<string, BerthCharge>;
   dispatchOrdersById: Record<string, TrainDispatchOrder>;
+
+  /** Persisted Phase-5 gameplay loop: offers, effects, projects and win/loss state. */
+  gameplayEventsById: Record<string, GameplayEvent>;
+  gameplayEventEngine: GameplayEventEngine;
+  operationalState: TerminalOperationalState;
+  majorProjectsById: Record<string, MajorProject>;
+  gameProgress: TerminalGameProgress;
   eventLog: TerminalSimulationEvent[];
 }
 
 export interface ScheduleTrainDepartureResult {
   scheduled: boolean;
   order?: TrainDispatchOrder;
-  reason?: 'TRAIN_NOT_FOUND' | 'INVALID_DEPARTURE_TICK' | 'ACTIVE_ORDER_ALREADY_EXISTS';
+  reason?: 'TRAIN_NOT_FOUND' | 'INVALID_DEPARTURE_TICK' | 'ACTIVE_ORDER_ALREADY_EXISTS' | 'GAME_NOT_ACTIVE';
 }
 
 /** Ergebnis einer UI-gesteuerten Zugbildungsaktion. */
@@ -165,6 +197,11 @@ export interface FormationMutationResult {
     | 'PAYLOAD_EXCEEDED';
 }
 
+export interface GameplayEventResolutionResult {
+  resolved: boolean;
+  reason?: 'EVENT_NOT_FOUND' | 'EVENT_NOT_OPEN' | 'INVALID_CHOICE';
+}
+
 export interface TerminalSimulationActions {
   /** Replaces the persisted snapshot after a server-side reload. */
   replaceSnapshot: (snapshot: TerminalSimulationSnapshot) => void;
@@ -174,6 +211,8 @@ export interface TerminalSimulationActions {
   resolveTrainEvent: (eventId: TrainEventId, status: Exclude<TrainEventStatus, 'OPEN'>) => boolean;
   /** Updates the physical handling state of an inbound arrival. */
   setInboundArrivalStatus: (arrivalId: string, status: InboundArrivalStatus) => boolean;
+  /** Resolves an offered operational event with a fully disclosed player choice. */
+  resolveGameplayEvent: (eventId: string, choiceId: GameplayEventChoiceId) => GameplayEventResolutionResult;
   /** Fügt einen verfügbaren Wagen als nächste Baustellenposition an einen Zug an. */
   assignWagonToTrain: (wagonId: WagonId, trainId: TrainId) => FormationMutationResult;
   /** Entfernt einen Wagen und seine temporären Ladungszuweisungen aus einem Zug in Bildung. */
@@ -220,6 +259,11 @@ const EMPTY_SNAPSHOT: TerminalSimulationSnapshot = {
   inboundArrivalsById: {},
   berthChargesById: {},
   dispatchOrdersById: {},
+  gameplayEventsById: {},
+  gameplayEventEngine: createGameplayEventEngine(),
+  operationalState: createTerminalOperationalState(),
+  majorProjectsById: {},
+  gameProgress: createTerminalGameProgress(),
   eventLog: [],
 };
 
@@ -242,6 +286,15 @@ function normaliseSnapshot(snapshot: TerminalSimulationSnapshot): TerminalSimula
     inboundArrivalsById: { ...snapshot.inboundArrivalsById },
     berthChargesById: { ...snapshot.berthChargesById },
     dispatchOrdersById: { ...snapshot.dispatchOrdersById },
+    gameplayEventsById: { ...snapshot.gameplayEventsById },
+    gameplayEventEngine: { ...snapshot.gameplayEventEngine },
+    operationalState: {
+      craneMaintenanceUntilTickByTerminal: { ...snapshot.operationalState.craneMaintenanceUntilTickByTerminal },
+      reducedCraneCapacityUntilTickByTerminal: { ...snapshot.operationalState.reducedCraneCapacityUntilTickByTerminal },
+      constructionSiteClosedUntilTick: { ...snapshot.operationalState.constructionSiteClosedUntilTick },
+    },
+    majorProjectsById: { ...snapshot.majorProjectsById },
+    gameProgress: { ...snapshot.gameProgress },
     eventLog: snapshot.eventLog.slice(-MAX_SIMULATION_EVENT_LOG_ENTRIES),
   };
 }
@@ -260,6 +313,11 @@ function createInitialSnapshot(initial?: Partial<TerminalSimulationSnapshot>): T
     inboundArrivalsById: initial?.inboundArrivalsById ?? {},
     berthChargesById: initial?.berthChargesById ?? {},
     dispatchOrdersById: initial?.dispatchOrdersById ?? {},
+    gameplayEventsById: initial?.gameplayEventsById ?? {},
+    gameplayEventEngine: initial?.gameplayEventEngine ?? createGameplayEventEngine(),
+    operationalState: initial?.operationalState ?? createTerminalOperationalState(),
+    majorProjectsById: initial?.majorProjectsById ?? {},
+    gameProgress: initial?.gameProgress ?? createTerminalGameProgress(),
     eventLog: initial?.eventLog ?? [],
   });
 }
@@ -304,6 +362,171 @@ function appendEventDrafts(
       eventLog: [...snapshot.eventLog, ...emittedEvents].slice(-MAX_SIMULATION_EVENT_LOG_ENTRIES),
     },
     emittedEvents,
+  };
+}
+
+function evaluateProgressAfterImmediateTransaction(
+  progress: TerminalGameProgress,
+  companyBalanceCents: number,
+): TerminalGameProgress {
+  if (progress.status === 'WON' || progress.status === 'INSOLVENT') return progress;
+  if (
+    progress.reputationPoints >= progress.reputationTarget
+    || progress.completedMajorProjects >= progress.requiredMajorProjects
+  ) return { ...progress, status: 'WON' };
+  if (companyBalanceCents >= 0) return { ...progress, status: 'ACTIVE', consecutiveNegativeTicks: 0 };
+  // A decision may create a deficit, but only completed simulation ticks count
+  // toward the warning and insolvency windows.
+  return progress;
+}
+
+function progressDrafts(
+  previous: TerminalGameProgress,
+  next: TerminalGameProgress,
+  tick: number,
+): SimulationEventDraft[] {
+  if (previous.status === next.status) return [];
+  if (next.status === 'INSOLVENCY_WARNING') {
+    return [{
+      tick,
+      type: 'LIQUIDITY_WARNING',
+      severity: 'WARNING',
+      message: `Liquiditätswarnung: Konto seit ${next.consecutiveNegativeTicks} Simulationsstunden negativ. Bis zur Insolvenz verbleiben ${Math.max(0, next.insolvencyAfterNegativeTicks - next.consecutiveNegativeTicks)} Stunden.`,
+    }];
+  }
+  if (next.status === 'INSOLVENT') {
+    return [{
+      tick,
+      type: 'TERMINAL_INSOLVENT',
+      severity: 'ERROR',
+      message: 'Terminal insolvent: Die Liquidität blieb trotz Vorwarnung zu lange negativ.',
+    }];
+  }
+  if (next.status === 'WON') {
+    return [{
+      tick,
+      type: 'GAME_WON',
+      severity: 'SUCCESS',
+      message: `Großprojekt-Meilenstein erreicht: ${next.completedMajorProjects}/${next.requiredMajorProjects} Projekte, Reputation ${next.reputationPoints}/${next.reputationTarget}.`,
+    }];
+  }
+  return [];
+}
+
+function advanceScheduledArrivals(
+  snapshot: TerminalSimulationSnapshot,
+  tick: number,
+): { snapshot: TerminalSimulationSnapshot; drafts: SimulationEventDraft[] } {
+  const inboundArrivalsById = { ...snapshot.inboundArrivalsById };
+  const drafts: SimulationEventDraft[] = [];
+  for (const arrival of Object.values(snapshot.inboundArrivalsById)) {
+    const blockedByOpenDelayEvent = Object.values(snapshot.gameplayEventsById).some(
+      (event) => event.status === 'OPEN' && event.kind === 'INBOUND_SHIPMENT_DELAY' && event.target.inboundArrivalId === arrival.id,
+    );
+    if (
+      arrival.status !== 'SCHEDULED'
+      || arrival.expectedArrivalTick == null
+      || arrival.expectedArrivalTick > tick
+      || blockedByOpenDelayEvent
+    ) continue;
+    inboundArrivalsById[arrival.id] = { ...arrival, status: 'BERTHED' };
+    drafts.push({
+      tick,
+      type: 'INBOUND_ARRIVED',
+      severity: 'INFO',
+      entityId: arrival.id,
+      message: `${arrival.label} hat das Terminal erreicht und belegt einen Liegeplatz.`,
+    });
+  }
+  return { snapshot: { ...snapshot, inboundArrivalsById }, drafts };
+}
+
+function completeDueMajorProjects(
+  snapshot: TerminalSimulationSnapshot,
+  tick: number,
+): { snapshot: TerminalSimulationSnapshot; drafts: SimulationEventDraft[] } {
+  const majorProjectsById = { ...snapshot.majorProjectsById };
+  const trainsById = { ...snapshot.trainsById };
+  const cargoUnitsById = { ...snapshot.cargoUnitsById };
+  const drafts: SimulationEventDraft[] = [];
+  let companyBalanceCents = snapshot.companyBalanceCents;
+  let gameProgress = snapshot.gameProgress;
+
+  for (const project of Object.values(snapshot.majorProjectsById)) {
+    if (project.status !== 'IN_TRANSIT' || project.deliveryDueTick == null || project.deliveryDueTick > tick) continue;
+    majorProjectsById[project.id] = { ...project, status: 'COMPLETED', completedTick: tick };
+    companyBalanceCents += project.rewardCents;
+    gameProgress = {
+      ...gameProgress,
+      reputationPoints: gameProgress.reputationPoints + project.reputationReward,
+      completedMajorProjects: gameProgress.completedMajorProjects + 1,
+    };
+    const train = trainsById[project.trainId];
+    if (train) trainsById[train.id] = { ...train, status: 'DELIVERED' };
+    const wagonIds = new Set(
+      Object.values(snapshot.wagonsById)
+        .filter((wagon) => wagon.currentTrainId === project.trainId)
+        .map((wagon) => wagon.id),
+    );
+    for (const load of snapshot.wagonLoads) {
+      if (!wagonIds.has(load.wagonId)) continue;
+      const cargoUnit = cargoUnitsById[load.cargoUnitId];
+      if (cargoUnit) cargoUnitsById[cargoUnit.id] = { ...cargoUnit, status: 'DELIVERED' };
+    }
+    drafts.push({
+      tick,
+      type: 'MAJOR_PROJECT_COMPLETED',
+      severity: 'SUCCESS',
+      entityId: project.id,
+      amountCents: project.rewardCents,
+      message: `Großprojekt „${project.label}“ erfolgreich abgeschlossen. Erlös: ${project.rewardCents} Cent; Reputation: +${project.reputationReward}.`,
+    });
+  }
+
+  return {
+    snapshot: {
+      ...snapshot,
+      majorProjectsById,
+      trainsById,
+      cargoUnitsById,
+      companyBalanceCents,
+      gameProgress,
+    },
+    drafts,
+  };
+}
+
+function offerGameplayEvent(
+  snapshot: TerminalSimulationSnapshot,
+  tick: number,
+): { snapshot: TerminalSimulationSnapshot; drafts: SimulationEventDraft[] } {
+  const roll = rollGameplayEvent(snapshot.gameplayEventEngine, {
+    currentTick: tick,
+    hasOpenEvent: Object.values(snapshot.gameplayEventsById).some((event) => event.status === 'OPEN'),
+    terminalIds: Object.keys(snapshot.terminalsById),
+    constructionSites: [...new Set(
+      Object.values(snapshot.trainsById)
+        .filter((train) => train.status === 'ASSEMBLING' || train.status === 'IN_INSPECTION')
+        .map((train) => train.destinationConstructionSite),
+    )],
+    scheduledInboundArrivalIds: Object.values(snapshot.inboundArrivalsById)
+      .filter((arrival) => arrival.status === 'SCHEDULED')
+      .map((arrival) => arrival.id),
+  });
+  if (!roll.event) return { snapshot: { ...snapshot, gameplayEventEngine: roll.engine }, drafts: [] };
+  return {
+    snapshot: {
+      ...snapshot,
+      gameplayEventEngine: roll.engine,
+      gameplayEventsById: { ...snapshot.gameplayEventsById, [roll.event.id]: roll.event },
+    },
+    drafts: [{
+      tick,
+      type: 'GAMEPLAY_EVENT_OFFERED',
+      severity: 'WARNING',
+      entityId: roll.event.id,
+      message: `${roll.event.title}: ${roll.event.description}`,
+    }],
   };
 }
 
@@ -371,6 +594,19 @@ function evaluateTrainDispatch(
   trainId: TrainId,
   tick: number,
 ): DispatchTransition {
+  if (snapshot.gameProgress.status === 'WON' || snapshot.gameProgress.status === 'INSOLVENT') {
+    return {
+      snapshot,
+      attempt: { trainId, dispatched: false, feasibility: null, reason: 'GAME_NOT_ACTIVE' },
+      drafts: [{
+        tick,
+        type: 'TRAIN_DISPATCH_BLOCKED',
+        severity: 'ERROR',
+        entityId: trainId,
+        message: 'Der Spielstand ist beendet; es können keine weiteren Abfahrten disponiert werden.',
+      }],
+    };
+  }
   const train = snapshot.trainsById[trainId];
   if (!train) {
     return {
@@ -403,11 +639,32 @@ function evaluateTrainDispatch(
 
   const derivedTrain: Train = { ...train, ...trainDerivedFields(feasibility) };
   const eventMaterialization = materializeRequiredEvents(snapshot, trainId, feasibility, tick);
+  const constructionSiteBlocked = isConstructionSiteClosed(snapshot.operationalState, train.destinationConstructionSite, tick)
+    || Object.values(snapshot.gameplayEventsById).some(
+      (event) => event.status === 'OPEN' && event.kind === 'CONSTRUCTION_SITE_CLOSURE' && event.target.constructionSite === train.destinationConstructionSite,
+    );
   let nextSnapshot: TerminalSimulationSnapshot = {
     ...snapshot,
     trainsById: { ...snapshot.trainsById, [trainId]: derivedTrain },
     trainEventsById: eventMaterialization.trainEventsById,
   };
+
+  if (constructionSiteBlocked) {
+    return {
+      snapshot: nextSnapshot,
+      attempt: { trainId, dispatched: false, feasibility },
+      drafts: [
+        ...eventMaterialization.drafts,
+        {
+          tick,
+          type: 'CONSTRUCTION_SITE_BLOCKED',
+          severity: 'WARNING',
+          entityId: trainId,
+          message: `Zug ${trainId} wartet auf ein freies Baustellenzeitfenster für ${train.destinationConstructionSite}.`,
+        },
+      ],
+    };
+  }
 
   if (train.status !== 'IN_INSPECTION') {
     return {
@@ -484,9 +741,20 @@ function evaluateTrainDispatch(
     }
     : nextSnapshot.terminalsById;
 
+  const majorProjectsById = Object.fromEntries(Object.entries(nextSnapshot.majorProjectsById).map(([projectId, project]) => {
+    if (project.trainId !== trainId || project.status !== 'PLANNED') return [projectId, project];
+    return [projectId, {
+      ...project,
+      status: 'IN_TRANSIT' as const,
+      dispatchedTick: tick,
+      deliveryDueTick: tick + Math.max(1, project.deliveryDurationTicks),
+    }];
+  }));
+
   nextSnapshot = {
     ...nextSnapshot,
     terminalsById,
+    majorProjectsById,
     trainsById: {
       ...nextSnapshot.trainsById,
       [trainId]: { ...derivedTrain, status: 'DISPATCHED' },
@@ -519,6 +787,18 @@ function evaluateTrainDispatch(
  */
 export function advanceTerminalTick(snapshot: TerminalSimulationSnapshot): TickTransition {
   const previousTick = snapshot.currentTick;
+  if (snapshot.gameProgress.status === 'WON' || snapshot.gameProgress.status === 'INSOLVENT') {
+    return {
+      snapshot,
+      result: {
+        previousTick,
+        currentTick: previousTick,
+        berthCharges: [],
+        dispatchAttempts: [],
+        emittedEvents: [],
+      },
+    };
+  }
   const currentTick = previousTick + 1;
   const berthCharges: BerthCharge[] = [];
   const drafts: SimulationEventDraft[] = [];
@@ -528,7 +808,11 @@ export function advanceTerminalTick(snapshot: TerminalSimulationSnapshot): TickT
     berthChargesById: { ...snapshot.berthChargesById },
   };
 
-  for (const arrival of Object.values(snapshot.inboundArrivalsById)) {
+  const arrivals = advanceScheduledArrivals(workingSnapshot, currentTick);
+  workingSnapshot = arrivals.snapshot;
+  drafts.push(...arrivals.drafts);
+
+  for (const arrival of Object.values(workingSnapshot.inboundArrivalsById)) {
     if (arrival.status !== 'BERTHED' || currentTick <= arrival.freeBerthUntilTick) continue;
     if (!Number.isFinite(arrival.laytimeFeeCentsPerTick) || arrival.laytimeFeeCentsPerTick <= 0) continue;
 
@@ -585,6 +869,23 @@ export function advanceTerminalTick(snapshot: TerminalSimulationSnapshot): TickT
     drafts.push(...transition.drafts);
   }
 
+  const completedProjects = completeDueMajorProjects(workingSnapshot, currentTick);
+  workingSnapshot = completedProjects.snapshot;
+  drafts.push(...completedProjects.drafts);
+
+  const evaluatedProgress = evaluateTerminalGameProgress(
+    workingSnapshot.gameProgress,
+    workingSnapshot.companyBalanceCents,
+  );
+  drafts.push(...progressDrafts(workingSnapshot.gameProgress, evaluatedProgress, currentTick));
+  workingSnapshot = { ...workingSnapshot, gameProgress: evaluatedProgress };
+
+  if (evaluatedProgress.status !== 'WON' && evaluatedProgress.status !== 'INSOLVENT') {
+    const offeredEvent = offerGameplayEvent(workingSnapshot, currentTick);
+    workingSnapshot = offeredEvent.snapshot;
+    drafts.push(...offeredEvent.drafts);
+  }
+
   drafts.push({
     tick: currentTick,
     type: 'TICK_ADVANCED',
@@ -622,6 +923,10 @@ export function createTerminalSimulationStore(
     scheduleTrainDeparture: (trainId, departureTick) => {
       let result: ScheduleTrainDepartureResult = { scheduled: false, reason: 'TRAIN_NOT_FOUND' };
       set((state) => {
+        if (state.gameProgress.status === 'WON' || state.gameProgress.status === 'INSOLVENT') {
+          result = { scheduled: false, reason: 'GAME_NOT_ACTIVE' };
+          return state;
+        }
         if (!state.trainsById[trainId]) return state;
         if (!asNonNegativeInteger(departureTick) || departureTick <= state.currentTick) {
           result = { scheduled: false, reason: 'INVALID_DEPARTURE_TICK' };
@@ -687,6 +992,77 @@ export function createTerminalSimulationStore(
         };
       });
       return updated;
+    },
+
+    resolveGameplayEvent: (eventId, choiceId) => {
+      let result: GameplayEventResolutionResult = { resolved: false, reason: 'EVENT_NOT_FOUND' };
+      set((state) => {
+        const event = state.gameplayEventsById[eventId];
+        if (!event) return state;
+        if (event.status !== 'OPEN') {
+          result = { resolved: false, reason: 'EVENT_NOT_OPEN' };
+          return state;
+        }
+        const effect = resolveGameplayEventEffect(event, choiceId, state.currentTick);
+        if (!effect) {
+          result = { resolved: false, reason: 'INVALID_CHOICE' };
+          return state;
+        }
+
+        const operationalState: TerminalOperationalState = {
+          craneMaintenanceUntilTickByTerminal: { ...state.operationalState.craneMaintenanceUntilTickByTerminal },
+          reducedCraneCapacityUntilTickByTerminal: { ...state.operationalState.reducedCraneCapacityUntilTickByTerminal },
+          constructionSiteClosedUntilTick: { ...state.operationalState.constructionSiteClosedUntilTick },
+        };
+        if (effect.craneMaintenanceUntilTick) {
+          operationalState.craneMaintenanceUntilTickByTerminal[effect.craneMaintenanceUntilTick.terminalId] = effect.craneMaintenanceUntilTick.untilTick;
+        }
+        if (effect.reducedCraneCapacityUntilTick) {
+          operationalState.reducedCraneCapacityUntilTickByTerminal[effect.reducedCraneCapacityUntilTick.terminalId] = effect.reducedCraneCapacityUntilTick.untilTick;
+        }
+        if (effect.constructionSiteClosedUntilTick) {
+          operationalState.constructionSiteClosedUntilTick[effect.constructionSiteClosedUntilTick.constructionSite] = effect.constructionSiteClosedUntilTick.untilTick;
+        }
+        const inboundArrivalsById = { ...state.inboundArrivalsById };
+        if (effect.inboundArrivalExpectedTick) {
+          const arrival = inboundArrivalsById[effect.inboundArrivalExpectedTick.inboundArrivalId];
+          if (arrival) inboundArrivalsById[arrival.id] = { ...arrival, expectedArrivalTick: effect.inboundArrivalExpectedTick.expectedArrivalTick };
+        }
+        const resolvedEvent: GameplayEvent = {
+          ...event,
+          status: 'RESOLVED',
+          resolvedChoiceId: choiceId,
+          resolvedTick: state.currentTick,
+        };
+        const gameProgressBeforeEvaluation = {
+          ...state.gameProgress,
+          reputationPoints: Math.max(0, state.gameProgress.reputationPoints + effect.reputationDelta),
+        };
+        const companyBalanceCents = state.companyBalanceCents + effect.cashDeltaCents;
+        const gameProgress = evaluateProgressAfterImmediateTransaction(gameProgressBeforeEvaluation, companyBalanceCents);
+        const choice = event.choices.find((candidate) => candidate.id === choiceId);
+        const withEvents = appendEventDrafts({
+          ...snapshotFromState(state),
+          companyBalanceCents,
+          gameplayEventsById: { ...state.gameplayEventsById, [eventId]: resolvedEvent },
+          operationalState,
+          inboundArrivalsById,
+          gameProgress,
+        }, [
+          {
+            tick: state.currentTick,
+            type: 'GAMEPLAY_EVENT_RESOLVED',
+            severity: effect.cashDeltaCents < 0 ? 'WARNING' : 'INFO',
+            entityId: eventId,
+            amountCents: effect.cashDeltaCents,
+            message: `${event.title}: „${choice?.label ?? choiceId}“ gewählt. ${choice?.consequence ?? ''}`,
+          },
+          ...progressDrafts(state.gameProgress, gameProgress, state.currentTick),
+        ]);
+        result = { resolved: true };
+        return withEvents.snapshot;
+      });
+      return result;
     },
 
     assignWagonToTrain: (wagonId, trainId) => {
@@ -898,6 +1274,9 @@ export function createTerminalSimulationStore(
           const transition = advanceTerminalTick(snapshot);
           snapshot = transition.snapshot;
           tickResults.push(transition.result);
+          // A newly offered operational decision pauses fast-forwarding fairly.
+          if (transition.result.emittedEvents.some((event) => event.type === 'GAMEPLAY_EVENT_OFFERED')) break;
+          if (snapshot.gameProgress.status === 'WON' || snapshot.gameProgress.status === 'INSOLVENT') break;
         }
         result = {
           previousTick,
@@ -940,6 +1319,11 @@ function snapshotFromState(state: TerminalSimulationState): TerminalSimulationSn
     inboundArrivalsById: state.inboundArrivalsById,
     berthChargesById: state.berthChargesById,
     dispatchOrdersById: state.dispatchOrdersById,
+    gameplayEventsById: state.gameplayEventsById,
+    gameplayEventEngine: state.gameplayEventEngine,
+    operationalState: state.operationalState,
+    majorProjectsById: state.majorProjectsById,
+    gameProgress: state.gameProgress,
     eventLog: state.eventLog,
   };
 }

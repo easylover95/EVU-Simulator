@@ -3,8 +3,10 @@
   "include": [
     "src/lib/terminalEntities.ts",
     "src/lib/terminalLogistics.ts",
+    "src/lib/terminalGameplay.ts",
     "src/state/terminalSimulationStore.ts",
-    "scripts/testTerminalSimulationStore.ts"
+    "scripts/testTerminalSimulationStore.ts",
+    "scripts/testTerminalGameplay.ts"
   ],
   "compilerOptions": {
     "noEmit": true

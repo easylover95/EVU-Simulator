@@ -12,7 +12,9 @@ import {
   Warehouse,
 } from 'lucide-react';
 
+import { GameplayEventPanel } from '@/components/GameplayEventPanel';
 import { Button, Card, CardFlush, CardHeader, StatPill } from '@/components/ui';
+import { effectiveCraneCapacityTons } from '@/lib/terminalGameplay';
 import { createTerminalDemoSnapshot } from '@/lib/terminalDemo';
 import { useTerminalSimulation } from '@/state/terminalSimulationStore';
 
@@ -65,6 +67,12 @@ export function TerminalInboundView({ onOpenConfiguration }: { onOpenConfigurati
   }
 
   const { terminal, cargoUnits, berthedArrivals, storagePercent } = overview;
+  const effectiveCraneCapacity = effectiveCraneCapacityTons(
+    terminal.maxCraneCapacityTons,
+    state.operationalState,
+    terminal.id,
+    state.currentTick,
+  );
   const lueCount = cargoUnits.filter(({ cargoType }) => cargoType?.isOutOfGauge).length;
   const nextTick = () => state.advanceTick();
 
@@ -113,13 +121,17 @@ export function TerminalInboundView({ onOpenConfiguration }: { onOpenConfigurati
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Kran-Kapazität</p>
-              <p className="mt-1 text-2xl font-bold tabular-nums text-amber-300">{formatNumber(terminal.maxCraneCapacityTons, 0)} t</p>
+              <p className={`mt-1 text-2xl font-bold tabular-nums ${effectiveCraneCapacity === 0 ? 'text-rose-300' : effectiveCraneCapacity < terminal.maxCraneCapacityTons ? 'text-amber-300' : 'text-amber-300'}`}>{formatNumber(effectiveCraneCapacity, 0)} t</p>
             </div>
             <Container className="h-6 w-6 text-amber-300" />
           </div>
           <div className="mt-4 flex items-center gap-2 text-xs font-semibold text-emerald-300">
             <CheckCircle2 className="h-4 w-4" />
-            {terminal.hasSpecialCrane ? 'Spezialkran betriebsbereit' : 'Nur Standardumschlag verfügbar'}
+            {effectiveCraneCapacity === 0
+              ? 'Kranwartung aktiv · Umschlag pausiert'
+              : effectiveCraneCapacity < terminal.maxCraneCapacityTons
+                ? `Eingeschränkter Betrieb · regulär ${formatNumber(terminal.maxCraneCapacityTons, 0)} t`
+                : terminal.hasSpecialCrane ? 'Spezialkran betriebsbereit' : 'Nur Standardumschlag verfügbar'}
           </div>
         </Card>
 
@@ -134,6 +146,8 @@ export function TerminalInboundView({ onOpenConfiguration }: { onOpenConfigurati
           <p className="mt-4 text-xs font-semibold text-slate-300">{lueCount > 0 ? 'LÜ-Fracht vor Zugabfahrt prüfen' : 'Keine offene LÜ-Prüfung'}</p>
         </Card>
       </div>
+
+      <GameplayEventPanel />
 
       <div className="grid gap-4 md:grid-cols-[minmax(0,1.45fr)_minmax(18rem,0.85fr)]">
         <CardFlush>

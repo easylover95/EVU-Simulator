@@ -1,6 +1,11 @@
 import { strict as assert } from 'node:assert';
 
 import {
+  createGameplayEventEngine,
+  createTerminalGameProgress,
+  createTerminalOperationalState,
+} from '../src/lib/terminalGameplay';
+import {
   createTerminalSimulationStore,
   type InboundArrival,
   type TerminalSimulationSnapshot,
@@ -115,6 +120,11 @@ function baseSnapshot(overrides: Partial<TerminalSimulationSnapshot> = {}): Term
     inboundArrivalsById: {},
     berthChargesById: {},
     dispatchOrdersById: {},
+    gameplayEventsById: {},
+    gameplayEventEngine: createGameplayEventEngine(),
+    operationalState: createTerminalOperationalState(),
+    majorProjectsById: {},
+    gameProgress: createTerminalGameProgress(),
     eventLog: [],
     ...overrides,
   };

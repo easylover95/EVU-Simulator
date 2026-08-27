@@ -24,6 +24,7 @@
     "test:clock-runtime": "node simulation/testRuntimeClockControls.mjs",
     "test:terminal-logistics": "tsx --tsconfig tsconfig.app.json scripts/testTerminalLogistics.ts",
     "test:terminal-state": "tsx --tsconfig tsconfig.scripts.json scripts/testTerminalSimulationStore.ts",
+    "test:terminal-gameplay": "tsx --tsconfig tsconfig.scripts.json scripts/testTerminalGameplay.ts",
     "typecheck:terminal-state": "tsc --noEmit -p tsconfig.terminal-state-test.json",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

@@ -6,6 +6,11 @@ import type {
   Wagon,
   WagonLoad,
 } from '@/lib/terminalEntities';
+import {
+  createGameplayEventEngine,
+  createTerminalGameProgress,
+  createTerminalOperationalState,
+} from '@/lib/terminalGameplay';
 import type { InboundArrival, TerminalSimulationSnapshot } from '@/state/terminalSimulationStore';
 
 /**
@@ -128,6 +133,29 @@ export function createTerminalDemoSnapshot(): TerminalSimulationSnapshot {
     inboundArrivalsById: Object.fromEntries(inboundArrivals.map((item) => [item.id, item])),
     berthChargesById: {},
     dispatchOrdersById: {},
+    gameplayEventsById: {},
+    gameplayEventEngine: createGameplayEventEngine(17),
+    operationalState: createTerminalOperationalState(),
+    majorProjectsById: {
+      'project-abs9-03': {
+        id: 'project-abs9-03',
+        trainId: train.id,
+        label: 'ABS 9 · Bauabschnitt 3',
+        rewardCents: 8_500_000,
+        reputationReward: 28,
+        deliveryDurationTicks: 6,
+        status: 'PLANNED',
+        dispatchedTick: null,
+        deliveryDueTick: null,
+        completedTick: null,
+      },
+    },
+    gameProgress: createTerminalGameProgress({
+      reputationPoints: 24,
+      reputationTarget: 100,
+      completedMajorProjects: 0,
+      requiredMajorProjects: 3,
+    }),
     eventLog: [],
   };
 }
