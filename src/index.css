@@ -1556,18 +1556,22 @@ body,
 /* The gallery button is cover-mapped to the wooden wall picture. Its visual
    outline is a separate overlay, so it can never alter the mapped hit area. */
 .office-hotspot--gallery {
+  /* The source picture is photographed in slight perspective. The clip follows
+     its four inner photo edges, so neither hit target nor glow can touch wood. */
   box-sizing: border-box;
   overflow: hidden;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
+  clip-path: polygon(0 0, 100% 18%, 100% 100%, 0 87%);
 }
 
 .office-hotspot--gallery-frame {
   position: absolute;
   inset: 0;
   z-index: 0;
+  clip-path: inherit;
   box-sizing: border-box;
   border: 2px solid rgba(245, 158, 11, 0.82);
   border-radius: 3px;

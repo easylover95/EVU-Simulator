@@ -45,11 +45,12 @@ const HOTSPOTS: OfficeHotspot[] = [
     id: 'gallery',
     label: 'Erfolge & Meilensteine',
     dest: 'gallery',
-    // Source % of leitstelle_bg.png: upper-left steam-loco wood frame, left of window 1.
-    x: 14.2,
-    y: 16.4,
-    w: 11.0,
-    h: 9.8,
+    // Source % of leitstelle_bg.png: inner photo area of the upper-left steam-loco frame.
+    // The wooden picture frame remains outside the interactive outline by design.
+    x: 10.16,
+    y: 4.10,
+    w: 15.55,
+    h: 13.47,
     z: 3,
     shape: 'rect',
     Icon: Trophy,
