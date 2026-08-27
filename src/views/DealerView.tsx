@@ -7,7 +7,8 @@ import type { MaintenanceFundState } from '@/lib/maintenanceFund';
 import { forecastLocoPurchase, forecastWagonPurchase, type InvestmentForecast } from '@/lib/economyAdvisor';
 import { Button, Card, CardFlush, CardHeader } from '@/components/ui';
 import { DealerAcquireModal } from '@/components/DealerAcquireModal';
-import { SectionShell, freeYardBerths, yardBerthCap } from '@/components/SectionShell';
+import { SectionShell } from '@/components/SectionShell';
+import { freeYardBerths, yardBerthCap } from '@/lib/sectionMetrics';
 import { DepotUpgradePanel } from '@/components/DepotUpgradePanel';
 import { VehicleCard, VehiclePriceBox } from '@/components/VehicleCard';
 import { WagonRentModal } from '@/components/WagonRentModal';
@@ -52,7 +53,6 @@ import {
   freeWagonBerths,
   wagonBerthCap,
   wagonUnitCount,
-  workshopSlotCap,
   type DepotState,
 } from '@/lib/depot';
 import type { AchievementState } from '@/lib/achievements';
@@ -136,7 +136,6 @@ export function DealerView({
   const openBerths = freeYardBerths(depot, locomotives.length);
   const wagonCap = wagonBerthCap(depot);
   const wagonUsed = wagonUnitCount(wagons);
-  const workshopCap = workshopSlotCap(depot);
 
   useEffect(() => {
     if (!prefillWagon) return;

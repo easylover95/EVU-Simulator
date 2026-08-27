@@ -49,11 +49,6 @@ export interface CorporateMilestoneState {
   completedMilestones: number;
 }
 
-const EMPTY_CORPORATE_MILESTONES: CorporateMilestoneState = {
-  totalXp: 0,
-  completedMilestones: 0,
-};
-
 function safePoints(value: unknown): number {
   const points = Math.round(Number(value) || 0);
   return Number.isFinite(points) ? Math.max(0, points) : 0;

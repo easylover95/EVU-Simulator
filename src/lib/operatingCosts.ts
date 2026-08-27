@@ -67,11 +67,20 @@ export function pathRatePerKm(order: Pick<Order, 'type' | 'deployment_days' | 'w
   return base * trasseTypeFactor(order);
 }
 
+/**
+ * Calculates the route-dependent infrastructure charge for one spot trip or
+ * one operating day of a Baugleis assignment. Event multipliers apply only
+ * here so every caller receives the same current disruption surcharge.
+ */
 export function pathCostForOrder(order: Pick<Order, 'type' | 'deployment_days' | 'weight_t' | 'distance_km'>): number {
   const km = Math.max(0, Number(order.distance_km) || 0);
   return Math.round(pathRatePerKm(order) * km * getPathCostMultiplier());
 }
 
+/**
+ * Resolves the mutually exclusive traction-energy mode shown in the UI. Dual
+ * locomotives use electric traction for regular freight and diesel on Baugleis.
+ */
 export function energyModeFor(order: Pick<Order, 'type'>, fuel: FuelType): EnergyMode {
   if (fuel === 'diesel') return 'diesel';
   if (fuel === 'elektrik') return 'elektrik';
@@ -102,6 +111,11 @@ export function grossYieldForDisplay(order: Order): number {
   return Number(order.yield) || 0;
 }
 
+/**
+ * Produces the single source of truth for the pre-acceptance margin forecast.
+ * It keeps route charges, exactly one energy mode, and any required AZF/PDL
+ * expense separate before calculating the local game-balance net profit.
+ */
 export function calcOrderOperatingCosts(
   order: Order,
   fuel: FuelType = 'diesel',

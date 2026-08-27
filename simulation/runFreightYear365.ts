@@ -312,7 +312,7 @@ function run(): void {
       }
     }
     if (WAGON_REVISION_DAYS.has(day)) {
-      for (const wagon of wagons) {
+      for (let revisionIndex = 0; revisionIndex < wagons.length; revisionIndex += 1) {
         const revision = WAGON_JOB_RATES.rev.cost;
         company = { ...company, balance: company.balance - revision };
         addCost(ledger, 'wagonRevision', revision);

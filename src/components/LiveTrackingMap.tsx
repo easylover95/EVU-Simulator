@@ -228,14 +228,16 @@ export function LiveTrackingMap({
     }
 
     mapRef.current = map;
+    const markerLayers = markersRef.current;
+    const lineLayers = linesRef.current;
     const raf = window.requestAnimationFrame(() => map.invalidateSize());
     const t = window.setTimeout(() => map.invalidateSize(), 200);
 
     return () => {
       window.cancelAnimationFrame(raf);
       window.clearTimeout(t);
-      markersRef.current.clear();
-      linesRef.current.clear();
+      markerLayers.clear();
+      lineLayers.clear();
       map.remove();
       mapRef.current = null;
     };

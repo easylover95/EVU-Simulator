@@ -30,3 +30,13 @@ createRoot(document.getElementById('root')!).render(
     </RootErrorBoundary>
   </StrictMode>,
 );
+
+/**
+ * Register only from a production build. This keeps Vite development free of
+ * stale caches while giving installed production deployments an offline shell.
+ */
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    void navigator.serviceWorker.register('/sw.js').catch(() => undefined);
+  });
+}

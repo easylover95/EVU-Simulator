@@ -21,7 +21,7 @@ import { useGameClock } from '@/lib/GameClockContext';
 import { hoursBetween } from '@/lib/gameTime';
 import { Button, Card } from '@/components/ui';
 import { SectionShell } from '@/components/SectionShell';
-import { staffRoleLabel, type JobListing, type StaffMeta } from '@/lib/jobcenter';
+import { type JobListing, type StaffMeta } from '@/lib/jobcenter';
 import { canSpend } from '@/lib/bank';
 import {
   fleetSeriesIds,

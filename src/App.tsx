@@ -361,7 +361,7 @@ function App() {
   const [assignments, setAssignments] = useState<AssignmentWithDetails[]>([]);
   const [wagons, setWagons] = useState<Wagon[]>([]);
   const [company, setCompany] = useState<Company | null>(null);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [, setNotifications] = useState<Notification[]>([]);
   const [inbox, setInbox] = useState<Message[]>(() => seedWelcomeInbox(0));
   const [loading, setLoading] = useState(true);
   const [dispoPreselect, setDispoPreselect] = useState<Order | null>(null);
@@ -610,7 +610,7 @@ function App() {
       overdraftLimit: cap,
       overdraftDailyRate: overdraftRateForLimit(cap),
     });
-  }, [loading, company?.level, persistBank]);
+  }, [loading, company, persistBank]);
 
   useEffect(() => {
     if (loading || !company) return;
@@ -618,7 +618,7 @@ function App() {
     if (result.changed) persistBank(result.state);
     pushNotifications(result.notifications);
     if (result.failed || result.state.insolvent) setClockRunning(false);
-  }, [loading, company?.balance, company?.tick, bank.overdraftLimit, persistBank, pushNotifications]);
+  }, [loading, company, bank.overdraftLimit, persistBank, pushNotifications]);
 
   const persistRentals = useCallback((next: RentalState) => {
     rentalsRef.current = next;
@@ -1093,6 +1093,10 @@ function App() {
     [book, persistCompany, pushNotifications],
   );
 
+  const settleSpotAssignmentRef = useRef<
+    ((assignment: AssignmentWithDetails, company: Company, atTick: number) => Company) | null
+  >(null);
+
   const advanceOneTick = useCallback(() => {
     const prevCompany = companyRef.current;
     if (!prevCompany) return;
@@ -1280,7 +1284,6 @@ function App() {
       book('Trassenstörung / Aufschlag', -eventTick.extraPathCost, nextTick, 'betrieb');
     }
 
-    const beforeEinsatz = nextCompany.balance;
     const einsatzTick = processBaugleisDeploymentsTick(
       deploymentsRef.current,
       nextCompany,
@@ -1357,7 +1360,8 @@ function App() {
     for (const assignment of [...assignmentsRef.current]) {
       if (isBaugleisEinsatz(assignment.order)) continue;
       if (!isAssignmentArrived(assignment, nextTick)) continue;
-      nextCompany = settleSpotAssignment(assignment, nextCompany, nextTick);
+      const settle = settleSpotAssignmentRef.current;
+      if (settle) nextCompany = settle(assignment, nextCompany, nextTick);
     }
 
     persistCompany(grantAchievements(nextCompany, nextTick));
@@ -1401,6 +1405,7 @@ function App() {
   }, [
     completeDueWagonJobs,
     completeDueWorkshopJobs,
+    awardPostCapMilestoneXp,
     persistAchievements,
     grantAchievements,
     persistLocoFleet,
@@ -1520,7 +1525,7 @@ function App() {
     saveWagonPatches(wagonPatchesRef.current);
     saveChargedTripIds(chargedTripsRef.current);
     saveAchievementState(achievementsRef.current);
-  }, [persistBank, persistCompany, persistDepot, persistRentals]);
+  }, [persistBank, persistCompany, persistDepot, persistMaintenanceFund, persistRentals]);
 
   function handleHelp() {
     setLogoutOpen(false);
@@ -1773,7 +1778,7 @@ function App() {
     persistCompany(settleSpotAssignment(a, current, current.tick));
   }
 
-  function settleSpotAssignment(a: AssignmentWithDetails, company: Company, atTick: number): Company {
+  const settleSpotAssignment = useCallback((a: AssignmentWithDetails, company: Company, atTick: number): Company => {
     releaseAssignmentWagons(a);
     setAssignments((prev) => {
       const next = prev.map((x) => (x.id === a.id ? { ...x, status: 'abgeschlossen' as const } : x));
@@ -1881,7 +1886,16 @@ function App() {
     }
     persistAchievements(noteCompletedTrip(achievementsRef.current, a, late));
     return grantAchievements(nextCo, atTick);
-  }
+  }, [
+    awardPostCapMilestoneXp,
+    book,
+    debitSpotTripCosts,
+    grantAchievements,
+    persistAchievements,
+    persistLocoFleet,
+    releaseAssignmentWagons,
+  ]);
+  settleSpotAssignmentRef.current = settleSpotAssignment;
 
   function handleLocalCancel(a: AssignmentWithDetails) {
     releaseAssignmentWagons(a);
@@ -2190,18 +2204,6 @@ function App() {
       },
     ]);
     return true;
-  }
-
-  function syncExtraFleet(locos: Locomotive[], nextWagons: Wagon[]) {
-    extraFleetRef.current = {
-      locomotives: extraFleetRef.current.locomotives
-        .map((l) => locos.find((x) => x.id === l.id) ?? l)
-        .filter((l) => locos.some((x) => x.id === l.id)),
-      wagons: extraFleetRef.current.wagons
-        .map((w) => nextWagons.find((x) => x.id === w.id) ?? w)
-        .filter((w) => nextWagons.some((x) => x.id === w.id)),
-    };
-    saveExtraFleet(extraFleetRef.current);
   }
 
   function handleAcquireLoco(
@@ -2888,13 +2890,11 @@ function App() {
                   onLocalCancel={handleLocalCancel}
                   deployments={deployments}
                   hqLocation={company?.hq_location}
-                  onBackOffice={() => setView('zentrale')}
                   onBackPc={() => setView('dashboard')}
                   onBuyMissingWagons={handleBuyMissingWagons}
                   onQuickAcquireWagons={handleQuickAcquireWagons}
                   onOpenBuildings={handleOpenBuildings}
                   freeBerths={freeWagonBerths(depot, wagonUnitCount(wagons))}
-                  networkAccess={networkAccess}
                   worldEvents={worldEvents}
                   staffMeta={staffMeta}
                   onOpenNetworkDealer={() => {

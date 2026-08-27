@@ -8,7 +8,7 @@ import type {
   MaintenanceLevel,
   Notification,
 } from '@/lib/supabase';
-import { newNotificationId, tickToIso } from '@/lib/gameTime';
+import { tickToIso } from '@/lib/gameTime';
 import { sendMessage } from '@/lib/inbox';
 import { loadJson, saveJson, TICKS_PER_DAY } from '@/lib/storage';
 import { BASE_WORKSHOP_SLOTS } from '@/lib/depot';
@@ -337,7 +337,9 @@ export function huKmIntervalFor(segment: LocoSegment): number {
   return HU_INTERVAL_KM[segment];
 }
 
-export function huDurationDaysForLoco(_loco?: Pick<Locomotive, 'weight_t' | 'power_kw'>): number {
+export function huDurationDaysForLoco(loco?: Pick<Locomotive, 'weight_t' | 'power_kw'>): number {
+  // The current ruleset uses one standardized HU duration for every locomotive class.
+  void loco;
   return HU_DURATION_DAYS;
 }
 
@@ -851,7 +853,7 @@ export function processMaintenanceDay(
         fault: m.fault ?? null,
       },
     };
-    let synced = syncLocoStatus(advanced);
+    const synced = syncLocoStatus(advanced);
     if (synced.status === 'stillgelegt' && raw.status !== 'stillgelegt' && raw.status !== 'einsatz' && raw.status !== 'wartung') {
       notifications.push({
         type: 'error',
@@ -1048,7 +1050,9 @@ export function usedLocoPrice(
 }
 
 /** Frisch revidiert / neue HU = exactly catalog (100 % condition). Packages are added by the dealer quote. */
-export function revisedLocoPrice(catalogPrice: number, _huCost = 0): number {
+export function revisedLocoPrice(catalogPrice: number, huCost = 0): number {
+  // A fresh HU restores the full catalog value; its cost is charged in the dealer quote.
+  void huCost;
   return Math.round(catalogPrice);
 }
 

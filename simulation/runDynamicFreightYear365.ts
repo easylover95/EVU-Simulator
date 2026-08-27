@@ -22,7 +22,7 @@ import { computeSpotYield } from '../src/lib/orderMarket';
 import { fleetBookValue } from '../src/lib/financialStatements';
 import { hireNachschulungFee } from '../src/lib/personal';
 import { grantCompanyXp, xpForCompletedOrder } from '../src/lib/progression';
-import { SEED_COMPANY, SEED_DRIVERS, SEED_LOCOMOTIVES, SEED_ORDERS, SEED_WAGONS } from '../src/lib/seed';
+import { SEED_COMPANY, SEED_DRIVERS, SEED_LOCOMOTIVES, SEED_WAGONS } from '../src/lib/seed';
 import { TICKS_PER_DAY } from '../src/lib/storage';
 import type { Company, FuelType, Locomotive, Order, Wagon } from '../src/lib/supabase';
 import { WAGON_JOB_RATES } from '../src/lib/wagonJobs';
@@ -416,7 +416,8 @@ function run(): void {
       }
     }
     if (day === 180 || day === 360) {
-      for (const wagon of wagons.slice(0, 2)) {
+      const revisionsDue = Math.min(2, wagons.length);
+      for (let revision = 0; revision < revisionsDue; revision += 1) {
         company = { ...company, balance: company.balance - WAGON_JOB_RATES.rev.cost };
         add(ledger, 'wagonRevision', WAGON_JOB_RATES.rev.cost);
         dayMaintenance += WAGON_JOB_RATES.rev.cost;

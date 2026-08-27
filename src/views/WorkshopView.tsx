@@ -26,7 +26,6 @@ import {
   locoHasFault,
   quoteWorkshopJob,
   usedWorkshopSlots,
-  WORKSHOP_LEVELS,
   WORKSHOP_RATES,
   type WorkshopChannel,
   type WorkshopJob,

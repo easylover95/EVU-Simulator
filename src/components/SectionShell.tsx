@@ -1,30 +1,11 @@
 import { createContext, useContext, useMemo, type ReactNode } from 'react';
 import { ArrowLeft } from 'lucide-react';
-import type { Company, Driver, Locomotive, Wagon } from '@/lib/supabase';
-import { formatEuro } from '@/lib/status';
 import { secondaryButtonClass } from '@/components/ui';
 import {
-  emptyDepotState,
-  locoBerthCap,
-  wagonBerthCap,
-  wagonUnitCount,
-  type DepotState,
-} from '@/lib/depot';
-
-/** Live yard snapshot for the compact KPI strip. Provided once from App. */
-export interface SectionPulse {
-  company: Company | null;
-  locomotives: Locomotive[];
-  drivers: Driver[];
-  wagons: Wagon[];
-  depot?: DepotState;
-}
-
-export interface SectionKpi {
-  label: string;
-  value: ReactNode;
-  hint?: string;
-}
+  buildDefaultKpis,
+  type SectionKpi,
+  type SectionPulse,
+} from '@/lib/sectionMetrics';
 
 interface SectionPulseBag {
   pulse: SectionPulse;
@@ -33,6 +14,7 @@ interface SectionPulseBag {
 
 const SectionPulseContext = createContext<SectionPulseBag | null>(null);
 
+/** Provides a shared operating snapshot to views rendered within the application shell. */
 export function SectionPulseProvider({
   pulse,
   onBack,
@@ -46,51 +28,8 @@ export function SectionPulseProvider({
   return <SectionPulseContext.Provider value={bag}>{children}</SectionPulseContext.Provider>;
 }
 
-export function useSectionPulse(): SectionPulseBag | null {
+function useSectionPulse(): SectionPulseBag | null {
   return useContext(SectionPulseContext);
-}
-
-export function yardBerthCap(depot: DepotState | null | undefined): number {
-  return locoBerthCap(depot ?? emptyDepotState());
-}
-
-export function freeYardBerths(depot: DepotState | null | undefined, parkedLocos: number): number {
-  return Math.max(0, yardBerthCap(depot) - parkedLocos);
-}
-
-export function buildDefaultKpis(pulse: SectionPulse): SectionKpi[] {
-  const level = pulse.company?.level ?? 1;
-  const depot = pulse.depot ?? emptyDepotState();
-  const berths = locoBerthCap(depot);
-  const parked = pulse.locomotives.length;
-  const wagonCap = wagonBerthCap(depot);
-  const wagonUnits = wagonUnitCount(pulse.wagons);
-  const activeLocos = pulse.locomotives.filter((l) => l.status === 'einsatz').length;
-  const staff = pulse.drivers.length;
-  const xp = pulse.company?.xp ?? 0;
-  const xpNext = pulse.company?.xp_next ?? 0;
-
-  return [
-    {
-      label: 'Stellplätze',
-      value: `${parked} / ${berths}`,
-      hint: `Loks · Wagen ${wagonUnits}/${wagonCap}`,
-    },
-    {
-      label: 'Verfügbares Kapital',
-      value: formatEuro(pulse.company?.balance ?? 0),
-    },
-    {
-      label: 'Aktive Fahrzeuge / Personal',
-      value: `${activeLocos} / ${staff}`,
-      hint: 'Im Einsatz · Mitarbeiter',
-    },
-    {
-      label: 'Firmen-Level',
-      value: `Lvl ${level}`,
-      hint: xpNext > 0 ? `${xp} / ${xpNext} XP` : undefined,
-    },
-  ];
 }
 
 export function SectionShell({
@@ -142,10 +81,7 @@ export function SectionShell({
       {strip.length > 0 && (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {strip.map((kpi) => (
-            <div
-              key={kpi.label}
-              className="app-glass rounded-xl p-3 text-center"
-            >
+            <div key={kpi.label} className="app-glass rounded-xl p-3 text-center">
               <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{kpi.label}</div>
               <div className="mt-1 text-lg font-bold tabular-nums text-amber-400">{kpi.value}</div>
               {kpi.hint && <div className="mt-0.5 text-[10px] text-slate-500">{kpi.hint}</div>}

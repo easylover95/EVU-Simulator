@@ -18,6 +18,11 @@ export interface DriverRestStatus {
   maxHours: number;
 }
 
+/**
+ * Evaluates dispatch eligibility from the driver's recorded duty time and rest
+ * end. The result remains descriptive; the dispatch UI decides how to block or
+ * warn, so the same rule is usable by both the UI and headless simulations.
+ */
 export function driverRestStatus(driver: Driver, now: Date): DriverRestStatus {
   const restHours = hoursBetween(driver.last_rest_end, now);
   const hoursWorked = Number(driver.hours_worked) || 0;
@@ -58,7 +63,11 @@ function randInt(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
-/** Resolve rest-violation risk at trip settle (accident happened en route). */
+/**
+ * Resolves the deliberately game-balanced consequence of completing a trip
+ * despite a rest-rule violation. It is invoked at settlement rather than at
+ * dispatch because the operational risk materializes while the train is en route.
+ */
 export function resolveRestTripRisk(): RestTripOutcome {
   const accident = Math.random() < 0.48;
   const driverSick = Math.random() < 0.32 || accident;

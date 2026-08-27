@@ -45,7 +45,6 @@ import { getLocoDisplayName } from '@/lib/locoPhotos';
 import { useGameClock } from '@/lib/GameClockContext';
 import { assignmentProgress, etaFromProgress, locoMarkerId } from '@/lib/tracking';
 import { SectionShell } from '@/components/SectionShell';
-import { Button } from '@/components/ui';
 import {
   BAUGLEIS_MIN_DRIVERS,
   isBaugleisEinsatz,
@@ -62,7 +61,6 @@ import { driverRestStatus, restStatusHint, REST_WARNING } from '@/lib/restRules'
 import {
   corridorCountryHint,
   networkDispatchBlock,
-  type NetworkAccessState,
 } from '@/lib/networkAccess';
 import { closureBlockMessage, orderBlockedByClosure, type WorldEventState } from '@/lib/events';
 import { seriesDispatchBlock, seriesIdForLoco, seriesLabel } from '@/lib/personal';
@@ -93,13 +91,11 @@ interface DispatchViewProps {
   onLocalComplete?: (assignment: AssignmentWithDetails) => void;
   onLocalCancel?: (assignment: AssignmentWithDetails) => void;
   hqLocation?: string;
-  onBackOffice?: () => void;
   onBackPc?: () => void;
   onBuyMissingWagons?: (typeCode: string, qty: number) => void;
   onQuickAcquireWagons?: (typeCode: string, qty: number, how: Acquisition) => void;
   onOpenBuildings?: () => void;
   freeBerths?: number;
-  networkAccess?: NetworkAccessState;
   worldEvents?: WorldEventState;
   staffMeta?: Record<string, StaffMeta>;
   onOpenNetworkDealer?: (pack?: string) => void;
@@ -150,13 +146,11 @@ export function DispatchView({
   onLocalCancel,
   deployments = [],
   hqLocation,
-  onBackOffice,
   onBackPc,
   onBuyMissingWagons,
   onQuickAcquireWagons,
   onOpenBuildings,
   freeBerths,
-  networkAccess,
   worldEvents,
   staffMeta = {},
   onOpenNetworkDealer,

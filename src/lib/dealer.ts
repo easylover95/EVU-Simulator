@@ -93,7 +93,9 @@ const EQUIPMENT_LABELS: Record<ExtraEquipment, string> = {
 };
 
 /** Catalog Grundpreis only: flat 8 % for every locomotive. */
-export function etcsRateForBase(_basePrice: number): number {
+export function etcsRateForBase(basePrice: number): number {
+  // ETCS uses one uniform rate; retain the catalog price parameter for API symmetry.
+  void basePrice;
   return ETCS_RATE;
 }
 
@@ -119,6 +121,8 @@ export function extraEquipmentLabel(id: ExtraEquipment, basePrice: number): stri
 }
 
 export function extraEquipmentLineLabel(id: ExtraEquipment, basePrice: number): string {
+  // Detail rows show the percentage only; the price is rendered separately where needed.
+  void basePrice;
   if (id === 'etcs') return `${EQUIPMENT_LABELS[id]} ${formatEtcsRatePercent()}`;
   return EQUIPMENT_LABELS[id];
 }

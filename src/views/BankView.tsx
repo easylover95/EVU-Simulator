@@ -93,7 +93,6 @@ export function BankView({
   const investmentLocked = isInvestmentLockedByOverdraft(balance, bank.overdraftLimit);
   const frameLocked = !canChangeOverdraftLimit(balance);
   const currentTier = normalizeOverdraftLimit(bank.overdraftLimit);
-  const sliderIndex = Math.max(0, OVERDRAFT_TIERS.indexOf(currentTier));
   const sanierung = sanierungSnapshot(bank, company?.tick ?? 0);
   const outstandingLoanPrincipal = (bank.loans ?? []).reduce((sum, loan) => sum + (Number(loan?.principalRemaining) || Number(loan?.principal) || 0), 0);
   const creditCheck = checkLoanCredit({

@@ -177,7 +177,11 @@ const report = {
   },
   xpCurve: xpCurve.filter((row) => [1, 2, 3, 5, 10, 15, 20, 21, 25].includes(row.level)),
   overdraftCurve,
-  scenarios: simulatedScenarios.map(({ timeline, ...summary }) => summary),
+  scenarios: simulatedScenarios.map(({ timeline, ...summary }) => {
+    // The compact report intentionally omits daily rows; scenario details remain in the simulator.
+    void timeline;
+    return summary;
+  }),
 };
 
 console.log(JSON.stringify(report, null, 2));

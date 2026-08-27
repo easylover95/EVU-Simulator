@@ -25,3 +25,14 @@ dist-ssr
 src-tauri/target/
 src-tauri/gen/schemas/
 "public/assets/leitstelle.glb" 
+
+# Lokale QA-/Browserartefakte (durch Regressionen jederzeit neu erzeugbar)
+simulation/mobile-clock-check/
+simulation/mobile-friendly-*.png
+simulation/mobile-nav-*.png
+simulation/mobile-preview-*.png
+simulation/output/progression-dispo-ui-check.txt
+
+# Lokale Übergabe- und Zwischenartefakte
+evu-freight-year-365-simulation.patch
+EVU-Simulator-final-*.zip

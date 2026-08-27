@@ -278,6 +278,11 @@ export function canChangeOverdraftLimit(balance: number): boolean {
   return balance >= 0;
 }
 
+/**
+ * Normalizes the currently used share of the approved operating overdraft to
+ * the 0–1 range. Investment checks and tiered daily interest both consume this
+ * one value, keeping the Dispo strictly an operational safety net.
+ */
 export function overdraftUtilization(balance: number, overdraftLimit: number): number {
   const limit = Math.max(0, Number(overdraftLimit) || 0);
   if (limit <= 0) return balance < 0 ? 1 : 0;
@@ -291,16 +296,21 @@ export function overdraftRateForUtilization(utilization: number): number {
   return OVERDRAFT_CRITICAL_DAILY_RATE;
 }
 
+/** Resolves the tiered daily Dispo interest rate from the live utilization. */
 export function overdraftRateForBalance(balance: number, overdraftLimit: number): number {
   return overdraftRateForUtilization(overdraftUtilization(balance, overdraftLimit));
 }
 
 /** Legacy/default display rate for a positive balance; live bookings use overdraftRateForBalance. */
-export function overdraftRateForLimit(_limit: number): number {
+export function overdraftRateForLimit(limit: number): number {
+  // The compatibility argument is intentionally retained for legacy callers.
+  void limit;
   return OVERDRAFT_SAFE_DAILY_RATE;
 }
 
-export function isGrosskundenOverdraft(_limit: number): boolean {
+export function isGrosskundenOverdraft(limit: number): boolean {
+  // Gross-customer overdrafts are no longer part of the progression model.
+  void limit;
   return false;
 }
 
@@ -673,7 +683,7 @@ export function loanPaymentBreakdown(loan: BankLoan): LoanPaymentBreakdown {
   const proportionalInterest = loan.remaining > 0 ? Math.round((total * loan.interestRemaining) / loan.remaining) : 0;
   const minimumInterest = loan.interestRemaining > 0 ? 1 : 0;
   let interest = Math.min(loan.interestRemaining, Math.max(minimumInterest, proportionalInterest));
-  let principal = Math.min(loan.principalRemaining, Math.max(0, total - interest));
+  const principal = Math.min(loan.principalRemaining, Math.max(0, total - interest));
   const residual = total - principal - interest;
   if (residual > 0) interest = Math.min(loan.interestRemaining, interest + residual);
   return { total, principal, interest };
@@ -689,6 +699,11 @@ export interface BankTickResult {
   notifications: Omit<Notification, 'id'>[];
 }
 
+/**
+ * Runs financial settlement exactly once per new game day. The order is
+ * deliberate: Dispo interest is charged for negative liquidity first, then
+ * contractual loan service and the subsequent solvency status are recorded.
+ */
 export function processBankTick(state: BankState, company: Company, nextTick: number): BankTickResult {
   if (!isNewGameDay(state.lastProcessedTick, nextTick)) {
     return { state: { ...state, lastProcessedTick: nextTick }, company, notifications: [] };
