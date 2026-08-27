@@ -140,7 +140,7 @@ export function InboxView({
           return (
             <article
               key={message.id}
-              className={`app-glass-panel w-full min-w-0 rounded-sm border border-slate-800 pl-0 transition-colors hover:border-amber-500/35 hover:bg-slate-900/60 ${
+              className={`fi-deferred-list-card app-glass-panel w-full min-w-0 rounded-sm border border-slate-800 pl-0 transition-colors hover:border-amber-500/35 hover:bg-slate-900/60 ${
                 message.isRead ? 'opacity-70' : `border-l-4 ${style.accent} bg-slate-900/50`
               }`}
             >

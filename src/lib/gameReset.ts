@@ -1,7 +1,8 @@
 import { STATISTICS_ARCHIVE_KEY } from '@/lib/statisticsArchive';
+import { PERFORMANCE_SETTINGS_KEY } from '@/lib/performanceSettings';
 
 const GAME_STORAGE_PREFIX = 'evu-';
-const PRESERVED_GAME_STORAGE_KEYS = new Set([STATISTICS_ARCHIVE_KEY]);
+const PRESERVED_GAME_STORAGE_KEYS = new Set([STATISTICS_ARCHIVE_KEY, PERFORMANCE_SETTINGS_KEY]);
 
 /**
  * Entfernt ausschließlich den lokalen Spielstand des EVU-Simulators.

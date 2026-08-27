@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Building2, MapPin, RotateCcw, ShieldAlert, Star, Train } from 'lucide-react';
+import { Building2, MapPin, RotateCcw, ShieldAlert, Star, Train, Zap } from 'lucide-react';
 import { DEFAULT_EVU_NAME, DEFAULT_HQ_LOCATION } from '@/lib/companyProfile';
 
 interface CompanyFoundingModalProps {
@@ -11,6 +11,8 @@ interface CompanyFoundingModalProps {
   onCancel?: () => void;
   onReplayTutorial?: () => void;
   onResetGame?: () => void;
+  powerSaving?: boolean;
+  onTogglePowerSaving?: () => void;
 }
 
 export function CompanyFoundingModal({
@@ -22,6 +24,8 @@ export function CompanyFoundingModal({
   onCancel,
   onReplayTutorial,
   onResetGame,
+  powerSaving = false,
+  onTogglePowerSaving,
 }: CompanyFoundingModalProps) {
   const [name, setName] = useState(initialName?.trim() || DEFAULT_EVU_NAME);
   const [hqLocation, setHqLocation] = useState(initialLocation?.trim() || DEFAULT_HQ_LOCATION);
@@ -141,6 +145,27 @@ export function CompanyFoundingModal({
               placeholder={DEFAULT_HQ_LOCATION}
             />
           </label>
+          {mode === 'edit' && onTogglePowerSaving && (
+            <section className="rounded-lg border border-emerald-500/25 bg-emerald-950/15 px-3 py-3" aria-labelledby="power-saving-title">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 id="power-saving-title" className="flex items-center gap-1.5 text-xs font-bold text-emerald-100"><Zap className="h-3.5 w-3.5 text-emerald-300" /> Energiesparmodus</h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">Reduziert Blur, Schatten, Animationen und Kartenfilter. Ideal für ältere Smartphones und längere Spielsitzungen.</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={powerSaving}
+                  aria-label="Energiesparmodus umschalten"
+                  onClick={onTogglePowerSaving}
+                  className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full border transition-colors ${powerSaving ? 'border-emerald-300 bg-emerald-500' : 'border-slate-600 bg-slate-900'}`}
+                >
+                  <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-transform ${powerSaving ? 'translate-x-5' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <p className={`mt-2 text-[10px] font-bold ${powerSaving ? 'text-emerald-300' : 'text-slate-500'}`}>{powerSaving ? 'Aktiv: reduzierte Darstellung wird auf diesem Gerät gespeichert.' : 'Inaktiv: vollständige Frachtimperium-Effekte sind aktiv.'}</p>
+            </section>
+          )}
           {mode === 'edit' && onResetGame && (
             <section className="rounded-lg border border-rose-500/30 bg-rose-950/20 px-3 py-3" aria-labelledby="new-company-title">
               <div className="flex items-start gap-2">

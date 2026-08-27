@@ -52,6 +52,7 @@ import {
 } from '@/lib/wagonJobs';
 import { GameClockProvider } from '@/lib/GameClockContext';
 import { atmosphereForView, type AppView } from '@/lib/navigation';
+import { applyPerformanceSettings, loadPerformanceSettings, savePerformanceSettings, type PerformanceSettings } from '@/lib/performanceSettings';
 import {
   applyTickToAssignments,
   applyTickToDrivers,
@@ -434,6 +435,11 @@ function App() {
   const [marketRefreshDay, setMarketRefreshDay] = useState<string | null>(() => loadMarketRefreshDay());
   const [achievements, setAchievements] = useState<AchievementState>(() => loadAchievementState());
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [performanceSettings, setPerformanceSettings] = useState<PerformanceSettings>(() => loadPerformanceSettings());
+
+  useEffect(() => {
+    applyPerformanceSettings(performanceSettings);
+  }, [performanceSettings]);
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 767px)');
@@ -442,6 +448,10 @@ function App() {
     query.addEventListener('change', updateViewport);
     return () => query.removeEventListener('change', updateViewport);
   }, []);
+
+  function togglePowerSaving() {
+    setPerformanceSettings((current) => savePerformanceSettings({ ...current, powerSaving: !current.powerSaving }));
+  }
 
   const headerRef = useRef<HTMLElement | null>(null);
   const companyRef = useRef(company);
@@ -497,6 +507,7 @@ function App() {
   const tick = company?.tick ?? 0;
   const gameNow = useMemo(() => tickToDate(tick, clockMinutes), [tick, clockMinutes]);
   const clockMinutesRef = useRef(clockMinutes);
+  const visibleClockSecondsRef = useRef(0);
   clockMinutesRef.current = clockMinutes;
 
   useEffect(() => {
@@ -1468,16 +1479,39 @@ function App() {
   advanceRef.current = advanceOneTick;
 
   useEffect(() => {
+    const updateVisibility = () => {
+      const visible = document.visibilityState !== 'hidden';
+      document.documentElement.dataset.appVisibility = visible ? 'visible' : 'hidden';
+      if (visible) {
+        visibleClockSecondsRef.current = 0;
+        setClockMinutes(clockMinutesRef.current);
+      }
+    };
+    updateVisibility();
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => document.removeEventListener('visibilitychange', updateVisibility);
+  }, []);
+
+  useEffect(() => {
     if (!clockRunning) return;
     const id = window.setInterval(() => {
       let leftover = clockMinutesRef.current + clockSpeed;
+      let advancedHour = false;
       while (leftover >= MINUTES_PER_HOUR) {
         leftover -= MINUTES_PER_HOUR;
+        advancedHour = true;
         advanceRef.current();
       }
       clockMinutesRef.current = leftover;
-      setClockMinutes(leftover);
       saveGameMinute(leftover);
+
+      // Die Simulation bleibt sekundengenau. Nur die sichtbare Uhr bündelt Updates bei langsamen Geschwindigkeiten.
+      const renderCadenceSeconds = clockSpeed === 1 ? 3 : 1;
+      visibleClockSecondsRef.current += 1;
+      if (advancedHour || visibleClockSecondsRef.current >= renderCadenceSeconds) {
+        visibleClockSecondsRef.current = 0;
+        setClockMinutes(leftover);
+      }
     }, BASE_TICK_INTERVAL_MS);
     return () => window.clearInterval(id);
   }, [clockRunning, clockSpeed]);
@@ -3198,6 +3232,8 @@ function App() {
                 : undefined
             }
             onResetGame={foundingMode === 'edit' ? requestGameReset : undefined}
+            powerSaving={performanceSettings.powerSaving}
+            onTogglePowerSaving={foundingMode === 'edit' ? togglePowerSaving : undefined}
           />
         )}
         {tutorialOpen && !foundingOpen && (

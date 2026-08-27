@@ -175,6 +175,7 @@ export function FleetView({
           return (
             <VehicleCard
               key={loco.id}
+              className="fi-deferred-list-card"
               designation={loco.designation}
               catalogId={offerForLoco(loco)?.id}
               alt={`${typeLabel} ${loco.name}`}
@@ -283,6 +284,7 @@ export function FleetView({
               return (
                 <VehicleCard
                   key={wagon.id}
+                  className="fi-deferred-list-card"
                   designation={wagon.type_code}
                   catalogId={wagon.type_code.toLowerCase()}
                   kind="wagon"

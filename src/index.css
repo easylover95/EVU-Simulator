@@ -2511,3 +2511,68 @@ body,
     background-image: url('/assets/leitstelle_bg-mobile.webp');
   }
 }
+
+/* Geräteprofil: reduziert teure Compositing-, Blur- und Animationsarbeit auf Wunsch. */
+:root[data-performance-mode='power-saver'] {
+  --app-glass-blur: 0px;
+}
+
+:root[data-performance-mode='power-saver'] .app-glass,
+:root[data-performance-mode='power-saver'] .game-box,
+:root[data-performance-mode='power-saver'] .fi-card,
+:root[data-performance-mode='power-saver'] .app-topbar,
+:root[data-performance-mode='power-saver'] .app-mobile-quicknav,
+:root[data-performance-mode='power-saver'] .app-mobile-menu-sheet,
+:root[data-performance-mode='power-saver'] .mobile-command-focus,
+:root[data-performance-mode='power-saver'] .pc-app-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+:root[data-performance-mode='power-saver'] .main-menu-photo,
+:root[data-performance-mode='power-saver'] .app-shell::before,
+:root[data-performance-mode='power-saver'] .fi-live-map .leaflet-tile-pane {
+  filter: none !important;
+}
+
+:root[data-performance-mode='power-saver'] .app-topbar-live,
+:root[data-performance-mode='power-saver'] .app-mobile-clock-live,
+:root[data-performance-mode='power-saver'] .fi-train-glyph.is-live,
+:root[data-performance-mode='power-saver'] .fi-location-beacon,
+:root[data-performance-mode='power-saver'] .tutorial-highlight,
+:root[data-performance-mode='power-saver'] .animate-pulse {
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+/* Browser drosseln Hintergrundtabs bereits. Dieses Attribut stoppt zusätzlich reine CSS-Effekte sofort. */
+:root[data-app-visibility='hidden'] .app-topbar-live,
+:root[data-app-visibility='hidden'] .app-mobile-clock-live,
+:root[data-app-visibility='hidden'] .fi-train-glyph.is-live,
+:root[data-app-visibility='hidden'] .fi-location-beacon,
+:root[data-app-visibility='hidden'] .tutorial-highlight,
+:root[data-app-visibility='hidden'] .animate-pulse {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-performance-mode='balanced'] .app-topbar-live,
+  :root[data-performance-mode='balanced'] .app-mobile-clock-live,
+  :root[data-performance-mode='balanced'] .fi-train-glyph.is-live,
+  :root[data-performance-mode='balanced'] .fi-location-beacon,
+  :root[data-performance-mode='balanced'] .tutorial-highlight {
+    animation: none !important;
+  }
+}
+
+/* Lange Fachlisten: Offscreen-Einträge verbrauchen erst beim Annähern Layout- und Paintzeit. */
+.fi-deferred-list-card,
+.fi-deferred-list-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 11rem;
+}
+
+.fi-deferred-list-row {
+  contain-intrinsic-size: auto 4.5rem;
+}

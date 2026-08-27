@@ -379,7 +379,7 @@ export function OrderMarketView({
               const shortage = wagonShortageLabel(wagonCheck);
               const gate = orderGate(order);
               return (
-                <tr key={order.id} className="cursor-pointer" onClick={() => openOrder(order)}>
+                <tr key={order.id} className="fi-deferred-list-row cursor-pointer" onClick={() => openOrder(order)}>
                   <td className="font-mono text-[11px] font-bold text-white">{order.order_number}</td>
                   <td>
                     <div className="flex flex-col items-start gap-1">
