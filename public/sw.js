@@ -7,7 +7,7 @@
  *   an application-owned SVG and therefore safe to precache.
  * - Runtime events: a small anonymous IndexedDB ring buffer for diagnostics.
  */
-const CACHE_VERSION = 'evu-simulator-v4';
+const CACHE_VERSION = 'evu-simulator-v5';
 const APP_SHELL_CACHE = `${CACHE_VERSION}-shell`;
 const IMAGE_RUNTIME_CACHE = `${CACHE_VERSION}-images`;
 const MAX_RUNTIME_IMAGES = 50;

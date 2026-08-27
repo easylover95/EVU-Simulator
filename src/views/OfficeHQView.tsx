@@ -212,6 +212,7 @@ export function OfficeHQView({
               : hs.label
           }
         >
+          {hs.id === 'gallery' && <span className="office-hotspot-gallery-frame" aria-hidden="true" />}
           <span className="office-hotspot-chip">
             <hs.Icon className="office-hotspot-icon" aria-hidden />
             {hs.id === 'gallery' ? `Erfolge ${galleryUnlocked}/${galleryTotal}` : hs.label}
