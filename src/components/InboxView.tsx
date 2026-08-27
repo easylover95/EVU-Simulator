@@ -86,8 +86,8 @@ export function InboxView({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="fi-filter-bar w-fit">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="fi-filter-bar w-full overflow-x-auto sm:w-fit">
           {FILTERS.map((tab) => (
             <button
               key={tab.id}
@@ -100,11 +100,11 @@ export function InboxView({
             </button>
           ))}
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="secondary" disabled={unread === 0} onClick={onMarkAllRead}>
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
+          <Button className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap" variant="secondary" disabled={unread === 0} onClick={onMarkAllRead}>
             <CheckCheck className="h-3.5 w-3.5" /> Alle als gelesen markieren
           </Button>
-          <Button variant="danger" disabled={readCount === 0} onClick={onDeleteRead}>
+          <Button className="w-full whitespace-normal sm:w-auto sm:whitespace-nowrap" variant="danger" disabled={readCount === 0} onClick={onDeleteRead}>
             <Trash2 className="h-3.5 w-3.5" /> Gelesene löschen
           </Button>
         </div>
@@ -140,12 +140,12 @@ export function InboxView({
           return (
             <article
               key={message.id}
-              className={`app-glass-panel rounded-sm border border-slate-800 pl-0 transition-colors hover:border-amber-500/35 hover:bg-slate-900/60 ${
+              className={`app-glass-panel w-full min-w-0 rounded-sm border border-slate-800 pl-0 transition-colors hover:border-amber-500/35 hover:bg-slate-900/60 ${
                 message.isRead ? 'opacity-70' : `border-l-4 ${style.accent} bg-slate-900/50`
               }`}
             >
-              <div className="flex flex-wrap items-start justify-between gap-3 px-3 py-3">
-                <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 flex-col gap-3 px-3 py-3 sm:px-4">
+                <div className="min-w-0 w-full">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className={`inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[10px] font-bold uppercase ${style.pill}`}>
                       <CategoryIcon category={message.category} />
@@ -157,17 +157,17 @@ export function InboxView({
                   <h3 className={`mt-1 text-sm text-white ${message.isRead ? 'font-medium' : 'font-bold'}`}>
                     {message.title}
                   </h3>
-                  <p className={`mt-1 text-[12px] leading-relaxed text-slate-400 ${message.isRead ? '' : 'font-medium text-slate-300'}`}>
+                  <p className={`mt-1 w-full break-words hyphens-auto text-[12px] leading-relaxed text-slate-400 [overflow-wrap:anywhere] ${message.isRead ? '' : 'font-medium text-slate-300'}`}>
                     {message.content}
                   </p>
                 </div>
-                <div className="flex shrink-0 gap-1.5">
+                <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:justify-end">
                   {!message.isRead && (
-                    <Button variant="secondary" onClick={() => onMarkRead(message.id)}>
+                    <Button className="w-full whitespace-normal px-3 py-2 sm:w-auto sm:whitespace-nowrap" variant="secondary" onClick={() => onMarkRead(message.id)}>
                       <MailOpen className="h-3.5 w-3.5" /> Als gelesen markieren
                     </Button>
                   )}
-                  <Button variant="danger" onClick={() => onDelete(message.id)}>
+                  <Button className="w-full whitespace-normal px-3 py-2 sm:w-auto sm:whitespace-nowrap" variant="danger" onClick={() => onDelete(message.id)}>
                     <Trash2 className="h-3.5 w-3.5" /> Löschen
                   </Button>
                 </div>
@@ -188,8 +188,8 @@ function CategoryIcon({ category }: { category: InboxCategory }) {
   const cls = 'h-3 w-3';
   if (category === 'Warnung') return <AlertTriangle className={cls} />;
   if (category === 'Finanzen') return <Landmark className={cls} />;
+  if (category === 'System') return <Monitor className={cls} />;
   return <Train className={cls} />;
-  return <Monitor className={cls} />;
 }
 
 function HireRequestRow({

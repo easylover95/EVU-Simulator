@@ -221,6 +221,38 @@ try {
       checks[name].mapStyleChecks = styleChecks;
     }
   }
+  await client.evaluate(`document.querySelector('[title="Posteingang"]')?.click()`);
+  await wait(450);
+  await client.evaluate(`document.querySelector('article.app-glass-panel')?.scrollIntoView({ block: 'start' })`);
+  await wait(180);
+  checks.inbox = await capture(client, 'posteingang');
+  checks.inbox.layout = await client.evaluate(`(() => {
+    const card = document.querySelector('article.app-glass-panel');
+    const body = card?.querySelector('p');
+    const actions = card?.querySelector('div > div + div');
+    const rect = (element) => {
+      const value = element?.getBoundingClientRect();
+      return value ? { left: Math.round(value.left), right: Math.round(value.right), top: Math.round(value.top), bottom: Math.round(value.bottom), width: Math.round(value.width), height: Math.round(value.height) } : null;
+    };
+    const cardRect = rect(card);
+    const bodyRect = rect(body);
+    const actionsRect = rect(actions);
+    const buttonRects = card ? [...card.querySelectorAll('button')].map(rect).filter(Boolean) : [];
+    const actionButtonsAreFullWidth = buttonRects.length > 0 && buttonRects.every((button) => button.width >= 280);
+    return {
+      cardPresent: Boolean(card),
+      card: cardRect,
+      body: bodyRect,
+      actions: actionsRect,
+      actionButtonsAreFullWidth,
+      contentHasWidth: Boolean(bodyRect && bodyRect.width >= 300),
+      actionsBelowText: Boolean(bodyRect && actionsRect && actionsRect.top >= bodyRect.bottom + 8),
+      cardUsesViewportWidth: Boolean(cardRect && cardRect.width >= Math.round(window.innerWidth * 0.9)),
+    };
+  })()`);
+  const inboxScreenshot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+  await writeFile(`${outputDir}/posteingang-390x844.png`, Buffer.from(inboxScreenshot.data, 'base64'));
+
   const report = {
     viewport: { width, height },
     interaction: { selectedSpeed: speedAfterClick, selectedClockControl: pauseAfterClick },
@@ -249,6 +281,12 @@ try {
       && checks.disposition?.mapStyleChecks?.osm?.selected === 'osm'
       && checks.disposition?.mapStyleChecks?.osm?.matchingBaseTiles > 0
       && checks.disposition?.mapStyleChecks?.osm?.apiKeyWatermarkAbsent
+      && checks.inbox?.view === 'Posteingang'
+      && checks.inbox?.layout?.cardPresent
+      && checks.inbox?.layout?.cardUsesViewportWidth
+      && checks.inbox?.layout?.contentHasWidth
+      && checks.inbox?.layout?.actionsBelowText
+      && checks.inbox?.layout?.actionButtonsAreFullWidth
       && speedAfterClick === '5×'
       && pauseAfterClick === 'Spiel pausieren',
   };
