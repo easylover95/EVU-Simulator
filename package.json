@@ -22,6 +22,7 @@
     "test:mobile-ui": "node simulation/captureMobileClockViews.mjs",
     "test:mobile-modals": "node simulation/testMobileModalOverlays.mjs",
     "test:clock-runtime": "node simulation/testRuntimeClockControls.mjs",
+    "test:terminal-logistics": "tsx --tsconfig tsconfig.app.json scripts/testTerminalLogistics.ts",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
