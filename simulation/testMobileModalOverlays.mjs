@@ -198,6 +198,8 @@ try {
   await wait(180);
 
   await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[5]?.click()`);
+  await wait(450);
+  await client.evaluate(visibleClick('Live Tracking öffnen'));
   await wait(1_500);
   await client.evaluate(clickSelector('[data-map-legend-trigger]'));
   checks.kartenLegende = await captureOverlay(client, 'karten-legende', '[data-map-legend-panel]');

@@ -6,6 +6,7 @@ export interface CompanyEconomy {
   balance: number;
   reputation: number;
   lastTick: number;
+  level?: number;
 }
 
 export function loadCompanyEconomy(): CompanyEconomy | null {
@@ -15,6 +16,7 @@ export function loadCompanyEconomy(): CompanyEconomy | null {
     balance: loaded.balance,
     reputation: clampReputation(loaded.reputation ?? 0),
     lastTick: Number(loaded.lastTick) || 0,
+    level: Math.max(1, Math.floor(Number(loaded.level) || 1)),
   };
 }
 
@@ -23,6 +25,7 @@ export function saveCompanyEconomy(economy: CompanyEconomy): void {
     balance: economy.balance,
     reputation: clampReputation(economy.reputation),
     lastTick: economy.lastTick,
+    level: Math.max(1, Math.floor(Number(economy.level) || 1)),
   });
 }
 

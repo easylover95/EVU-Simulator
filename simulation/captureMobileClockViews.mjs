@@ -153,9 +153,18 @@ try {
   ];
   for (const [name, index] of views) {
     await client.evaluate(`document.querySelectorAll('.app-mobile-quicknav-item')[${index}]?.click()`);
-    await wait(name === 'disposition' ? 5_000 : 450);
+    await wait(450);
     checks[name] = await capture(client, name);
     if (name === 'disposition') {
+      checks[name].mapDeferred = await client.evaluate(`(() => {
+        const trigger = [...document.querySelectorAll('button')].find((entry) => entry.offsetParent && entry.textContent?.includes('Live Tracking öffnen'));
+        return Boolean(trigger) && !document.querySelector('.fi-live-map');
+      })()`);
+      await client.evaluate(`(() => {
+        const trigger = [...document.querySelectorAll('button')].find((entry) => entry.offsetParent && entry.textContent?.includes('Live Tracking öffnen'));
+        trigger?.click();
+      })()`);
+      await wait(5_000);
       checks[name].map = await client.evaluate(`(() => {
         const tiles = [...document.querySelectorAll('.fi-live-map .leaflet-tile')];
         const loaded = tiles.filter((tile) => tile.complete && tile.naturalWidth > 0);
@@ -263,6 +272,7 @@ try {
     checks,
     pass: Object.values(checks).every((entry) => entry.clockVisible && entry.documentScrollWidth <= width && entry.bodyScrollWidth <= width)
       && checks.disposition?.view === 'Disposition'
+      && checks.disposition?.mapDeferred
       && checks.disposition?.map?.mapVisible
       && checks.disposition?.map?.mapStyle === 'osm'
       && checks.disposition?.map?.usesOpenStreetMap

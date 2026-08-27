@@ -27,7 +27,8 @@ import type {
   AssignmentWithDetails,
   Wagon,
 } from '@/lib/supabase';
-import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { getSupabaseClient } from '@/lib/supabaseClient';
 import {
   formatEuro,
   timeRemaining,
@@ -166,6 +167,7 @@ export function DispatchView({
   const [error, setError] = useState<string | null>(null);
   const [fleetFilter, setFleetFilter] = useState<FleetFilter>('alle');
   const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
   const activeAssignmentRef = useRef<HTMLTableRowElement | null>(null);
   const [fitRequest, setFitRequest] = useState(0);
   const [refreshRequest, setRefreshRequest] = useState(0);
@@ -374,21 +376,23 @@ export function DispatchView({
         setSelectedAzfId('');
         return;
       }
-      const { error: assignErr } = await supabase.from('assignments').insert({
+      const client = await getSupabaseClient();
+      if (!client) throw new Error('Online-Persistenz konnte nicht geladen werden');
+      const { error: assignErr } = await client.from('assignments').insert({
         order_id: selectedOrder.id,
         locomotive_id: selectedLoco,
         driver_id: selectedDriver,
         status: 'geplant',
       });
       if (assignErr) throw assignErr;
-      const { error: orderErr } = await supabase.from('orders').update({ status: 'zugewiesen' }).eq('id', selectedOrder.id);
+      const { error: orderErr } = await client.from('orders').update({ status: 'zugewiesen' }).eq('id', selectedOrder.id);
       if (orderErr) throw orderErr;
-      const { error: locoErr } = await supabase.from('locomotives').update({ status: 'einsatz' }).eq('id', selectedLoco);
+      const { error: locoErr } = await client.from('locomotives').update({ status: 'einsatz' }).eq('id', selectedLoco);
       if (locoErr) throw locoErr;
-      const { error: driverErr } = await supabase.from('drivers').update({ status: 'im_einsatz', shift_start: gameNow.toISOString() }).eq('id', selectedDriver);
+      const { error: driverErr } = await client.from('drivers').update({ status: 'im_einsatz', shift_start: gameNow.toISOString() }).eq('id', selectedDriver);
       if (driverErr) throw driverErr;
       if (einsatzOrder && selectedDriver2) {
-        await supabase.from('drivers').update({ status: 'im_einsatz', shift_start: gameNow.toISOString() }).eq('id', selectedDriver2);
+        await client.from('drivers').update({ status: 'im_einsatz', shift_start: gameNow.toISOString() }).eq('id', selectedDriver2);
         onLocalAssign?.(
           selectedOrder,
           selectedLoco,
@@ -418,12 +422,14 @@ export function DispatchView({
         onLocalComplete?.(a);
         return;
       }
-      await supabase.from('assignments').update({ status: 'abgeschlossen' }).eq('id', a.id);
-      await supabase.from('orders').update({ status: 'abgeschlossen' }).eq('id', a.order_id);
-      await supabase.from('locomotives').update({ status: 'frei' }).eq('id', a.locomotive_id);
-      await supabase.from('drivers').update({ status: 'verfuegbar', shift_start: null }).eq('id', a.driver_id);
+      const client = await getSupabaseClient();
+      if (!client) throw new Error('Online-Persistenz konnte nicht geladen werden');
+      await client.from('assignments').update({ status: 'abgeschlossen' }).eq('id', a.id);
+      await client.from('orders').update({ status: 'abgeschlossen' }).eq('id', a.order_id);
+      await client.from('locomotives').update({ status: 'frei' }).eq('id', a.locomotive_id);
+      await client.from('drivers').update({ status: 'verfuegbar', shift_start: null }).eq('id', a.driver_id);
       if (a.second_driver_id) {
-        await supabase.from('drivers').update({ status: 'verfuegbar', shift_start: null }).eq('id', a.second_driver_id);
+        await client.from('drivers').update({ status: 'verfuegbar', shift_start: null }).eq('id', a.second_driver_id);
       }
       onDataChange();
     } catch {
@@ -440,12 +446,14 @@ export function DispatchView({
         onLocalCancel?.(a);
         return;
       }
-      await supabase.from('assignments').update({ status: 'abgebrochen' }).eq('id', a.id);
-      await supabase.from('orders').update({ status: 'offen' }).eq('id', a.order_id);
-      await supabase.from('locomotives').update({ status: 'frei' }).eq('id', a.locomotive_id);
-      await supabase.from('drivers').update({ status: 'verfuegbar', shift_start: null }).eq('id', a.driver_id);
+      const client = await getSupabaseClient();
+      if (!client) throw new Error('Online-Persistenz konnte nicht geladen werden');
+      await client.from('assignments').update({ status: 'abgebrochen' }).eq('id', a.id);
+      await client.from('orders').update({ status: 'offen' }).eq('id', a.order_id);
+      await client.from('locomotives').update({ status: 'frei' }).eq('id', a.locomotive_id);
+      await client.from('drivers').update({ status: 'verfuegbar', shift_start: null }).eq('id', a.driver_id);
       if (a.second_driver_id) {
-        await supabase.from('drivers').update({ status: 'verfuegbar', shift_start: null }).eq('id', a.second_driver_id);
+        await client.from('drivers').update({ status: 'verfuegbar', shift_start: null }).eq('id', a.second_driver_id);
       }
       onDataChange();
     } catch {
@@ -469,7 +477,14 @@ export function DispatchView({
 
   const dispatchActions = (
     <div className="flex flex-wrap items-center gap-1.5">
-      <button type="button" onClick={() => setFitRequest((n) => n + 1)} className="btn-gold-sm">
+      <button
+        type="button"
+        onClick={() => {
+          setMapOpen(true);
+          setFitRequest((n) => n + 1);
+        }}
+        className="btn-gold-sm"
+      >
         <MapPin className="h-3 w-3" />
         Meine Flotte anzeigen
       </button>
@@ -513,25 +528,41 @@ export function DispatchView({
             <span className="fi-tick text-[10px] font-bold tabular-nums">{activeAssignments.length} Züge</span>
           </div>
           <div className="h-[min(62vh,560px)] min-h-[380px]">
-            <Suspense
-              fallback={
-                <div className="flex h-full items-center justify-center text-xs text-slate-500">Karte wird geladen…</div>
-              }
-            >
-              <LiveTrackingMap
-                assignments={activeAssignments}
-                wagons={wagons}
-                tick={tick}
-                locomotives={locomotives}
-                hqLocation={hqLocation}
-                selectedId={selectedMarkerId}
-                onSelect={setSelectedMarkerId}
-                onOpenTrainDispatch={handleOpenTrainDispatch}
-                fitRequest={fitRequest}
-                refreshRequest={refreshRequest}
-                variant="fill"
-              />
-            </Suspense>
+            {mapOpen ? (
+              <Suspense
+                fallback={
+                  <div className="flex h-full items-center justify-center text-xs text-slate-500">Karte wird geladen…</div>
+                }
+              >
+                <LiveTrackingMap
+                  assignments={activeAssignments}
+                  wagons={wagons}
+                  tick={tick}
+                  locomotives={locomotives}
+                  hqLocation={hqLocation}
+                  selectedId={selectedMarkerId}
+                  onSelect={setSelectedMarkerId}
+                  onOpenTrainDispatch={handleOpenTrainDispatch}
+                  fitRequest={fitRequest}
+                  refreshRequest={refreshRequest}
+                  variant="fill"
+                />
+              </Suspense>
+            ) : (
+              <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+                <MapPin className="h-8 w-8 text-sky-400/80" aria-hidden />
+                <div>
+                  <p className="text-sm font-bold text-slate-200">Live Tracking bei Bedarf laden</p>
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                    Die Europakarte wird erst geöffnet, wenn du sie wirklich benötigst. Das hält die Disposition schneller.
+                  </p>
+                </div>
+                <button type="button" onClick={() => setMapOpen(true)} className="btn-gold-sm">
+                  <MapPin className="h-3 w-3" />
+                  Live Tracking öffnen
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

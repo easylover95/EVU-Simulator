@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
-
 const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
 const envUrl = viteEnv?.VITE_SUPABASE_URL?.trim();
 const envKey = viteEnv?.VITE_SUPABASE_ANON_KEY?.trim();
@@ -8,12 +6,12 @@ export const isSupabaseConfigured = Boolean(
   envUrl && /^https?:\/\//i.test(envUrl) && envKey && envKey.length > 0,
 );
 
-const supabaseUrl = isSupabaseConfigured ? envUrl! : 'https://placeholder.supabase.co';
-const supabaseAnonKey = isSupabaseConfigured
-  ? envKey!
-  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxfQ.placeholder';
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabaseConfig = {
+  url: envUrl ?? 'https://placeholder.supabase.co',
+  anonKey:
+    envKey ??
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJvbGUiOiJhbm9uIiwiaWF0IjoxfQ.placeholder',
+};
 
 export type LocoStatus = 'frei' | 'einsatz' | 'v1' | 'wartung' | 'stillgelegt';
 export type FuelType = 'diesel' | 'elektrik' | 'dual';
