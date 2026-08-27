@@ -35,6 +35,11 @@ function snapshot(overrides: Partial<TerminalSimulationSnapshot> = {}): Terminal
     gameProgress: createTerminalGameProgress(),
     eventLog: [],
     ...overrides,
+    activeScenarioId: overrides.activeScenarioId ?? null,
+    terminalUpgradesById: overrides.terminalUpgradesById ?? {},
+    specialistsById: overrides.specialistsById ?? {},
+    staffChargesById: overrides.staffChargesById ?? {},
+    persistence: overrides.persistence ?? { status: 'IDLE', lastSavedAt: null, errorMessage: null },
   };
 }
 

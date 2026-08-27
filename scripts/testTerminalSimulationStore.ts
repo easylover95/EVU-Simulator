@@ -127,6 +127,11 @@ function baseSnapshot(overrides: Partial<TerminalSimulationSnapshot> = {}): Term
     gameProgress: createTerminalGameProgress(),
     eventLog: [],
     ...overrides,
+    activeScenarioId: overrides.activeScenarioId ?? null,
+    terminalUpgradesById: overrides.terminalUpgradesById ?? {},
+    specialistsById: overrides.specialistsById ?? {},
+    staffChargesById: overrides.staffChargesById ?? {},
+    persistence: overrides.persistence ?? { status: 'IDLE', lastSavedAt: null, errorMessage: null },
   };
 }
 
@@ -182,6 +187,19 @@ const lueStore = createTerminalSimulationStore(baseSnapshot({
   wagonsById: Object.fromEntries(lueWagons.map((item) => [item.id, item])),
   cargoUnitsById: Object.fromEntries(lueUnits.map((item) => [item.id, item])),
   wagonLoads: lueLoads,
+  terminalUpgradesById: {
+    'upgrade-heavy-lift': {
+      id: 'upgrade-heavy-lift', terminalId: terminal.id, definitionId: 'heavy-lift-crane', status: 'COMPLETED', startedTick: 0, completedTick: 0,
+    },
+    'upgrade-lue-desk': {
+      id: 'upgrade-lue-desk', terminalId: terminal.id, definitionId: 'lue-clearance-desk', status: 'COMPLETED', startedTick: 0, completedTick: 0,
+    },
+  },
+  specialistsById: {
+    'specialist-lue': {
+      id: 'specialist-lue', terminalId: terminal.id, role: 'LUE_INSPECTOR', name: 'Test LÜ-Prüfer', status: 'EMPLOYED', upkeepCentsPerTick: 9_000, hiredTick: 0,
+    },
+  },
 }));
 assert.equal(lueStore.getState().scheduleTrainDeparture(lueTrain.id, 1).scheduled, true);
 const blockedLueTick = lueStore.getState().advanceTick();

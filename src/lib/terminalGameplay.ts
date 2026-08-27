@@ -102,6 +102,10 @@ export interface TerminalGameProgress {
   status: TerminalGameStatus;
   reputationPoints: number;
   reputationTarget: number;
+  /** Kumulierte, durch Projektabschlüsse realisierte Umsätze in Cent. */
+  grossRevenueCents: number;
+  /** Optionaler Umsatzmeilenstein; hohe Defaultwerte deaktivieren ihn implizit. */
+  revenueTargetCents: number;
   completedMajorProjects: number;
   requiredMajorProjects: number;
   consecutiveNegativeTicks: number;
@@ -145,6 +149,8 @@ export function createTerminalGameProgress(overrides: Partial<TerminalGameProgre
     status: 'ACTIVE',
     reputationPoints: 0,
     reputationTarget: 100,
+    grossRevenueCents: 0,
+    revenueTargetCents: Number.MAX_SAFE_INTEGER,
     completedMajorProjects: 0,
     requiredMajorProjects: 3,
     consecutiveNegativeTicks: 0,
@@ -332,6 +338,7 @@ export function evaluateTerminalGameProgress(
   if (progress.status === 'WON' || progress.status === 'INSOLVENT') return progress;
   const consecutiveNegativeTicks = companyBalanceCents < 0 ? progress.consecutiveNegativeTicks + 1 : 0;
   const hasWon = progress.reputationPoints >= progress.reputationTarget
+    || progress.grossRevenueCents >= progress.revenueTargetCents
     || progress.completedMajorProjects >= progress.requiredMajorProjects;
   if (hasWon) return { ...progress, status: 'WON', consecutiveNegativeTicks };
   if (consecutiveNegativeTicks >= progress.insolvencyAfterNegativeTicks) {

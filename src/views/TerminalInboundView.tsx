@@ -33,7 +33,13 @@ function useTerminalDemoBootstrap(): boolean {
   return terminalCount > 0;
 }
 
-export function TerminalInboundView({ onOpenConfiguration }: { onOpenConfiguration: () => void }) {
+export function TerminalInboundView({
+  onOpenConfiguration,
+  onOpenManagement,
+}: {
+  onOpenConfiguration: () => void;
+  onOpenManagement: () => void;
+}) {
   const ready = useTerminalDemoBootstrap();
   const state = useTerminalSimulation((snapshot) => snapshot);
 
@@ -90,6 +96,9 @@ export function TerminalInboundView({ onOpenConfiguration }: { onOpenConfigurati
           <StatPill label="Simulationsstunde" value={state.currentTick} valueClass="text-cyan-300" />
           <Button variant="secondary" className="min-h-10" onClick={nextTick}>
             <Clock3 className="h-4 w-4" /> +1 Simulationsstunde
+          </Button>
+          <Button variant="secondary" className="min-h-10" onClick={onOpenManagement}>
+            <Warehouse className="h-4 w-4" /> Management
           </Button>
           <Button className="min-h-10" onClick={onOpenConfiguration}>
             Zugbildung öffnen <ArrowRight className="h-4 w-4" />

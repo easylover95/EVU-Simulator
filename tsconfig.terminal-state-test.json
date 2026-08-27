@@ -4,9 +4,13 @@
     "src/lib/terminalEntities.ts",
     "src/lib/terminalLogistics.ts",
     "src/lib/terminalGameplay.ts",
+    "src/lib/terminalTycoon.ts",
+    "src/lib/terminalScenarios.ts",
+    "src/lib/terminalPersistence.ts",
     "src/state/terminalSimulationStore.ts",
     "scripts/testTerminalSimulationStore.ts",
-    "scripts/testTerminalGameplay.ts"
+    "scripts/testTerminalGameplay.ts",
+    "scripts/testTerminalTycoon.ts"
   ],
   "compilerOptions": {
     "noEmit": true
