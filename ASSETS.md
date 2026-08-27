@@ -54,3 +54,14 @@ The final UI must retain the existing application’s readable typography and ac
 Die Leaflet-Karte orientiert sich nun funktional am vom Nutzer bereitgestellten Leitstellenreferenzbild: eine dunkle, leicht strukturierte Deutschlandkarte mit permanent lesbaren Knoten, dezent leuchtenden blau-cyanfarbenen Stammkorridoren und klar hervorgehobenen Live-Verbindungen. Aktive Zugläufe erhalten eine warme amberfarbene Glühspur und einen pulsierten Lokmarker; geplante Züge bleiben zurückhaltend cyan, abgestellte Fahrzeuge amber und Wartungsfahrzeuge rot. Die Karte zeigt weiterhin ausschließlich die vorhandenen, tickbasiert berechneten Simulationspositionen; sie simuliert kein externes GPS.
 
 Der Erfolge-Hotspot ist auf den oberen rechten Dampflok-Holzrahmen positioniert. Seine Quellbildwerte sind verbindlich: `left: 14.2%`, `top: 16.4%`, `width: 11.0%`, `height: 9.8%`. Sein Rahmen verwendet dieselbe goldene Interaktionsbehandlung wie die Hauptkacheln für Firma und Finanzen.
+
+
+## Schwerlast-Terminal-Leitstelle
+
+**Art-direction addition:** Die Schwerlast-Leitstelle verwendet dieselbe dunkle Betriebsführungssprache mit graphitfarbenen Paneelen, feinen Stahlrasterlinien und selektiven Cyan-Datenakzenten. Bernstein signalisiert LÜ-Fracht und sicherheitsrelevante Aufmerksamkeit; Rot kennzeichnet ausschließlich harte Validierungssperren. Mobile Interaktionen setzen auf große Auswahlflächen und Bottom-Sheets statt auf Drag & Drop.
+
+| Asset | Use | File / source | Status |
+| --- | --- | --- | --- |
+| Terminal UI visual target | Stilreferenz für Inbound- und Outbound-Leitstelle | `/home/ubuntu/terminal-ui-visual-target.png` | Generated — reference only |
+
+**Implementation constraint:** Die Referenz wird nicht in das Produktionsbundle aufgenommen. Die Phase-4-Oberfläche wird mit bestehendem React, Tailwind und den vorhandenen Icon-Komponenten realisiert.

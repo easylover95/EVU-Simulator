@@ -346,6 +346,8 @@ function persistQuietly(task: PromiseLike<unknown>) {
 const OfficeHQView = lazy(() => import('@/views/OfficeHQView').then(({ OfficeHQView }) => ({ default: OfficeHQView })));
 const FleetView = lazy(() => import('@/views/FleetView').then(({ FleetView }) => ({ default: FleetView })));
 const WagonParkView = lazy(() => import('@/views/WagonParkView').then(({ WagonParkView }) => ({ default: WagonParkView })));
+const TerminalInboundView = lazy(() => import('@/views/TerminalInboundView').then(({ TerminalInboundView }) => ({ default: TerminalInboundView })));
+const TrainConfigurationView = lazy(() => import('@/views/TrainConfigurationView').then(({ TrainConfigurationView }) => ({ default: TrainConfigurationView })));
 const OrderMarketView = lazy(() => import('@/views/OrderMarketView').then(({ OrderMarketView }) => ({ default: OrderMarketView })));
 const DispatchView = lazy(() => import('@/views/DispatchView').then(({ DispatchView }) => ({ default: DispatchView })));
 const PersonnelView = lazy(() => import('@/views/PersonnelView').then(({ PersonnelView }) => ({ default: PersonnelView })));
@@ -3023,6 +3025,8 @@ function App() {
                   }}
                 />
               )}
+              {view === 'terminal' && <TerminalInboundView onOpenConfiguration={() => setView('zugbildung')} />}
+              {view === 'zugbildung' && <TrainConfigurationView onBack={() => setView('terminal')} />}
               {view === 'spielerboerse' && <PlayerMarketView />}
               {view === 'disposition' && (
                 <DispatchView

@@ -185,6 +185,7 @@ const dispatchedLueTick = lueStore.getState().advanceTick();
 assert.equal(dispatchedLueTick.dispatchAttempts[0]?.dispatched, true);
 assert.equal(lueStore.getState().trainsById[lueTrain.id].status, 'DISPATCHED');
 assert.equal(lueStore.getState().wagonsById['wagon-bridge'].status, 'IN_TRANSIT');
+assert.equal(lueStore.getState().terminalsById[terminal.id].currentStorageUsedSqm, 325);
 
 // 3. Die Ereignisschleife nutzt dieselbe Phase-2-Prüfung für Überlänge,
 //    Überladung und Baustellenreihenfolge; der Zug bleibt im Inspektionsstatus.
@@ -214,5 +215,31 @@ assert.equal(invalidStore.getState().trainsById[invalidTrain.id].status, 'IN_INS
 assert.equal(hasBlocker(invalidTick, 'TRACK_LENGTH_EXCEEDED'), true);
 assert.equal(hasBlocker(invalidTick, 'SINGLE_CARGO_EXCEEDS_WAGON_PAYLOAD'), true);
 assert.equal(hasBlocker(invalidTick, 'CONSTRUCTION_SITE_ORDER_INVALID'), true);
+
+// 4. Der mobile Tap-to-Select-Workflow ergänzt Wagen am Zugende und aktualisiert
+//    die denormalisierten Live-Metriken nach jeder Wagen- oder Frachtzuweisung.
+const formationTrain = { ...train('train-formation'), status: 'ASSEMBLING' as const };
+const selectableWagon = wagon('wagon-selectable', formationTrain.id, 1, 70, 12);
+const selectableCargo = cargoUnit('unit-selectable', ballast.id);
+const formationStore = createTerminalSimulationStore(baseSnapshot({
+  trainsById: { [formationTrain.id]: formationTrain },
+  wagonsById: {
+    [selectableWagon.id]: {
+      ...selectableWagon,
+      currentTrainId: null,
+      positionInTrain: null,
+      status: 'AVAILABLE',
+    },
+  },
+  cargoUnitsById: { [selectableCargo.id]: selectableCargo },
+}));
+assert.equal(formationStore.getState().assignWagonToTrain(selectableWagon.id, formationTrain.id).changed, true);
+assert.equal(formationStore.getState().wagonsById[selectableWagon.id].positionInTrain, 1);
+assert.equal(formationStore.getState().assignCargoToWagon(selectableCargo.id, selectableWagon.id).changed, true);
+assert.equal(formationStore.getState().trainsById[formationTrain.id].totalLengthMeters, 12);
+assert.equal(formationStore.getState().trainsById[formationTrain.id].totalWeightTons, 80);
+assert.equal(formationStore.getState().removeCargoFromWagon(selectableCargo.id, selectableWagon.id).changed, true);
+assert.equal(formationStore.getState().removeWagonFromTrain(selectableWagon.id, formationTrain.id).changed, true);
+assert.equal(formationStore.getState().wagonsById[selectableWagon.id].currentTrainId, null);
 
 console.log('Terminal-Simulation-Store-Tests: alle Prüfungen bestanden.');

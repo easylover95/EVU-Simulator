@@ -4,6 +4,8 @@ export type AppView =
   | 'fuhrpark'
   | 'wagenpark'
   | 'auftragsmarkt'
+  | 'terminal'
+  | 'zugbildung'
   | 'disposition'
   | 'personal'
   | 'finanzen'
@@ -49,6 +51,8 @@ export const NAV_CATEGORIES: NavCategoryDef[] = [
     defaultView: 'auftragsmarkt',
     items: [
       { id: 'auftragsmarkt', label: 'Frachtbörse' },
+      { id: 'terminal', label: 'Terminal' },
+      { id: 'zugbildung', label: 'Baugleis-Zug' },
       { id: 'spielerboerse', label: 'Spieler-Börse' },
       { id: 'disposition', label: 'Disposition' },
       { id: 'tourenplaner', label: 'Tourenplaner' },
@@ -96,6 +100,8 @@ const VIEW_CATEGORY: Record<AppView, NavCategory> = {
   statistikarchiv: 'zentrale',
   posteingang: 'firma',
   auftragsmarkt: 'transport',
+  terminal: 'transport',
+  zugbildung: 'transport',
   spielerboerse: 'transport',
   disposition: 'transport',
   tourenplaner: 'transport',
@@ -153,6 +159,8 @@ export function atmosphereForView(view: AppView): SubmenuAtmosphere | null {
     case 'disposition':
       return 'network';
     case 'auftragsmarkt':
+    case 'terminal':
+    case 'zugbildung':
     case 'spielerboerse':
     case 'tourenplaner':
     case 'tourenuebersicht':

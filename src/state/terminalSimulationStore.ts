@@ -146,6 +146,25 @@ export interface ScheduleTrainDepartureResult {
   reason?: 'TRAIN_NOT_FOUND' | 'INVALID_DEPARTURE_TICK' | 'ACTIVE_ORDER_ALREADY_EXISTS';
 }
 
+/** Ergebnis einer UI-gesteuerten Zugbildungsaktion. */
+export interface FormationMutationResult {
+  changed: boolean;
+  reason?:
+    | 'TRAIN_NOT_FOUND'
+    | 'WAGON_NOT_FOUND'
+    | 'CARGO_UNIT_NOT_FOUND'
+    | 'CARGO_TYPE_NOT_FOUND'
+    | 'TRAIN_NOT_ASSEMBLING'
+    | 'TERMINAL_MISMATCH'
+    | 'WAGON_UNAVAILABLE'
+    | 'WAGON_ALREADY_ASSIGNED'
+    | 'WAGON_NOT_ASSIGNED'
+    | 'CARGO_NOT_IN_STORAGE'
+    | 'CARGO_ALREADY_ASSIGNED'
+    | 'WAGON_NOT_IN_TRAIN'
+    | 'PAYLOAD_EXCEEDED';
+}
+
 export interface TerminalSimulationActions {
   /** Replaces the persisted snapshot after a server-side reload. */
   replaceSnapshot: (snapshot: TerminalSimulationSnapshot) => void;
@@ -155,6 +174,14 @@ export interface TerminalSimulationActions {
   resolveTrainEvent: (eventId: TrainEventId, status: Exclude<TrainEventStatus, 'OPEN'>) => boolean;
   /** Updates the physical handling state of an inbound arrival. */
   setInboundArrivalStatus: (arrivalId: string, status: InboundArrivalStatus) => boolean;
+  /** Fügt einen verfügbaren Wagen als nächste Baustellenposition an einen Zug an. */
+  assignWagonToTrain: (wagonId: WagonId, trainId: TrainId) => FormationMutationResult;
+  /** Entfernt einen Wagen und seine temporären Ladungszuweisungen aus einem Zug in Bildung. */
+  removeWagonFromTrain: (wagonId: WagonId, trainId: TrainId) => FormationMutationResult;
+  /** Ordnet eine eingelagerte Frachtpartie dem selektierten Zugwagen zu. */
+  assignCargoToWagon: (cargoUnitId: CargoUnitId, wagonId: WagonId) => FormationMutationResult;
+  /** Hebt eine noch nicht abgefahrene Frachtzuweisung wieder auf. */
+  removeCargoFromWagon: (cargoUnitId: CargoUnitId, wagonId: WagonId) => FormationMutationResult;
   /** Advances exactly one simulated hour. It never starts an automatic timer. */
   advanceTick: () => AdvanceTickResult;
   /** Advances exactly 24 simulated hours by repeatedly calling the same pure tick logic. */
@@ -235,6 +262,20 @@ function createInitialSnapshot(initial?: Partial<TerminalSimulationSnapshot>): T
     dispatchOrdersById: initial?.dispatchOrdersById ?? {},
     eventLog: initial?.eventLog ?? [],
   });
+}
+
+function hydrateTrainMetrics(snapshot: TerminalSimulationSnapshot, trainId: TrainId): TerminalSimulationSnapshot {
+  const train = snapshot.trainsById[trainId];
+  if (!train) return snapshot;
+  const feasibility = getFeasibility(snapshot, train);
+  if (!feasibility) return snapshot;
+  return {
+    ...snapshot,
+    trainsById: {
+      ...snapshot.trainsById,
+      [trainId]: { ...train, ...trainDerivedFields(feasibility) },
+    },
+  };
 }
 
 function simulationTimestamp(tick: number): string {
@@ -425,13 +466,27 @@ function evaluateTrainDispatch(
     if (wagon) wagonsById[wagonId] = { ...wagon, status: 'IN_TRANSIT' };
   }
   const cargoUnitsById = { ...nextSnapshot.cargoUnitsById };
+  let releasedStorageSqm = 0;
   for (const cargoUnitId of loadedCargoUnitIds) {
     const cargoUnit = cargoUnitsById[cargoUnitId];
-    if (cargoUnit) cargoUnitsById[cargoUnitId] = { ...cargoUnit, status: 'LOADED' };
+    if (!cargoUnit) continue;
+    releasedStorageSqm += cargoUnit.storageAreaSqm;
+    cargoUnitsById[cargoUnitId] = { ...cargoUnit, status: 'LOADED' };
   }
+  const dispatchTerminal = nextSnapshot.terminalsById[train.terminalId];
+  const terminalsById = dispatchTerminal
+    ? {
+      ...nextSnapshot.terminalsById,
+      [dispatchTerminal.id]: {
+        ...dispatchTerminal,
+        currentStorageUsedSqm: Math.max(0, dispatchTerminal.currentStorageUsedSqm - releasedStorageSqm),
+      },
+    }
+    : nextSnapshot.terminalsById;
 
   nextSnapshot = {
     ...nextSnapshot,
+    terminalsById,
     trainsById: {
       ...nextSnapshot.trainsById,
       [trainId]: { ...derivedTrain, status: 'DISPATCHED' },
@@ -632,6 +687,194 @@ export function createTerminalSimulationStore(
         };
       });
       return updated;
+    },
+
+    assignWagonToTrain: (wagonId, trainId) => {
+      let result: FormationMutationResult = { changed: false, reason: 'WAGON_NOT_FOUND' };
+      set((state) => {
+        const wagon = state.wagonsById[wagonId];
+        const train = state.trainsById[trainId];
+        if (!wagon) return state;
+        if (!train) {
+          result = { changed: false, reason: 'TRAIN_NOT_FOUND' };
+          return state;
+        }
+        if (train.status !== 'ASSEMBLING') {
+          result = { changed: false, reason: 'TRAIN_NOT_ASSEMBLING' };
+          return state;
+        }
+        if (wagon.currentTerminalId !== train.terminalId) {
+          result = { changed: false, reason: 'TERMINAL_MISMATCH' };
+          return state;
+        }
+        if (wagon.currentTrainId && wagon.currentTrainId !== trainId) {
+          result = { changed: false, reason: 'WAGON_ALREADY_ASSIGNED' };
+          return state;
+        }
+        if (wagon.status === 'IN_TRANSIT' || wagon.status === 'MAINTENANCE' || wagon.status === 'INSPECTION_DUE') {
+          result = { changed: false, reason: 'WAGON_UNAVAILABLE' };
+          return state;
+        }
+        if (wagon.currentTrainId === trainId) {
+          result = { changed: false, reason: 'WAGON_ALREADY_ASSIGNED' };
+          return state;
+        }
+        const highestPosition = Math.max(
+          0,
+          ...Object.values(state.wagonsById)
+            .filter((candidate) => candidate.currentTrainId === trainId)
+            .map((candidate) => candidate.positionInTrain ?? 0),
+        );
+        result = { changed: true };
+        return hydrateTrainMetrics({
+          ...snapshotFromState(state),
+          wagonsById: {
+            ...state.wagonsById,
+            [wagonId]: {
+              ...wagon,
+              currentTrainId: trainId,
+              positionInTrain: highestPosition + 1,
+              status: 'ASSEMBLING',
+            },
+          },
+        }, trainId);
+      });
+      return result;
+    },
+
+    removeWagonFromTrain: (wagonId, trainId) => {
+      let result: FormationMutationResult = { changed: false, reason: 'WAGON_NOT_FOUND' };
+      set((state) => {
+        const wagon = state.wagonsById[wagonId];
+        const train = state.trainsById[trainId];
+        if (!wagon) return state;
+        if (!train) {
+          result = { changed: false, reason: 'TRAIN_NOT_FOUND' };
+          return state;
+        }
+        if (train.status !== 'ASSEMBLING') {
+          result = { changed: false, reason: 'TRAIN_NOT_ASSEMBLING' };
+          return state;
+        }
+        if (wagon.currentTrainId !== trainId) {
+          result = { changed: false, reason: 'WAGON_NOT_ASSIGNED' };
+          return state;
+        }
+
+        const remainingWagons = Object.values(state.wagonsById)
+          .filter((candidate) => candidate.currentTrainId === trainId && candidate.id !== wagonId)
+          .sort((left, right) => (left.positionInTrain ?? 0) - (right.positionInTrain ?? 0));
+        const wagonsById = { ...state.wagonsById };
+        wagonsById[wagonId] = {
+          ...wagon,
+          currentTrainId: null,
+          positionInTrain: null,
+          status: 'AVAILABLE',
+        };
+        remainingWagons.forEach((candidate, index) => {
+          wagonsById[candidate.id] = { ...candidate, positionInTrain: index + 1 };
+        });
+        result = { changed: true };
+        return hydrateTrainMetrics({
+          ...snapshotFromState(state),
+          wagonsById,
+          wagonLoads: state.wagonLoads.filter((load) => load.wagonId !== wagonId),
+        }, trainId);
+      });
+      return result;
+    },
+
+    assignCargoToWagon: (cargoUnitId, wagonId) => {
+      let result: FormationMutationResult = { changed: false, reason: 'CARGO_UNIT_NOT_FOUND' };
+      set((state) => {
+        const cargoUnit = state.cargoUnitsById[cargoUnitId];
+        const wagon = state.wagonsById[wagonId];
+        if (!cargoUnit) return state;
+        if (!wagon) {
+          result = { changed: false, reason: 'WAGON_NOT_FOUND' };
+          return state;
+        }
+        if (!wagon.currentTrainId) {
+          result = { changed: false, reason: 'WAGON_NOT_IN_TRAIN' };
+          return state;
+        }
+        const train = state.trainsById[wagon.currentTrainId];
+        const cargoType = state.cargoTypesById[cargoUnit.cargoTypeId];
+        if (!train) {
+          result = { changed: false, reason: 'TRAIN_NOT_FOUND' };
+          return state;
+        }
+        if (!cargoType) {
+          result = { changed: false, reason: 'CARGO_TYPE_NOT_FOUND' };
+          return state;
+        }
+        if (train.status !== 'ASSEMBLING') {
+          result = { changed: false, reason: 'TRAIN_NOT_ASSEMBLING' };
+          return state;
+        }
+        if (cargoUnit.status !== 'IN_STORAGE') {
+          result = { changed: false, reason: 'CARGO_NOT_IN_STORAGE' };
+          return state;
+        }
+        if (cargoUnit.currentTerminalId !== train.terminalId || wagon.currentTerminalId !== train.terminalId) {
+          result = { changed: false, reason: 'TERMINAL_MISMATCH' };
+          return state;
+        }
+        if (state.wagonLoads.some((load) => load.cargoUnitId === cargoUnitId)) {
+          result = { changed: false, reason: 'CARGO_ALREADY_ASSIGNED' };
+          return state;
+        }
+        const existingWeight = state.wagonLoads
+          .filter((load) => load.wagonId === wagonId)
+          .reduce((sum, load) => sum + (state.cargoTypesById[load.cargoTypeId]?.weightTons ?? 0), 0);
+        if (existingWeight + cargoType.weightTons > wagon.maxPayloadTons) {
+          result = { changed: false, reason: 'PAYLOAD_EXCEEDED' };
+          return state;
+        }
+
+        result = { changed: true };
+        return hydrateTrainMetrics({
+          ...snapshotFromState(state),
+          wagonLoads: [...state.wagonLoads, { wagonId, cargoUnitId, cargoTypeId: cargoType.id }],
+        }, train.id);
+      });
+      return result;
+    },
+
+    removeCargoFromWagon: (cargoUnitId, wagonId) => {
+      let result: FormationMutationResult = { changed: false, reason: 'WAGON_NOT_FOUND' };
+      set((state) => {
+        const wagon = state.wagonsById[wagonId];
+        if (!wagon) return state;
+        if (!wagon.currentTrainId) {
+          result = { changed: false, reason: 'WAGON_NOT_IN_TRAIN' };
+          return state;
+        }
+        const train = state.trainsById[wagon.currentTrainId];
+        if (!train) {
+          result = { changed: false, reason: 'TRAIN_NOT_FOUND' };
+          return state;
+        }
+        if (train.status !== 'ASSEMBLING') {
+          result = { changed: false, reason: 'TRAIN_NOT_ASSEMBLING' };
+          return state;
+        }
+        const containsLoad = state.wagonLoads.some(
+          (load) => load.wagonId === wagonId && load.cargoUnitId === cargoUnitId,
+        );
+        if (!containsLoad) {
+          result = { changed: false, reason: 'CARGO_ALREADY_ASSIGNED' };
+          return state;
+        }
+        result = { changed: true };
+        return hydrateTrainMetrics({
+          ...snapshotFromState(state),
+          wagonLoads: state.wagonLoads.filter(
+            (load) => !(load.wagonId === wagonId && load.cargoUnitId === cargoUnitId),
+          ),
+        }, train.id);
+      });
+      return result;
     },
 
     advanceTick: () => {
