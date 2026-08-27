@@ -48,6 +48,7 @@ const snapshot: TerminalSimulationSnapshot = {
   specialistsById: {},
   staffChargesById: {},
   persistence: { status: 'IDLE', lastSavedAt: null, errorMessage: null },
+  alertsById: {},
   eventLog: [
     { id: 'upgrade', tick: 2, type: 'UPGRADE_STARTED', severity: 'INFO', message: 'Ausbau', amountCents: 100_000 },
     { id: 'berth', tick: 3, type: 'BERTH_FEE_BOOKED', severity: 'WARNING', message: 'Liegegebühr', amountCents: 5_000 },

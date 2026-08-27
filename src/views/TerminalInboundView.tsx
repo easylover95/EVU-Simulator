@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { GameplayEventPanel } from '@/components/GameplayEventPanel';
+import { TerminalAlertBanner } from '@/components/TerminalAlertBanner';
 import { Button, Card, CardFlush, CardHeader, StatPill } from '@/components/ui';
 import { effectiveCraneCapacityTons } from '@/lib/terminalGameplay';
 import { createTerminalDemoSnapshot } from '@/lib/terminalDemo';
@@ -36,9 +37,11 @@ function useTerminalDemoBootstrap(): boolean {
 export function TerminalInboundView({
   onOpenConfiguration,
   onOpenManagement,
+  onOpenAlerts,
 }: {
   onOpenConfiguration: () => void;
   onOpenManagement: () => void;
+  onOpenAlerts: () => void;
 }) {
   const ready = useTerminalDemoBootstrap();
   const state = useTerminalSimulation((snapshot) => snapshot);
@@ -105,6 +108,8 @@ export function TerminalInboundView({
           </Button>
         </div>
       </header>
+
+      <TerminalAlertBanner onOpenAlerts={onOpenAlerts} />
 
       <div className="grid gap-3 md:grid-cols-3">
         <Card className="border-cyan-400/25 p-4">

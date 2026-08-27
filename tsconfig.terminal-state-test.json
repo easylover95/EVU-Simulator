@@ -8,11 +8,13 @@
     "src/lib/terminalScenarios.ts",
     "src/lib/terminalPersistence.ts",
     "src/lib/terminalAnalytics.ts",
+    "src/lib/terminalAlerts.ts",
     "src/state/terminalSimulationStore.ts",
     "scripts/testTerminalSimulationStore.ts",
     "scripts/testTerminalGameplay.ts",
     "scripts/testTerminalTycoon.ts",
-    "scripts/testTerminalAnalytics.ts"
+    "scripts/testTerminalAnalytics.ts",
+    "scripts/testTerminalAlerts.ts"
   ],
   "compilerOptions": {
     "noEmit": true

@@ -45,6 +45,7 @@ function snapshot(overrides: Partial<TerminalSimulationSnapshot> = {}): Terminal
     specialistsById: overrides.specialistsById ?? {},
     staffChargesById: overrides.staffChargesById ?? {},
     persistence: overrides.persistence ?? { status: 'IDLE', lastSavedAt: null, errorMessage: null },
+    alertsById: overrides.alertsById ?? {},
   };
 }
 

@@ -1,5 +1,6 @@
 export type AppView =
   | 'zentrale'
+  | 'terminalalerts'
   | 'dashboard'
   | 'fuhrpark'
   | 'wagenpark'
@@ -44,8 +45,10 @@ export const NAV_CATEGORIES: NavCategoryDef[] = [
     id: 'zentrale',
     label: 'Zentrale',
     defaultView: 'zentrale',
-    hideSubnav: true,
-    items: [{ id: 'zentrale', label: 'Büro' }],
+    items: [
+      { id: 'zentrale', label: 'Büro' },
+      { id: 'terminalalerts', label: 'Warnzentrale' },
+    ],
   },
   {
     id: 'transport',
@@ -99,6 +102,7 @@ export const NAV_CATEGORIES: NavCategoryDef[] = [
 
 const VIEW_CATEGORY: Record<AppView, NavCategory> = {
   zentrale: 'zentrale',
+  terminalalerts: 'zentrale',
   dashboard: 'zentrale',
   auswertungen: 'zentrale',
   statistikarchiv: 'zentrale',
