@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { AlertTriangle, BellRing, ChevronRight } from 'lucide-react';
 
 import { useTerminalSimulation } from '@/state/terminalSimulationStore';
@@ -10,13 +11,14 @@ function severityStyle(severity: 'CRITICAL' | 'WARNING' | 'INFO'): string {
 
 /** Compact visual entry point. The full, acknowledged history stays in the alert centre. */
 export function TerminalAlertBanner({ onOpenAlerts }: { onOpenAlerts: () => void }) {
-  const alerts = useTerminalSimulation((state) => Object.values(state.alertsById)
-    .filter((alert) => alert.status === 'ACTIVE')
+  const alertsById = useTerminalSimulation((state) => state.alertsById ?? {});
+  const alerts = useMemo(() => Object.values(alertsById)
+    .filter((alert) => alert?.status === 'ACTIVE')
     .sort((left, right) => {
       const priority = { CRITICAL: 0, WARNING: 1, INFO: 2 };
       return priority[left.severity] - priority[right.severity] || right.lastObservedTick - left.lastObservedTick;
-    }));
-  const primary = alerts[0];
+    }), [alertsById]);
+  const primary = alerts[0] ?? null;
   if (!primary) return null;
 
   return (
