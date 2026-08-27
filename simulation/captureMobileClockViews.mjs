@@ -91,6 +91,15 @@ async function capture(client, name) {
       bodyScrollWidth: document.body.scrollWidth,
       activeSpeed: document.querySelector('.app-mobile-clock-speeds button.is-on')?.textContent?.trim() ?? '',
       activeClockControl: document.querySelector('.app-mobile-clock-icon.is-on')?.getAttribute('aria-label') ?? '',
+      quickActionTargets: [...document.querySelectorAll('.mobile-command-focus .btn-action, .mobile-command-quick-actions button')].map((button) => {
+        const target = button.getBoundingClientRect();
+        return {
+          label: button.textContent?.trim() ?? '',
+          width: Math.round(target.width),
+          height: Math.round(target.height),
+          meetsMinimumTouchTarget: target.width >= 44 && target.height >= 44,
+        };
+      }),
     };
   })()`);
 }

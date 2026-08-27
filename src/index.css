@@ -1583,6 +1583,18 @@ body,
   transform: scale(1.02);
 }
 
+/* The round finance-clock hotspot is narrower than its default label. Keep the
+   label inside the mapped clock face instead of letting it overhang the click area. */
+.office-hotspot--round .office-hotspot-chip {
+  max-width: calc(100% - 0.35rem);
+  justify-content: center;
+  gap: 0.28rem;
+  padding: 0.3rem 0.38rem;
+  font-size: clamp(8px, 0.68vw, 10px);
+  text-align: center;
+  white-space: normal;
+}
+
 .achievements-gallery-hero {
   border: 1px solid rgba(251, 191, 36, 0.35);
   background:
@@ -2394,6 +2406,11 @@ body,
     gap: 0.6rem;
   }
 
+  .mobile-command-focus .btn-action {
+    min-height: 3.1rem;
+    touch-action: manipulation;
+  }
+
   .mobile-command-quick-actions button {
     display: grid;
     min-width: 0;
@@ -2408,6 +2425,8 @@ body,
     background: rgba(15, 23, 42, 0.82);
     color: #f8fafc;
     text-align: left;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(251, 191, 36, 0.2);
   }
 
   .mobile-command-quick-actions button:last-child {
