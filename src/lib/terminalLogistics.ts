@@ -53,6 +53,7 @@ export type ValidationCode =
   | 'CRANE_CAPACITY_EXCEEDED'
   | 'WAGON_NOT_AT_TRAIN_TERMINAL'
   | 'WAGON_NOT_ASSIGNED_TO_TRAIN'
+  | 'WAGON_LOAD_NOT_IN_TRAIN'
   | 'MISSING_TRAIN_POSITION'
   | 'DUPLICATE_TRAIN_POSITION'
   | 'NON_CONTIGUOUS_TRAIN_POSITION'
@@ -60,6 +61,7 @@ export type ValidationCode =
   | 'UNKNOWN_CARGO_TYPE'
   | 'CARGO_UNIT_NOT_AT_TRAIN_TERMINAL'
   | 'CARGO_UNIT_NOT_LOADABLE'
+  | 'CARGO_UNIT_TYPE_MISMATCH'
   | 'SINGLE_CARGO_EXCEEDS_WAGON_PAYLOAD'
   | 'WAGON_PAYLOAD_EXCEEDED'
   | 'TRACK_LENGTH_EXCEEDED'
@@ -93,6 +95,17 @@ export interface TrainMetrics {
   remainingTrackLengthMeters: number;
   outOfGaugeCargoCount: number;
   isOrderValid: boolean;
+}
+
+/** Vollständiger, konsistenter Snapshot, der vor Inspektion oder Abfahrt geprüft wird. */
+export interface TrainFeasibilityInput {
+  terminal: Terminal;
+  train: Train;
+  wagons: Wagon[];
+  cargoTypes: CargoType[];
+  cargoUnits: CargoUnit[];
+  wagonLoads: WagonLoad[];
+  trainEvents: TrainEvent[];
 }
 
 export interface TrainFeasibilityResult {
@@ -285,20 +298,13 @@ function orderIsValid(wagons: Wagon[], cargoTypesByWagon: Map<WagonId, CargoType
  * server-side transaction. The caller must persist `metrics` as the train's
  * denormalized totals and persist any `requiredEvents` transactionally.
  */
-export function checkTrainFeasibility(input: {
-  terminal: Terminal;
-  train: Train;
-  wagons: Wagon[];
-  cargoTypes: CargoType[];
-  cargoUnits: CargoUnit[];
-  wagonLoads: WagonLoad[];
-  trainEvents: TrainEvent[];
-}): TrainFeasibilityResult {
+export function checkTrainFeasibility(input: TrainFeasibilityInput): TrainFeasibilityResult {
   const { terminal, train, wagons, cargoTypes, cargoUnits, wagonLoads, trainEvents } = input;
   const issues: ValidationIssue[] = [];
   const cargoTypeById = new Map(cargoTypes.map((cargoType) => [cargoType.id, cargoType]));
   const cargoUnitById = new Map(cargoUnits.map((cargoUnit) => [cargoUnit.id, cargoUnit]));
   const loadsByWagon = new Map<WagonId, WagonLoad[]>();
+  const knownWagonIds = new Set(wagons.map((wagon) => wagon.id));
   const seenCargoUnitIds = new Set<CargoUnitId>();
 
   const trackIssue = numericIssue('Nutzlänge des Terminalgleises', terminal.trackLengthMeters, terminal.id);
@@ -371,6 +377,14 @@ export function checkTrainFeasibility(input: {
   }
 
   for (const load of wagonLoads) {
+    if (!knownWagonIds.has(load.wagonId)) {
+      issues.push({
+        code: 'WAGON_LOAD_NOT_IN_TRAIN',
+        severity: 'ERROR',
+        message: `Die Wagenladung ${load.cargoUnitId} verweist auf einen Wagen, der nicht im Zugverband steht.`,
+        entityId: load.wagonId,
+      });
+    }
     if (!loadsByWagon.has(load.wagonId)) loadsByWagon.set(load.wagonId, []);
     loadsByWagon.get(load.wagonId)?.push(load);
 
@@ -393,6 +407,18 @@ export function checkTrainFeasibility(input: {
         entityId: load.cargoUnitId,
       });
       continue;
+    }
+    if (cargoUnit.cargoTypeId !== load.cargoTypeId) {
+      issues.push({
+        code: 'CARGO_UNIT_TYPE_MISMATCH',
+        severity: 'ERROR',
+        message: `Die Frachtpartie ${load.cargoUnitId} stimmt nicht mit dem ausgewählten Frachttyp überein.`,
+        entityId: load.cargoUnitId,
+        details: {
+          cargoUnitTypeId: cargoUnit.cargoTypeId,
+          loadCargoTypeId: load.cargoTypeId,
+        },
+      });
     }
     if (cargoUnit.currentTerminalId !== terminal.id) {
       issues.push({
