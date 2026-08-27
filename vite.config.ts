@@ -30,5 +30,19 @@ export default defineConfig({
     target: process.env.TAURI_ENV_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
     minify: process.env.TAURI_ENV_DEBUG ? false : 'esbuild',
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
+    rollupOptions: {
+      output: {
+        // Stabiler Browser-Cache für den App-Shell-Unterbau. Karten und Fachansichten
+        // behalten ihre fachlichen React.lazy-Grenzen und werden nicht künstlich zerlegt.
+        manualChunks(id) {
+          if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/')) {
+            return 'vendor-react';
+          }
+          if (id.includes('/node_modules/@supabase/')) {
+            return 'vendor-supabase';
+          }
+        },
+      },
+    },
   },
 });

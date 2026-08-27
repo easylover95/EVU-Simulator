@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import type {
   Locomotive,
@@ -21,27 +21,7 @@ import {
   SEED_ORDERS,
   SEED_WAGONS,
 } from '@/lib/seed';
-import { OfficeHQView } from '@/views/OfficeHQView';
-import { FleetView } from '@/views/FleetView';
-import { WagonParkView } from '@/views/WagonParkView';
-import { OrderMarketView } from '@/views/OrderMarketView';
-import { DispatchView } from '@/views/DispatchView';
-import { PersonnelView } from '@/views/PersonnelView';
-import { FinanceView } from '@/views/FinanceView';
-import { PcDashboardView } from '@/views/PcDashboardView';
-import { InboxView } from '@/components/InboxView';
-import { ContractsView } from '@/views/ContractsView';
-import { CentralView } from '@/views/CentralView';
-import { BankView } from '@/views/BankView';
-import { AdvertisingView } from '@/views/AdvertisingView';
-import { DealerView } from '@/views/DealerView';
-import { PlayerMarketView } from '@/views/PlayerMarketView';
-import { TourPlannerView, TourOverviewView } from '@/views/TourPlannerView';
-import { BuildingsView } from '@/views/BuildingsView';
 import { CompanyFoundingModal } from '@/components/CompanyFoundingModal';
-import { HelpHandbookModal } from '@/components/HelpHandbookModal';
-import { AchievementsGalleryModal } from '@/components/AchievementsGalleryModal';
-import { LogoutConfirmModal } from '@/components/LogoutConfirmModal';
 import { MainMenuScreen } from '@/components/MainMenuScreen';
 import { TutorialOverlay } from '@/components/TutorialOverlay';
 import { SectionPulseProvider } from '@/components/SectionShell';
@@ -351,6 +331,41 @@ type View = AppView;
 
 function persistQuietly(task: PromiseLike<unknown>) {
   void Promise.resolve(task).catch(() => {});
+}
+
+// Große Fachansichten werden erst beim Öffnen geladen. Dadurch bleiben Karten, Dialoge und
+// seltene Verwaltungsbereiche aus dem kritischen mobilen Startpfad heraus.
+const OfficeHQView = lazy(() => import('@/views/OfficeHQView').then(({ OfficeHQView }) => ({ default: OfficeHQView })));
+const FleetView = lazy(() => import('@/views/FleetView').then(({ FleetView }) => ({ default: FleetView })));
+const WagonParkView = lazy(() => import('@/views/WagonParkView').then(({ WagonParkView }) => ({ default: WagonParkView })));
+const OrderMarketView = lazy(() => import('@/views/OrderMarketView').then(({ OrderMarketView }) => ({ default: OrderMarketView })));
+const DispatchView = lazy(() => import('@/views/DispatchView').then(({ DispatchView }) => ({ default: DispatchView })));
+const PersonnelView = lazy(() => import('@/views/PersonnelView').then(({ PersonnelView }) => ({ default: PersonnelView })));
+const FinanceView = lazy(() => import('@/views/FinanceView').then(({ FinanceView }) => ({ default: FinanceView })));
+const PcDashboardView = lazy(() => import('@/views/PcDashboardView').then(({ PcDashboardView }) => ({ default: PcDashboardView })));
+const InboxView = lazy(() => import('@/components/InboxView').then(({ InboxView }) => ({ default: InboxView })));
+const ContractsView = lazy(() => import('@/views/ContractsView').then(({ ContractsView }) => ({ default: ContractsView })));
+const CentralView = lazy(() => import('@/views/CentralView').then(({ CentralView }) => ({ default: CentralView })));
+const BankView = lazy(() => import('@/views/BankView').then(({ BankView }) => ({ default: BankView })));
+const AdvertisingView = lazy(() => import('@/views/AdvertisingView').then(({ AdvertisingView }) => ({ default: AdvertisingView })));
+const DealerView = lazy(() => import('@/views/DealerView').then(({ DealerView }) => ({ default: DealerView })));
+const PlayerMarketView = lazy(() => import('@/views/PlayerMarketView').then(({ PlayerMarketView }) => ({ default: PlayerMarketView })));
+const TourPlannerView = lazy(() => import('@/views/TourPlannerView').then(({ TourPlannerView }) => ({ default: TourPlannerView })));
+const TourOverviewView = lazy(() => import('@/views/TourPlannerView').then(({ TourOverviewView }) => ({ default: TourOverviewView })));
+const BuildingsView = lazy(() => import('@/views/BuildingsView').then(({ BuildingsView }) => ({ default: BuildingsView })));
+const HelpHandbookModal = lazy(() => import('@/components/HelpHandbookModal').then(({ HelpHandbookModal }) => ({ default: HelpHandbookModal })));
+const AchievementsGalleryModal = lazy(() => import('@/components/AchievementsGalleryModal').then(({ AchievementsGalleryModal }) => ({ default: AchievementsGalleryModal })));
+const LogoutConfirmModal = lazy(() => import('@/components/LogoutConfirmModal').then(({ LogoutConfirmModal }) => ({ default: LogoutConfirmModal })));
+
+function AppLoadingFallback({ modal = false }: { modal?: boolean }) {
+  return (
+    <div className={modal ? 'modal-scrim fixed inset-0 z-[80] flex items-center justify-center p-4' : 'flex min-h-[22rem] items-center justify-center px-4'}>
+      <div className="app-glass flex items-center gap-3 rounded-xl border border-amber-400/30 px-4 py-3 text-sm font-semibold text-amber-100 shadow-2xl" role="status" aria-live="polite">
+        <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-amber-400" aria-hidden />
+        Ansicht wird geladen …
+      </div>
+    </div>
+  );
 }
 
 function App() {
@@ -2798,6 +2813,7 @@ function App() {
         )}
 
         <main className={glass ? 'relative z-10' : 'relative z-10 min-h-[100dvh] bg-transparent'}>
+          <Suspense fallback={<AppLoadingFallback />}>
           {view === 'zentrale' && (
             <OfficeHQView
               onNavigate={(dest) => setView(dest)}
@@ -3067,7 +3083,9 @@ function App() {
               </SectionPulseProvider>
             </div>
           )}
+          </Suspense>
         </main>
+        <Suspense fallback={<AppLoadingFallback modal />}>
         {foundingOpen && (
           <CompanyFoundingModal
             mode={foundingMode}
@@ -3108,6 +3126,7 @@ function App() {
         {logoutOpen && (
           <LogoutConfirmModal onCancel={() => setLogoutOpen(false)} onConfirm={confirmLogoutToMenu} />
         )}
+        </Suspense>
       </Layout>
       )}
     </GameClockProvider>
