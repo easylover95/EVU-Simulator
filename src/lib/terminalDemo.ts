@@ -156,11 +156,6 @@ export function createTerminalDemoSnapshot(): TerminalSimulationSnapshot {
       completedMajorProjects: 0,
       requiredMajorProjects: 3,
     }),
-    activeScenarioId: null,
-    terminalUpgradesById: {},
-    specialistsById: {},
-    staffChargesById: {},
-    persistence: { status: 'IDLE', lastSavedAt: null, errorMessage: null },
     eventLog: [],
   };
 }

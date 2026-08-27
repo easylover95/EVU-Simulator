@@ -7,25 +7,6 @@ import {
   type TrainFeasibilityResult,
   type ValidationCode,
 } from '@/lib/terminalLogistics';
-import { createScenarioSnapshot } from '@/lib/terminalScenarios';
-import {
-  clearTerminalSnapshot,
-  loadTerminalSnapshot,
-  saveTerminalSnapshot,
-  type TerminalPersistenceMeta,
-} from '@/lib/terminalPersistence';
-import {
-  CAMPAIGN_SCENARIOS,
-  TERMINAL_UPGRADE_CATALOG,
-  calculateTerminalStaffEffects,
-  completedUpgradeIds,
-  getSpecialistDefinition,
-  getUpgradeDefinition,
-  type CampaignScenarioId,
-  type Specialist,
-  type SpecialistRole,
-  type TerminalUpgrade,
-} from '@/lib/terminalTycoon';
 import {
   createGameplayEventEngine,
   createTerminalGameProgress,
@@ -125,14 +106,7 @@ export type TerminalSimulationEventType =
   | 'MAJOR_PROJECT_COMPLETED'
   | 'LIQUIDITY_WARNING'
   | 'GAME_WON'
-  | 'TERMINAL_INSOLVENT'
-  | 'UPGRADE_STARTED'
-  | 'UPGRADE_COMPLETED'
-  | 'SPECIALIST_HIRED'
-  | 'STAFF_COST_BOOKED'
-  | 'SAVE_COMPLETED'
-  | 'SAVE_FAILED'
-  | 'SCENARIO_STARTED';
+  | 'TERMINAL_INSOLVENT';
 
 export interface TerminalSimulationEvent {
   id: string;
@@ -145,21 +119,12 @@ export interface TerminalSimulationEvent {
   blockerCodes?: ValidationCode[];
 }
 
-/** Buchung der Unterhaltskosten für beschäftigte Spezialisten. */
-export interface StaffCharge {
-  id: string;
-  tick: number;
-  amountCents: number;
-  specialistIds: string[];
-  description: string;
-}
-
 export interface DispatchAttemptResult {
   trainId: TrainId;
   dispatched: boolean;
   feasibility: TrainFeasibilityResult | null;
   /** A lifecycle problem outside the Phase-2 feasibility calculation. */
-  reason?: 'TRAIN_NOT_FOUND' | 'TERMINAL_NOT_FOUND' | 'TRAIN_NOT_IN_INSPECTION' | 'GAME_NOT_ACTIVE' | 'LUE_SPECIALIST_REQUIRED';
+  reason?: 'TRAIN_NOT_FOUND' | 'TERMINAL_NOT_FOUND' | 'TRAIN_NOT_IN_INSPECTION' | 'GAME_NOT_ACTIVE';
 }
 
 export interface AdvanceTickResult {
@@ -204,13 +169,6 @@ export interface TerminalSimulationSnapshot {
   operationalState: TerminalOperationalState;
   majorProjectsById: Record<string, MajorProject>;
   gameProgress: TerminalGameProgress;
-
-  /** Tycoon progression, all serializable for local save games. */
-  activeScenarioId: CampaignScenarioId | null;
-  terminalUpgradesById: Record<string, TerminalUpgrade>;
-  specialistsById: Record<string, Specialist>;
-  staffChargesById: Record<string, StaffCharge>;
-  persistence: TerminalPersistenceMeta;
   eventLog: TerminalSimulationEvent[];
 }
 
@@ -244,22 +202,6 @@ export interface GameplayEventResolutionResult {
   reason?: 'EVENT_NOT_FOUND' | 'EVENT_NOT_OPEN' | 'INVALID_CHOICE';
 }
 
-export interface UpgradeStartResult {
-  started: boolean;
-  reason?: 'UNKNOWN_UPGRADE' | 'TERMINAL_NOT_FOUND' | 'GAME_NOT_ACTIVE' | 'ALREADY_COMPLETED' | 'ALREADY_BUILDING' | 'PREREQUISITE_MISSING' | 'INSUFFICIENT_CAPITAL';
-}
-
-export interface HireSpecialistResult {
-  hired: boolean;
-  reason?: 'TERMINAL_NOT_FOUND' | 'GAME_NOT_ACTIVE' | 'ALREADY_EMPLOYED';
-  specialist?: Specialist;
-}
-
-export interface CampaignStartResult {
-  started: boolean;
-  reason?: 'UNKNOWN_SCENARIO';
-}
-
 export interface TerminalSimulationActions {
   /** Replaces the persisted snapshot after a server-side reload. */
   replaceSnapshot: (snapshot: TerminalSimulationSnapshot) => void;
@@ -271,18 +213,6 @@ export interface TerminalSimulationActions {
   setInboundArrivalStatus: (arrivalId: string, status: InboundArrivalStatus) => boolean;
   /** Resolves an offered operational event with a fully disclosed player choice. */
   resolveGameplayEvent: (eventId: string, choiceId: GameplayEventChoiceId) => GameplayEventResolutionResult;
-  /** Beauftragt einen Ausbau; Kapital wird gebucht, Abschluss erfolgt nach Bauzeit über Ticks. */
-  startTerminalUpgrade: (terminalId: TerminalId, definitionId: string) => UpgradeStartResult;
-  /** Stellt einen Spezialisten direkt am Terminal ein; seine Kosten laufen pro Tick auf. */
-  hireSpecialist: (terminalId: TerminalId, role: SpecialistRole) => HireSpecialistResult;
-  /** Speichert den vollständigen serialisierbaren Spielzustand explizit im Browser. */
-  saveGame: () => TerminalPersistenceMeta;
-  /** Lädt einen validierten, versionierten Browser-Spielstand. */
-  loadGame: () => TerminalPersistenceMeta;
-  /** Löscht ausschließlich den browserlokalen Terminal-Spielstand. */
-  clearSavedGame: () => TerminalPersistenceMeta;
-  /** Startet eine neue Kampagne mit deren vollständigem, konfiguriertem Snapshot. */
-  startCampaignScenario: (scenarioId: CampaignScenarioId) => CampaignStartResult;
   /** Fügt einen verfügbaren Wagen als nächste Baustellenposition an einen Zug an. */
   assignWagonToTrain: (wagonId: WagonId, trainId: TrainId) => FormationMutationResult;
   /** Entfernt einen Wagen und seine temporären Ladungszuweisungen aus einem Zug in Bildung. */
@@ -334,11 +264,6 @@ const EMPTY_SNAPSHOT: TerminalSimulationSnapshot = {
   operationalState: createTerminalOperationalState(),
   majorProjectsById: {},
   gameProgress: createTerminalGameProgress(),
-  activeScenarioId: null,
-  terminalUpgradesById: {},
-  specialistsById: {},
-  staffChargesById: {},
-  persistence: { status: 'IDLE', lastSavedAt: null, errorMessage: null },
   eventLog: [],
 };
 
@@ -370,62 +295,7 @@ function normaliseSnapshot(snapshot: TerminalSimulationSnapshot): TerminalSimula
     },
     majorProjectsById: { ...snapshot.majorProjectsById },
     gameProgress: { ...snapshot.gameProgress },
-    terminalUpgradesById: { ...snapshot.terminalUpgradesById },
-    specialistsById: { ...snapshot.specialistsById },
-    staffChargesById: { ...snapshot.staffChargesById },
-    persistence: { ...snapshot.persistence },
     eventLog: snapshot.eventLog.slice(-MAX_SIMULATION_EVENT_LOG_ENTRIES),
-  };
-}
-
-function isTerminalSimulationSnapshot(value: unknown): value is TerminalSimulationSnapshot {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Partial<TerminalSimulationSnapshot>;
-  return (
-    typeof candidate.currentTick === 'number'
-    && typeof candidate.companyBalanceCents === 'number'
-    && typeof candidate.nextEventSequence === 'number'
-    && typeof candidate.terminalsById === 'object'
-    && candidate.terminalsById !== null
-    && typeof candidate.cargoTypesById === 'object'
-    && candidate.cargoTypesById !== null
-    && typeof candidate.cargoUnitsById === 'object'
-    && candidate.cargoUnitsById !== null
-    && typeof candidate.wagonsById === 'object'
-    && candidate.wagonsById !== null
-    && typeof candidate.trainsById === 'object'
-    && candidate.trainsById !== null
-    && typeof candidate.gameplayEventsById === 'object'
-    && candidate.gameplayEventsById !== null
-    && typeof candidate.majorProjectsById === 'object'
-    && candidate.majorProjectsById !== null
-    && typeof candidate.terminalUpgradesById === 'object'
-    && candidate.terminalUpgradesById !== null
-    && typeof candidate.specialistsById === 'object'
-    && candidate.specialistsById !== null
-    && typeof candidate.staffChargesById === 'object'
-    && candidate.staffChargesById !== null
-    && typeof candidate.gameProgress === 'object'
-    && candidate.gameProgress !== null
-    && typeof candidate.gameProgress.status === 'string'
-    && typeof candidate.gameProgress.reputationPoints === 'number'
-    && typeof candidate.gameProgress.grossRevenueCents === 'number'
-    && typeof candidate.gameplayEventEngine === 'object'
-    && candidate.gameplayEventEngine !== null
-    && typeof candidate.operationalState === 'object'
-    && candidate.operationalState !== null
-    && typeof candidate.persistence === 'object'
-    && candidate.persistence !== null
-    && Array.isArray(candidate.eventLog)
-  );
-}
-
-function persistSimulationSnapshot(snapshot: TerminalSimulationSnapshot): TerminalPersistenceMeta {
-  const result = saveTerminalSnapshot(snapshot, simulationTimestamp(snapshot.currentTick));
-  return {
-    status: result.status,
-    lastSavedAt: result.savedAt ?? null,
-    errorMessage: result.errorMessage ?? null,
   };
 }
 
@@ -448,11 +318,6 @@ function createInitialSnapshot(initial?: Partial<TerminalSimulationSnapshot>): T
     operationalState: initial?.operationalState ?? createTerminalOperationalState(),
     majorProjectsById: initial?.majorProjectsById ?? {},
     gameProgress: initial?.gameProgress ?? createTerminalGameProgress(),
-    activeScenarioId: initial?.activeScenarioId ?? null,
-    terminalUpgradesById: initial?.terminalUpgradesById ?? {},
-    specialistsById: initial?.specialistsById ?? {},
-    staffChargesById: initial?.staffChargesById ?? {},
-    persistence: initial?.persistence ?? { status: 'IDLE', lastSavedAt: null, errorMessage: null },
     eventLog: initial?.eventLog ?? [],
   });
 }
@@ -542,99 +407,10 @@ function progressDrafts(
       tick,
       type: 'GAME_WON',
       severity: 'SUCCESS',
-      message: `Großprojekt-Meilenstein erreicht: ${next.completedMajorProjects}/${next.requiredMajorProjects} Projekte, Umsatz ${next.grossRevenueCents}/${next.revenueTargetCents} Cent, Reputation ${next.reputationPoints}/${next.reputationTarget}.`,
+      message: `Großprojekt-Meilenstein erreicht: ${next.completedMajorProjects}/${next.requiredMajorProjects} Projekte, Reputation ${next.reputationPoints}/${next.reputationTarget}.`,
     }];
   }
   return [];
-}
-
-function completeTerminalUpgrades(
-  snapshot: TerminalSimulationSnapshot,
-  tick: number,
-): { snapshot: TerminalSimulationSnapshot; drafts: SimulationEventDraft[] } {
-  const terminalUpgradesById = { ...snapshot.terminalUpgradesById };
-  const terminalsById = { ...snapshot.terminalsById };
-  const drafts: SimulationEventDraft[] = [];
-
-  for (const upgrade of Object.values(snapshot.terminalUpgradesById)) {
-    if (upgrade.status !== 'BUILDING' || upgrade.startedTick == null) continue;
-    const definition = getUpgradeDefinition(upgrade.definitionId);
-    const terminal = terminalsById[upgrade.terminalId];
-    if (!definition || !terminal || tick < upgrade.startedTick + definition.constructionTicks) continue;
-    terminalUpgradesById[upgrade.id] = { ...upgrade, status: 'COMPLETED', completedTick: tick };
-    terminalsById[terminal.id] = {
-      ...terminal,
-      trackLengthMeters: terminal.trackLengthMeters + (definition.effects.trackLengthDeltaMeters ?? 0),
-      maxCraneCapacityTons: terminal.maxCraneCapacityTons + (definition.effects.craneCapacityDeltaTons ?? 0),
-      storageAreaSqm: terminal.storageAreaSqm + (definition.effects.storageAreaDeltaSqm ?? 0),
-      hasSpecialCrane: terminal.hasSpecialCrane || definition.effects.enablesSpecialCrane === true,
-    };
-    drafts.push({
-      tick,
-      type: 'UPGRADE_COMPLETED',
-      severity: 'SUCCESS',
-      entityId: upgrade.id,
-      message: `Ausbau „${definition.name}“ ist abgeschlossen. ${definition.description}`,
-    });
-  }
-
-  for (const upgrade of Object.values(terminalUpgradesById)) {
-    if (upgrade.status !== 'LOCKED') continue;
-    const definition = getUpgradeDefinition(upgrade.definitionId);
-    if (!definition) continue;
-    const completed = completedUpgradeIds(Object.values(terminalUpgradesById), upgrade.terminalId);
-    if (definition.requiredUpgradeIds.every((requirement) => completed.has(requirement))) {
-      terminalUpgradesById[upgrade.id] = { ...upgrade, status: 'AVAILABLE' };
-    }
-  }
-  return { snapshot: { ...snapshot, terminalUpgradesById, terminalsById }, drafts };
-}
-
-function bookStaffUpkeep(
-  snapshot: TerminalSimulationSnapshot,
-  tick: number,
-): { snapshot: TerminalSimulationSnapshot; drafts: SimulationEventDraft[] } {
-  const employed = Object.values(snapshot.specialistsById).filter((specialist) => specialist.status === 'EMPLOYED');
-  const effects = calculateTerminalStaffEffects(employed);
-  if (employed.length === 0 || effects.upkeepCentsPerTick <= 0) return { snapshot, drafts: [] };
-  const id = `staff-charge-${tick}`;
-  if (snapshot.staffChargesById[id]) return { snapshot, drafts: [] };
-  const charge: StaffCharge = {
-    id,
-    tick,
-    amountCents: effects.upkeepCentsPerTick,
-    specialistIds: employed.map((specialist) => specialist.id),
-    description: `Personalunterhalt für ${employed.length} Fachkraft${employed.length === 1 ? '' : 'kräfte'} in Simulationsstunde ${tick}.`,
-  };
-  return {
-    snapshot: {
-      ...snapshot,
-      companyBalanceCents: snapshot.companyBalanceCents - charge.amountCents,
-      staffChargesById: { ...snapshot.staffChargesById, [charge.id]: charge },
-    },
-    drafts: [{
-      tick,
-      type: 'STAFF_COST_BOOKED',
-      severity: 'WARNING',
-      entityId: charge.id,
-      amountCents: charge.amountCents,
-      message: `${charge.description} Belastung: ${charge.amountCents} Cent.`,
-    }],
-  };
-}
-
-function terminalCanHandleOutOfGauge(
-  snapshot: TerminalSimulationSnapshot,
-  terminalId: TerminalId,
-): boolean {
-  const completed = completedUpgradeIds(Object.values(snapshot.terminalUpgradesById), terminalId);
-  const hasOutOfGaugeInfrastructure = TERMINAL_UPGRADE_CATALOG.some(
-    (definition) => definition.effects.unlocksOutOfGaugeContracts && completed.has(definition.id),
-  );
-  const staffEffects = calculateTerminalStaffEffects(
-    Object.values(snapshot.specialistsById).filter((specialist) => specialist.terminalId === terminalId),
-  );
-  return hasOutOfGaugeInfrastructure && staffEffects.allowsOutOfGaugeDispatch;
 }
 
 function advanceScheduledArrivals(
@@ -683,7 +459,6 @@ function completeDueMajorProjects(
     gameProgress = {
       ...gameProgress,
       reputationPoints: gameProgress.reputationPoints + project.reputationReward,
-      grossRevenueCents: gameProgress.grossRevenueCents + project.rewardCents,
       completedMajorProjects: gameProgress.completedMajorProjects + 1,
     };
     const train = trainsById[project.trainId];
@@ -932,20 +707,6 @@ function evaluateTrainDispatch(
     };
   }
 
-  if (feasibility.requiresOutOfGaugeApproval && !terminalCanHandleOutOfGauge(snapshot, train.terminalId)) {
-    return {
-      snapshot: nextSnapshot,
-      attempt: { trainId, dispatched: false, feasibility, reason: 'LUE_SPECIALIST_REQUIRED' },
-      drafts: [{
-        tick,
-        type: 'TRAIN_DISPATCH_BLOCKED',
-        severity: 'ERROR',
-        entityId: trainId,
-        message: `Zug ${trainId} enthält LÜ-Fracht. Schwerlasttechnik/LÜ-Prüfstelle und ein beschäftigter LÜ-Prüfer sind vor der Abfahrt erforderlich.`,
-      }],
-    };
-  }
-
   const assignedWagonIds = new Set(
     Object.values(nextSnapshot.wagonsById)
       .filter((wagon) => wagon.currentTrainId === trainId)
@@ -1046,14 +807,6 @@ export function advanceTerminalTick(snapshot: TerminalSimulationSnapshot): TickT
     currentTick,
     berthChargesById: { ...snapshot.berthChargesById },
   };
-
-  const completedUpgrades = completeTerminalUpgrades(workingSnapshot, currentTick);
-  workingSnapshot = completedUpgrades.snapshot;
-  drafts.push(...completedUpgrades.drafts);
-
-  const staffUpkeep = bookStaffUpkeep(workingSnapshot, currentTick);
-  workingSnapshot = staffUpkeep.snapshot;
-  drafts.push(...staffUpkeep.drafts);
 
   const arrivals = advanceScheduledArrivals(workingSnapshot, currentTick);
   workingSnapshot = arrivals.snapshot;
@@ -1309,156 +1062,7 @@ export function createTerminalSimulationStore(
         result = { resolved: true };
         return withEvents.snapshot;
       });
-            return result;
-    },
-
-    startTerminalUpgrade: (terminalId, definitionId) => {
-      let result: UpgradeStartResult = { started: false, reason: 'UNKNOWN_UPGRADE' };
-      set((state) => {
-        if (state.gameProgress.status === 'WON' || state.gameProgress.status === 'INSOLVENT') {
-          result = { started: false, reason: 'GAME_NOT_ACTIVE' };
-          return state;
-        }
-        const terminal = state.terminalsById[terminalId];
-        const definition = getUpgradeDefinition(definitionId);
-        if (!terminal) {
-          result = { started: false, reason: 'TERMINAL_NOT_FOUND' };
-          return state;
-        }
-        if (!definition) return state;
-        const existing = Object.values(state.terminalUpgradesById).find(
-          (upgrade) => upgrade.terminalId === terminalId && upgrade.definitionId === definitionId,
-        );
-        if (existing?.status === 'COMPLETED') {
-          result = { started: false, reason: 'ALREADY_COMPLETED' };
-          return state;
-        }
-        if (existing?.status === 'BUILDING') {
-          result = { started: false, reason: 'ALREADY_BUILDING' };
-          return state;
-        }
-        const completed = completedUpgradeIds(Object.values(state.terminalUpgradesById), terminalId);
-        if (!definition.requiredUpgradeIds.every((requirement) => completed.has(requirement))) {
-          result = { started: false, reason: 'PREREQUISITE_MISSING' };
-          return state;
-        }
-        if (state.companyBalanceCents < definition.capitalCostCents) {
-          result = { started: false, reason: 'INSUFFICIENT_CAPITAL' };
-          return state;
-        }
-        const upgrade: TerminalUpgrade = {
-          id: existing?.id ?? `upgrade-${terminalId}-${definitionId}`,
-          terminalId,
-          definitionId,
-          status: 'BUILDING',
-          startedTick: state.currentTick,
-          completedTick: null,
-        };
-        const withEvents = appendEventDrafts({
-          ...snapshotFromState(state),
-          companyBalanceCents: state.companyBalanceCents - definition.capitalCostCents,
-          terminalUpgradesById: { ...state.terminalUpgradesById, [upgrade.id]: upgrade },
-        }, [{
-          tick: state.currentTick,
-          type: 'UPGRADE_STARTED',
-          severity: 'INFO',
-          entityId: upgrade.id,
-          amountCents: definition.capitalCostCents,
-          message: `Ausbau „${definition.name}“ beauftragt. Kosten: ${definition.capitalCostCents} Cent; Fertigstellung ab Simulationsstunde ${state.currentTick + definition.constructionTicks}.`,
-        }]);
-        result = { started: true };
-        return withEvents.snapshot;
-      });
       return result;
-    },
-
-    hireSpecialist: (terminalId, role) => {
-      let result: HireSpecialistResult = { hired: false, reason: 'TERMINAL_NOT_FOUND' };
-      set((state) => {
-        if (state.gameProgress.status === 'WON' || state.gameProgress.status === 'INSOLVENT') {
-          result = { hired: false, reason: 'GAME_NOT_ACTIVE' };
-          return state;
-        }
-        if (!state.terminalsById[terminalId]) return state;
-        const existing = Object.values(state.specialistsById).find(
-          (specialist) => specialist.terminalId === terminalId && specialist.role === role && specialist.status === 'EMPLOYED',
-        );
-        if (existing) {
-          result = { hired: false, reason: 'ALREADY_EMPLOYED' };
-          return state;
-        }
-        const definition = getSpecialistDefinition(role);
-        const specialist: Specialist = {
-          id: `specialist-${terminalId}-${role.toLowerCase()}`,
-          terminalId,
-          role,
-          name: definition.title,
-          status: 'EMPLOYED',
-          upkeepCentsPerTick: definition.upkeepCentsPerTick,
-          hiredTick: state.currentTick,
-        };
-        const withEvents = appendEventDrafts({
-          ...snapshotFromState(state),
-          specialistsById: { ...state.specialistsById, [specialist.id]: specialist },
-        }, [{
-          tick: state.currentTick,
-          type: 'SPECIALIST_HIRED',
-          severity: 'INFO',
-          entityId: specialist.id,
-          message: `${definition.title} eingestellt. Laufender Unterhalt: ${definition.upkeepCentsPerTick} Cent pro Simulationsstunde.`,
-        }]);
-        result = { hired: true, specialist };
-        return withEvents.snapshot;
-      });
-      return result;
-    },
-
-    saveGame: () => {
-      const meta = persistSimulationSnapshot(snapshotFromState(get()));
-      set({ persistence: meta });
-      return meta;
-    },
-
-    loadGame: () => {
-      const result = loadTerminalSnapshot(isTerminalSimulationSnapshot);
-      const meta: TerminalPersistenceMeta = {
-        status: result.status,
-        lastSavedAt: result.savedAt ?? null,
-        errorMessage: result.errorMessage ?? null,
-      };
-      if (!result.ok || !result.snapshot) {
-        set({ persistence: meta });
-        return meta;
-      }
-      set({ ...normaliseSnapshot(result.snapshot), persistence: meta });
-      return meta;
-    },
-
-    clearSavedGame: () => {
-      const result = clearTerminalSnapshot();
-      const meta: TerminalPersistenceMeta = {
-        status: result.status,
-        lastSavedAt: null,
-        errorMessage: result.errorMessage ?? null,
-      };
-      set({ persistence: meta });
-      return meta;
-    },
-
-    startCampaignScenario: (scenarioId) => {
-      if (!CAMPAIGN_SCENARIOS.some((scenario) => scenario.id === scenarioId)) return { started: false, reason: 'UNKNOWN_SCENARIO' };
-      const scenario = CAMPAIGN_SCENARIOS.find((candidate) => candidate.id === scenarioId)!;
-      const startedSnapshot = createScenarioSnapshot(scenarioId);
-      const withEvents = appendEventDrafts(startedSnapshot, [{
-        tick: 0,
-        type: 'SCENARIO_STARTED',
-        severity: 'INFO',
-        entityId: scenario.id,
-        message: `Kampagne „${scenario.title}“ gestartet. ${scenario.briefing}`,
-      }]);
-      const persistence = persistSimulationSnapshot(withEvents.snapshot);
-      set({ ...withEvents.snapshot, persistence });
-      return { started: true };
     },
 
     assignWagonToTrain: (wagonId, trainId) => {
@@ -1651,15 +1255,12 @@ export function createTerminalSimulationStore(
 
     advanceTick: () => {
       let result: AdvanceTickResult | null = null;
-      let advanced = false;
       set((state) => {
         const transition = advanceTerminalTick(snapshotFromState(state));
         result = transition.result;
-        advanced = transition.result.currentTick > transition.result.previousTick;
         return transition.snapshot;
       });
       if (!result) throw new Error('Terminal-Tick konnte nicht ausgeführt werden.');
-      if (advanced) set({ persistence: persistSimulationSnapshot(snapshotFromState(get())) });
       return result;
     },
 
@@ -1684,10 +1285,8 @@ export function createTerminalSimulationStore(
         };
         return snapshot;
       });
-      const completedDay = result as AdvanceDayResult | null;
-      if (!completedDay) throw new Error('Terminal-Tag konnte nicht ausgeführt werden.');
-      if (completedDay.currentTick > completedDay.previousTick) set({ persistence: persistSimulationSnapshot(snapshotFromState(get())) });
-      return completedDay;
+      if (!result) throw new Error('Terminal-Tag konnte nicht ausgeführt werden.');
+      return result;
     },
 
     tryDispatchTrainNow: (trainId) => {
@@ -1725,11 +1324,6 @@ function snapshotFromState(state: TerminalSimulationState): TerminalSimulationSn
     operationalState: state.operationalState,
     majorProjectsById: state.majorProjectsById,
     gameProgress: state.gameProgress,
-    activeScenarioId: state.activeScenarioId,
-    terminalUpgradesById: state.terminalUpgradesById,
-    specialistsById: state.specialistsById,
-    staffChargesById: state.staffChargesById,
-    persistence: state.persistence,
     eventLog: state.eventLog,
   };
 }
