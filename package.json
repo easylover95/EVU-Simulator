@@ -22,10 +22,6 @@
     "test:mobile-ui": "node simulation/captureMobileClockViews.mjs",
     "test:mobile-modals": "node simulation/testMobileModalOverlays.mjs",
     "test:clock-runtime": "node simulation/testRuntimeClockControls.mjs",
-    "test:terminal-logistics": "tsx --tsconfig tsconfig.app.json scripts/testTerminalLogistics.ts",
-    "test:terminal-state": "tsx --tsconfig tsconfig.scripts.json scripts/testTerminalSimulationStore.ts",
-    "test:terminal-gameplay": "tsx --tsconfig tsconfig.scripts.json scripts/testTerminalGameplay.ts",
-    "typecheck:terminal-state": "tsc --noEmit -p tsconfig.terminal-state-test.json",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build"
@@ -39,8 +35,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "three": "^0.185.1",
-    "web-vitals": "4.2.4",
-    "zustand": "^5.0.15"
+    "web-vitals": "4.2.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",
