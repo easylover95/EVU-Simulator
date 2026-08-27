@@ -1,7 +1,5 @@
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
 
-import { playTerminalSound } from '@/lib/terminalAudio';
-
 export const cardClass =
   'app-glass border-amber-500/30 rounded-xl p-6 shadow-2xl';
 
@@ -70,23 +68,12 @@ export function Button({
   variant = 'primary',
   className = '',
   children,
-  onClick,
-  disabled,
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'danger' }) {
   const base =
     variant === 'danger' ? dangerButtonClass : variant === 'secondary' ? secondaryButtonClass : primaryButtonClass;
   return (
-    <button
-      type="button"
-      disabled={disabled}
-      className={`inline-flex items-center justify-center gap-1.5 text-xs ${base} ${className}`}
-      onClick={(event) => {
-        if (!disabled) playTerminalSound('CLICK');
-        onClick?.(event);
-      }}
-      {...rest}
-    >
+    <button type="button" className={`inline-flex items-center justify-center gap-1.5 text-xs ${base} ${className}`} {...rest}>
       {children}
     </button>
   );

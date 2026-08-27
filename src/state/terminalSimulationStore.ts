@@ -7,7 +7,6 @@ import {
   type TrainFeasibilityResult,
   type ValidationCode,
 } from '@/lib/terminalLogistics';
-import { reconcileTerminalAlerts, type TerminalAlert } from '@/lib/terminalAlerts';
 import { createScenarioSnapshot } from '@/lib/terminalScenarios';
 import {
   clearTerminalSnapshot,
@@ -120,7 +119,6 @@ export type TerminalSimulationEventType =
   | 'TRAIN_DISPATCH_BLOCKED'
   | 'TRAIN_DISPATCHED'
   | 'INBOUND_ARRIVED'
-  | 'INBOUND_UNLOADED'
   | 'GAMEPLAY_EVENT_OFFERED'
   | 'GAMEPLAY_EVENT_RESOLVED'
   | 'CONSTRUCTION_SITE_BLOCKED'
@@ -134,10 +132,7 @@ export type TerminalSimulationEventType =
   | 'STAFF_COST_BOOKED'
   | 'SAVE_COMPLETED'
   | 'SAVE_FAILED'
-  | 'SCENARIO_STARTED'
-  | 'ALERT_RAISED'
-  | 'ALERT_RESOLVED'
-  | 'ALERT_ACKNOWLEDGED';
+  | 'SCENARIO_STARTED';
 
 export interface TerminalSimulationEvent {
   id: string;
@@ -216,8 +211,6 @@ export interface TerminalSimulationSnapshot {
   specialistsById: Record<string, Specialist>;
   staffChargesById: Record<string, StaffCharge>;
   persistence: TerminalPersistenceMeta;
-  /** Persisted, deduplicated alerts derived after every successful terminal tick. */
-  alertsById: Record<string, TerminalAlert>;
   eventLog: TerminalSimulationEvent[];
 }
 
@@ -304,8 +297,6 @@ export interface TerminalSimulationActions {
   advanceDay: () => AdvanceDayResult;
   /** Checks and dispatches a train in the current tick without creating a real-time loop. */
   tryDispatchTrainNow: (trainId: TrainId) => DispatchAttemptResult;
-  /** Quittiert eine sichtbare Warnung; ihre Ursache wird weiter überwacht. */
-  acknowledgeAlert: (alertId: string) => boolean;
 }
 
 export type TerminalSimulationState = TerminalSimulationSnapshot & TerminalSimulationActions;
@@ -348,7 +339,6 @@ const EMPTY_SNAPSHOT: TerminalSimulationSnapshot = {
   specialistsById: {},
   staffChargesById: {},
   persistence: { status: 'IDLE', lastSavedAt: null, errorMessage: null },
-  alertsById: {},
   eventLog: [],
 };
 
@@ -384,7 +374,6 @@ function normaliseSnapshot(snapshot: TerminalSimulationSnapshot): TerminalSimula
     specialistsById: { ...snapshot.specialistsById },
     staffChargesById: { ...snapshot.staffChargesById },
     persistence: { ...snapshot.persistence },
-    alertsById: { ...snapshot.alertsById },
     eventLog: snapshot.eventLog.slice(-MAX_SIMULATION_EVENT_LOG_ENTRIES),
   };
 }
@@ -427,8 +416,6 @@ function isTerminalSimulationSnapshot(value: unknown): value is TerminalSimulati
     && candidate.operationalState !== null
     && typeof candidate.persistence === 'object'
     && candidate.persistence !== null
-    && typeof candidate.alertsById === 'object'
-    && candidate.alertsById !== null
     && Array.isArray(candidate.eventLog)
   );
 }
@@ -466,7 +453,6 @@ function createInitialSnapshot(initial?: Partial<TerminalSimulationSnapshot>): T
     specialistsById: initial?.specialistsById ?? {},
     staffChargesById: initial?.staffChargesById ?? {},
     persistence: initial?.persistence ?? { status: 'IDLE', lastSavedAt: null, errorMessage: null },
-    alertsById: initial?.alertsById ?? {},
     eventLog: initial?.eventLog ?? [],
   });
 }
@@ -1155,35 +1141,14 @@ export function advanceTerminalTick(snapshot: TerminalSimulationSnapshot): TickT
   });
 
   const withEvents = appendEventDrafts(workingSnapshot, drafts);
-  const alertEvaluation = reconcileTerminalAlerts(withEvents.snapshot, withEvents.snapshot.alertsById);
-  const alertDrafts: SimulationEventDraft[] = [
-    ...alertEvaluation.raised.map((alert) => ({
-      tick: currentTick,
-      type: 'ALERT_RAISED' as const,
-      severity: alert.severity === 'CRITICAL' ? 'ERROR' as const : 'WARNING' as const,
-      entityId: alert.id,
-      message: `${alert.title}: ${alert.description}`,
-    })),
-    ...alertEvaluation.resolved.map((alert) => ({
-      tick: currentTick,
-      type: 'ALERT_RESOLVED' as const,
-      severity: 'SUCCESS' as const,
-      entityId: alert.id,
-      message: `Entwarnung: ${alert.title}.`,
-    })),
-  ];
-  const withAlerts = appendEventDrafts({
-    ...withEvents.snapshot,
-    alertsById: alertEvaluation.alertsById,
-  }, alertDrafts);
   return {
-    snapshot: withAlerts.snapshot,
+    snapshot: withEvents.snapshot,
     result: {
       previousTick,
       currentTick,
       berthCharges,
       dispatchAttempts,
-      emittedEvents: [...withEvents.emittedEvents, ...withAlerts.emittedEvents],
+      emittedEvents: withEvents.emittedEvents,
     },
   };
 }
@@ -1197,7 +1162,7 @@ export function createTerminalSimulationStore(
 ): TerminalSimulationStore {
   const initial = createInitialSnapshot(initialSnapshot);
 
-  return createStore<TerminalSimulationState>()((set, get) => ({
+  return createStore<TerminalSimulationState>()((set) => ({
     ...initial,
 
     replaceSnapshot: (snapshot) => set(() => normaliseSnapshot(snapshot)),
@@ -1266,21 +1231,12 @@ export function createTerminalSimulationStore(
         const arrival = state.inboundArrivalsById[arrivalId];
         if (!arrival) return state;
         updated = true;
-        const nextSnapshot: TerminalSimulationSnapshot = {
-          ...snapshotFromState(state),
+        return {
           inboundArrivalsById: {
             ...state.inboundArrivalsById,
             [arrivalId]: { ...arrival, status },
           },
         };
-        if (status !== 'UNLOADED' || arrival.status === 'UNLOADED') return nextSnapshot;
-        return appendEventDrafts(nextSnapshot, [{
-          tick: state.currentTick,
-          type: 'INBOUND_UNLOADED',
-          severity: 'SUCCESS',
-          entityId: arrivalId,
-          message: `Kran-Umschlag abgeschlossen: ${arrival.label} wurde entladen.`,
-        }]).snapshot;
       });
       return updated;
     },
@@ -1742,33 +1698,8 @@ export function createTerminalSimulationStore(
         result = transition.attempt;
         return withEvents.snapshot;
       });
-      const dispatchResult = result as DispatchAttemptResult | null;
-      if (!dispatchResult) throw new Error('Zugabfahrt konnte nicht geprüft werden.');
-      return dispatchResult;
-    },
-
-    acknowledgeAlert: (alertId) => {
-      let acknowledged = false;
-      set((state) => {
-        const alert = state.alertsById[alertId];
-        if (!alert || alert.status !== 'ACTIVE') return state;
-        acknowledged = true;
-        const withEvents = appendEventDrafts({
-          ...snapshotFromState(state),
-          alertsById: {
-            ...state.alertsById,
-            [alertId]: { ...alert, status: 'ACKNOWLEDGED', acknowledgedTick: state.currentTick },
-          },
-        }, [{
-          tick: state.currentTick,
-          type: 'ALERT_ACKNOWLEDGED',
-          severity: 'INFO',
-          entityId: alertId,
-          message: `Warnung quittiert: ${alert.title}. Die Ursache wird weiterhin überwacht.`,
-        }]);
-        return withEvents.snapshot;
-      });
-      return acknowledged;
+      if (!result) throw new Error('Zugabfahrt konnte nicht geprüft werden.');
+      return result;
     },
   }));
 }
@@ -1799,7 +1730,6 @@ function snapshotFromState(state: TerminalSimulationState): TerminalSimulationSn
     specialistsById: state.specialistsById,
     staffChargesById: state.staffChargesById,
     persistence: state.persistence,
-    alertsById: state.alertsById,
     eventLog: state.eventLog,
   };
 }

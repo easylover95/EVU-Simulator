@@ -108,7 +108,6 @@ export function createScenarioSnapshot(scenarioId: CampaignScenarioId): Terminal
       : {},
     staffChargesById: {},
     persistence: { status: 'IDLE', lastSavedAt: null, errorMessage: null },
-    alertsById: {},
     eventLog: [],
   };
 }

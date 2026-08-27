@@ -1,13 +1,11 @@
 export type AppView =
   | 'zentrale'
-  | 'terminalalerts'
   | 'dashboard'
   | 'fuhrpark'
   | 'wagenpark'
   | 'auftragsmarkt'
   | 'terminal'
   | 'terminalmanagement'
-  | 'terminalanalytics'
   | 'zugbildung'
   | 'disposition'
   | 'personal'
@@ -45,10 +43,8 @@ export const NAV_CATEGORIES: NavCategoryDef[] = [
     id: 'zentrale',
     label: 'Zentrale',
     defaultView: 'zentrale',
-    items: [
-      { id: 'zentrale', label: 'Büro' },
-      { id: 'terminalalerts', label: 'Warnzentrale' },
-    ],
+    hideSubnav: true,
+    items: [{ id: 'zentrale', label: 'Büro' }],
   },
   {
     id: 'transport',
@@ -58,7 +54,6 @@ export const NAV_CATEGORIES: NavCategoryDef[] = [
       { id: 'auftragsmarkt', label: 'Frachtbörse' },
       { id: 'terminal', label: 'Terminal' },
       { id: 'terminalmanagement', label: 'Management' },
-      { id: 'terminalanalytics', label: 'Terminal-Analyse' },
       { id: 'zugbildung', label: 'Baugleis-Zug' },
       { id: 'spielerboerse', label: 'Spieler-Börse' },
       { id: 'disposition', label: 'Disposition' },
@@ -102,7 +97,6 @@ export const NAV_CATEGORIES: NavCategoryDef[] = [
 
 const VIEW_CATEGORY: Record<AppView, NavCategory> = {
   zentrale: 'zentrale',
-  terminalalerts: 'zentrale',
   dashboard: 'zentrale',
   auswertungen: 'zentrale',
   statistikarchiv: 'zentrale',
@@ -110,7 +104,6 @@ const VIEW_CATEGORY: Record<AppView, NavCategory> = {
   auftragsmarkt: 'transport',
   terminal: 'transport',
   terminalmanagement: 'transport',
-  terminalanalytics: 'transport',
   zugbildung: 'transport',
   spielerboerse: 'transport',
   disposition: 'transport',
@@ -171,7 +164,6 @@ export function atmosphereForView(view: AppView): SubmenuAtmosphere | null {
     case 'auftragsmarkt':
     case 'terminal':
     case 'terminalmanagement':
-    case 'terminalanalytics':
     case 'zugbildung':
     case 'spielerboerse':
     case 'tourenplaner':

@@ -161,7 +161,6 @@ export function createTerminalDemoSnapshot(): TerminalSimulationSnapshot {
     specialistsById: {},
     staffChargesById: {},
     persistence: { status: 'IDLE', lastSavedAt: null, errorMessage: null },
-    alertsById: {},
     eventLog: [],
   };
 }

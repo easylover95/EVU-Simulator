@@ -54,13 +54,7 @@ function ManagementSheet({ title, children, onClose }: { title: string; children
   );
 }
 
-export function TerminalManagementView({
-  onOpenTerminal,
-  onOpenAnalytics,
-}: {
-  onOpenTerminal: () => void;
-  onOpenAnalytics: () => void;
-}) {
+export function TerminalManagementView({ onOpenTerminal }: { onOpenTerminal: () => void }) {
   const state = useTerminalSimulation((snapshot) => snapshot);
   const [sheet, setSheet] = useState<'UPGRADES' | 'STAFF' | 'SAVE' | 'SCENARIO' | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -131,11 +125,6 @@ export function TerminalManagementView({
           return <button key={item.id} type="button" onClick={() => setSheet(item.id)} className="min-h-28 rounded-xl border border-slate-700 bg-slate-900/70 p-4 text-left transition hover:border-cyan-400/65 hover:bg-cyan-950/25 focus:outline-none focus:ring-2 focus:ring-cyan-400"><Icon className="h-5 w-5 text-cyan-300" /><p className="mt-3 text-sm font-bold text-white">{item.title}</p><p className="mt-1 text-xs leading-relaxed text-slate-400">{item.text}</p></button>;
         })}
       </div>
-
-      <button type="button" onClick={onOpenAnalytics} className="flex min-h-14 w-full items-center justify-between rounded-xl border border-cyan-400/35 bg-cyan-950/20 px-4 text-left transition hover:bg-cyan-950/40 focus:outline-none focus:ring-2 focus:ring-cyan-400">
-        <span className="flex items-center gap-3"><BadgeEuro className="h-5 w-5 text-cyan-300" /><span><span className="block text-sm font-bold text-cyan-100">Finanz- und Umschlaganalyse öffnen</span><span className="mt-0.5 block text-xs text-slate-400">Einnahmen, Kosten und Deckungsbeiträge je Zug, Fracht und Gleis.</span></span></span>
-        <ChevronRight className="h-5 w-5 text-cyan-300" />
-      </button>
 
       {sheet === 'UPGRADES' && <ManagementSheet title="Investitionen und Ausbau" onClose={() => setSheet(null)}>
         {!data.terminal ? <p className="rounded-lg border border-dashed border-slate-700 p-5 text-center text-sm text-slate-400">Wähle zuerst eine Kampagne aus.</p> : <div className="space-y-2">{data.upgrades.map(({ definition, upgrade }) => {

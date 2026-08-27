@@ -24,7 +24,6 @@ import {
   SEED_WAGONS,
 } from '@/lib/seed';
 import { CompanyFoundingModal } from '@/components/CompanyFoundingModal';
-import { TerminalAudioBridge } from '@/components/TerminalAudioBridge';
 import { MainMenuScreen } from '@/components/MainMenuScreen';
 import { ResetGameConfirmModal } from '@/components/ResetGameConfirmModal';
 import { TutorialOverlay } from '@/components/TutorialOverlay';
@@ -53,7 +52,6 @@ import {
 } from '@/lib/wagonJobs';
 import { GameClockProvider } from '@/lib/GameClockContext';
 import { atmosphereForView, type AppView } from '@/lib/navigation';
-import { playTerminalSound, loadTerminalAudioSettings, saveTerminalAudioSettings, type TerminalAudioSettings } from '@/lib/terminalAudio';
 import { applyPerformanceSettings, loadPerformanceSettings, savePerformanceSettings, type PerformanceSettings } from '@/lib/performanceSettings';
 import { startWebVitalsMonitoring } from '@/lib/webVitals';
 import { useNetworkStatus } from '@/lib/networkStatus';
@@ -351,9 +349,7 @@ const OfficeHQView = lazy(() => import('@/views/OfficeHQView').then(({ OfficeHQV
 const FleetView = lazy(() => import('@/views/FleetView').then(({ FleetView }) => ({ default: FleetView })));
 const WagonParkView = lazy(() => import('@/views/WagonParkView').then(({ WagonParkView }) => ({ default: WagonParkView })));
 const TerminalInboundView = lazy(() => import('@/views/TerminalInboundView').then(({ TerminalInboundView }) => ({ default: TerminalInboundView })));
-const TerminalAlertsView = lazy(() => import('@/views/TerminalAlertsView').then(({ TerminalAlertsView }) => ({ default: TerminalAlertsView })));
 const TerminalManagementView = lazy(() => import('@/views/TerminalManagementView').then(({ TerminalManagementView }) => ({ default: TerminalManagementView })));
-const TerminalAnalyticsView = lazy(() => import('@/views/TerminalAnalyticsView').then(({ TerminalAnalyticsView }) => ({ default: TerminalAnalyticsView })));
 const TrainConfigurationView = lazy(() => import('@/views/TrainConfigurationView').then(({ TrainConfigurationView }) => ({ default: TrainConfigurationView })));
 const OrderMarketView = lazy(() => import('@/views/OrderMarketView').then(({ OrderMarketView }) => ({ default: OrderMarketView })));
 const DispatchView = lazy(() => import('@/views/DispatchView').then(({ DispatchView }) => ({ default: DispatchView })));
@@ -446,7 +442,6 @@ function App() {
   const [achievements, setAchievements] = useState<AchievementState>(() => loadAchievementState());
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [performanceSettings, setPerformanceSettings] = useState<PerformanceSettings>(() => loadPerformanceSettings());
-  const [audioSettings, setAudioSettings] = useState<TerminalAudioSettings>(() => loadTerminalAudioSettings());
   const { status: networkStatus, refresh: refreshNetworkStatus } = useNetworkStatus();
 
   useEffect(() => {
@@ -468,12 +463,6 @@ function App() {
 
   function toggleWebVitalsOptIn() {
     setPerformanceSettings((current) => savePerformanceSettings({ ...current, webVitalsOptIn: !current.webVitalsOptIn }));
-  }
-  function toggleTerminalAudio() {
-    setAudioSettings((current) => saveTerminalAudioSettings({ ...current, enabled: !current.enabled }));
-  }
-  function changeTerminalAudioVolume(volume: number) {
-    setAudioSettings((current) => saveTerminalAudioSettings({ ...current, volume }));
   }
 
   const headerRef = useRef<HTMLElement | null>(null);
@@ -2878,8 +2867,7 @@ function App() {
 
   return (
     <GameClockProvider value={clockValue}>
-      <TerminalAudioBridge />
-      <div>{atMainMenu ? (
+      {atMainMenu ? (
         <MainMenuScreen
           companyName={company?.name ?? 'AixRail GmbH'}
           hqLocation={company?.hq_location?.trim() || 'Aachen'}
@@ -3044,10 +3032,8 @@ function App() {
                   }}
                 />
               )}
-              {view === 'terminalalerts' && <TerminalAlertsView onNavigate={(destination) => setView(destination)} />}
-              {view === 'terminal' && <TerminalInboundView onOpenConfiguration={() => setView('zugbildung')} onOpenManagement={() => setView('terminalmanagement')} onOpenAlerts={() => setView('terminalalerts')} />}
-              {view === 'terminalmanagement' && <TerminalManagementView onOpenTerminal={() => setView('terminal')} onOpenAnalytics={() => setView('terminalanalytics')} />}
-              {view === 'terminalanalytics' && <TerminalAnalyticsView onOpenManagement={() => setView('terminalmanagement')} />}
+              {view === 'terminal' && <TerminalInboundView onOpenConfiguration={() => setView('zugbildung')} onOpenManagement={() => setView('terminalmanagement')} />}
+              {view === 'terminalmanagement' && <TerminalManagementView onOpenTerminal={() => setView('terminal')} />}
               {view === 'zugbildung' && <TrainConfigurationView onBack={() => setView('terminal')} />}
               {view === 'spielerboerse' && <PlayerMarketView />}
               {view === 'disposition' && (
@@ -3269,10 +3255,6 @@ function App() {
             onTogglePowerSaving={foundingMode === 'edit' ? togglePowerSaving : undefined}
             webVitalsOptIn={performanceSettings.webVitalsOptIn}
             onToggleWebVitalsOptIn={foundingMode === 'edit' ? toggleWebVitalsOptIn : undefined}
-            audioSettings={audioSettings}
-            onToggleAudio={foundingMode === 'edit' ? toggleTerminalAudio : undefined}
-            onChangeAudioVolume={foundingMode === 'edit' ? changeTerminalAudioVolume : undefined}
-            onPreviewAudio={foundingMode === 'edit' ? () => playTerminalSound('TRAIN_DEPARTURE') : undefined}
           />
         )}
         {tutorialOpen && !foundingOpen && (
@@ -3299,7 +3281,7 @@ function App() {
         {resetGameOpen && <ResetGameConfirmModal onCancel={cancelGameReset} onConfirm={confirmGameReset} />}
         </Suspense>
       </Layout>
-      )}</div>
+      )}
     </GameClockProvider>
   );
 }

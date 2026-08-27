@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Dynamische Flotteninvestition im Güterverkehr</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@600&family=Inter:wght@400&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F0F4F8;
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .content-area {
+            grid-column: 1 / 5;
+            padding: 120px 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-right: 2px solid #102A43;
+        }
+
+        .title-box {
+            border-left: 8px solid #D94A1E;
+            padding-left: 40px;
+            margin-bottom: 60px;
+        }
+
+        h1 {
+            font-family: 'Fira Code', monospace;
+            font-weight: 600;
+            font-size: 64px;
+            color: #102A43;
+            line-height: 1.2;
+            text-transform: uppercase;
+            letter-spacing: -1px;
+        }
+
+        .subtitle-box {
+            border: 2px solid #102A43;
+            padding: 30px;
+            background-color: #ffffff;
+        }
+
+        h2 {
+            font-family: 'Inter', sans-serif;
+            font-weight: 400;
+            font-size: 32px;
+            color: #334E68;
+            line-height: 1.4;
+        }
+
+        .hatch-area {
+            grid-column: 5 / 7;
+            background: repeating-linear-gradient(
+                45deg,
+                #F0F4F8,
+                #F0F4F8 10px,
+                #e0e8f0 10px,
+                #e0e8f0 20px
+            );
+            border-left: 2px solid #102A43;
+            position: relative;
+        }
+
+        .hatch-accent {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 100%;
+            height: 200px;
+            background-color: #D94A1E;
+            border-top: 2px solid #102A43;
+            border-left: 2px solid #102A43;
+        }
+
+        .corner-mark {
+            position: absolute;
+            top: 40px;
+            right: 40px;
+            width: 60px;
+            height: 60px;
+            border-top: 4px solid #102A43;
+            border-right: 4px solid #102A43;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="content-area">
+            <div class="title-box">
+                <h1>Dynamische<br>Flotteninvestition<br>im Güterverkehr</h1>
+            </div>
+            <div class="subtitle-box">
+                <h2>365-Tage-Simulation: Kredit, Baureihenwachstum und Kapitalentwicklung</h2>
+            </div>
+        </div>
+        <div class="hatch-area">
+            <div class="corner-mark"></div>
+            <div class="hatch-accent"></div>
+        </div>
+    </div>
+</body>
+</html>

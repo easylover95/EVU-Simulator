@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 
 import { GameplayEventPanel } from '@/components/GameplayEventPanel';
-import { TerminalAlertBanner } from '@/components/TerminalAlertBanner';
 import { Button, Card, CardFlush, CardHeader, StatPill } from '@/components/ui';
 import { effectiveCraneCapacityTons } from '@/lib/terminalGameplay';
 import { createTerminalDemoSnapshot } from '@/lib/terminalDemo';
@@ -37,11 +36,9 @@ function useTerminalDemoBootstrap(): boolean {
 export function TerminalInboundView({
   onOpenConfiguration,
   onOpenManagement,
-  onOpenAlerts,
 }: {
   onOpenConfiguration: () => void;
   onOpenManagement: () => void;
-  onOpenAlerts: () => void;
 }) {
   const ready = useTerminalDemoBootstrap();
   const state = useTerminalSimulation((snapshot) => snapshot);
@@ -108,8 +105,6 @@ export function TerminalInboundView({
           </Button>
         </div>
       </header>
-
-      <TerminalAlertBanner onOpenAlerts={onOpenAlerts} />
 
       <div className="grid gap-3 md:grid-cols-3">
         <Card className="border-cyan-400/25 p-4">
@@ -212,17 +207,9 @@ export function TerminalInboundView({
                       <p className="mt-1 text-xs text-slate-400">{arrival.mode === 'SHIP' ? 'Binnenschiff am Liegeplatz' : 'Frachtflugzeug im Umschlagfenster'}</p>
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-700/60 pt-2 text-xs">
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-700/60 pt-2 text-xs">
                     <span className={feeStartsIn === 0 ? 'font-bold text-rose-300' : 'text-slate-400'}>{feeStartsIn === 0 ? 'Liegegebühr aktiv' : `Freiliegezeit: ${feeStartsIn} h`}</span>
                     <span className="font-bold tabular-nums text-amber-300">{formatNumber(arrival.laytimeFeeCentsPerTick / 100, 0)} € / h</span>
-                    <Button
-                      variant="secondary"
-                      disabled={effectiveCraneCapacity <= 0}
-                      className="min-h-10"
-                      onClick={() => state.setInboundArrivalStatus(arrival.id, 'UNLOADED')}
-                    >
-                      Umschlag abschließen
-                    </Button>
                   </div>
                 </div>
               );
