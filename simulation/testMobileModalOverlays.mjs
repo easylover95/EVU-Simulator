@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { rmSync } from 'node:fs';
 import { setTimeout as wait } from 'node:timers/promises';
 
 const width = Number(process.argv[3] ?? 390);
@@ -7,6 +8,11 @@ const height = Number(process.argv[4] ?? 844);
 const debugPort = 9227;
 const url = process.argv[2] ?? 'http://localhost:4176/';
 const outputDir = '/home/ubuntu/evu-work/EVU-Simulator/simulation/modal-mobile-check';
+const profileDir = '/tmp/evu-modal-mobile-chrome';
+
+// Jeder Lauf benötigt einen frischen Browserzustand, damit Gründungs- und
+// Tutorial-Overlays reproduzierbar wie bei einer Erstinstallation erscheinen.
+rmSync(profileDir, { recursive: true, force: true });
 
 class CdpClient {
   constructor(socketUrl) {
@@ -118,7 +124,7 @@ const browser = spawn('chromium', [
   '--hide-scrollbars',
   `--remote-debugging-port=${debugPort}`,
   '--remote-allow-origins=*',
-  '--user-data-dir=/tmp/evu-modal-mobile-chrome',
+  `--user-data-dir=${profileDir}`,
   `--window-size=${width},${height}`,
   url,
 ], { stdio: 'ignore' });
