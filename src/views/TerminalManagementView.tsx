@@ -6,7 +6,6 @@ import {
   ChevronRight,
   HardHat,
   Save,
-  ShieldCheck,
   Sparkles,
   Trash2,
   Trophy,
@@ -15,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { Button, Card, CardFlush, CardHeader, StatPill } from '@/components/ui';
+import { Button, Card, StatPill } from '@/components/ui';
 import { CAMPAIGN_SCENARIOS, SPECIALIST_CATALOG, TERMINAL_UPGRADE_CATALOG, calculateTerminalStaffEffects } from '@/lib/terminalTycoon';
 import { useTerminalSimulation } from '@/state/terminalSimulationStore';
 
