@@ -1088,7 +1088,7 @@ export function DispatchView({
           <ClipboardList className="h-3.5 w-3.5 text-sky-500" /> Aktive Zuweisungen ({activeAssignments.length})
         </div>
         <div className="overflow-x-auto">
-          <table className="fi-table">
+          <table className="fi-table fi-mobile-card-table">
             <thead>
               <tr>
                 <th>Auftrag</th>
@@ -1103,7 +1103,7 @@ export function DispatchView({
             </thead>
             <tbody>
               {activeAssignments.length === 0 && (
-                <tr><td colSpan={8} className="py-6 text-center text-slate-500">Keine aktiven Zuweisungen</td></tr>
+                <tr><td colSpan={8} className="fi-mobile-empty-state py-6 text-center text-slate-500">Keine aktiven Zuweisungen</td></tr>
               )}
               {activeAssignments.map((a) => {
                 const aCfg = getAssignmentStatusConfig(a.status);
@@ -1124,10 +1124,10 @@ export function DispatchView({
                     data-active-train-dispatch={a.id}
                     className={selectedMarkerId === a.id ? 'bg-amber-900/20 outline outline-1 outline-amber-500/70' : ''}
                   >
-                    <td className="text-slate-300">{order.title}</td>
-                    <td className="text-[11px] text-slate-400">{order.origin} → {order.destination}</td>
-                    <td className="text-slate-300">{getLocoDisplayName(loco.designation)}</td>
-                    <td className="text-slate-300">
+                    <td data-label="Auftrag" className="fi-mobile-card-title text-slate-300">{order.title}</td>
+                    <td data-label="Strecke" className="fi-mobile-card-summary text-[11px] text-slate-400">{order.origin} → {order.destination}</td>
+                    <td data-label="Lok" className="text-slate-300">{getLocoDisplayName(loco.designation)}</td>
+                    <td data-label="Tf" className="text-slate-300">
                       {driver.name}
                       {a.second_driver ? ` · ${a.second_driver.name}` : ''}
                       {isBaugleisOrder(order) && (
@@ -1140,7 +1140,7 @@ export function DispatchView({
                         </div>
                       )}
                     </td>
-                    <td className="min-w-[110px]">
+                    <td data-label="Fortschritt" className="min-w-[110px]">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-800">
                           <div className="h-full rounded-full bg-sky-400" style={{ width: `${Math.min(100, progress)}%` }} />
@@ -1148,16 +1148,16 @@ export function DispatchView({
                         <span className="w-8 text-right text-[10px] font-bold tabular-nums text-sky-300">{Math.round(progress)}%</span>
                       </div>
                     </td>
-                    <td>
+                    <td data-label="Frist">
                       {time && (
                         <span className={`font-bold ${time.critical ? 'text-rose-400' : time.urgent ? 'text-amber-400' : 'text-slate-400'}`}>
                           {time.text}
                         </span>
                       )}
                     </td>
-                    <td><span className={getAssignmentPillClass(a.status)}>{aCfg.label}</span></td>
-                    <td>
-                      <div className="flex gap-1">
+                    <td data-label="Status"><span className={getAssignmentPillClass(a.status)}>{aCfg.label}</span></td>
+                    <td data-label="Aktionen" className="fi-mobile-card-actions">
+                      <div className="flex flex-wrap gap-1">
                         {!isBaugleisEinsatz(order) && (
                           <button onClick={() => handleComplete(a)} disabled={submitting} title="Abschließen" className="btn-action border-emerald-600 bg-emerald-900/30 text-emerald-300 hover:bg-emerald-800/50">
                             <Check className="h-3 w-3" />Fertig

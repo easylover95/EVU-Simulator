@@ -170,7 +170,7 @@ export function WagonParkView({
       </div>
 
       <div className="fi-card overflow-x-auto">
-        <table className="fi-table">
+        <table className="fi-table fi-mobile-card-table">
           <thead>
             <tr>
               <th>Typ</th>
@@ -187,7 +187,7 @@ export function WagonParkView({
           <tbody>
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-8 text-center text-slate-500">
+                <td colSpan={9} className="fi-mobile-empty-state py-8 text-center text-slate-500">
                   Keine Wagen in dieser Ansicht
                 </td>
               </tr>
@@ -202,15 +202,15 @@ export function WagonParkView({
               const rental = rentByWagon.get(wagon.id);
               return (
                 <tr key={wagon.id}>
-                  <td className="font-mono text-sm font-bold text-white">{wagon.type_code}</td>
-                  <td>{wagon.type_name}</td>
-                  <td>
+                  <td data-label="Wagentyp" className="fi-mobile-card-title font-mono text-sm font-bold text-white">{wagon.type_code}</td>
+                  <td data-label="Bezeichnung" className="fi-mobile-card-summary">{wagon.type_name}</td>
+                  <td data-label="Kategorie">
                     <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${catCfg.color} ${catCfg.text}`}>
                       {catCfg.label}
                     </span>
                   </td>
-                  <td className="font-bold tabular-nums text-white">{wagon.count} Stk</td>
-                  <td>
+                  <td data-label="Bestand" className="font-bold tabular-nums text-white">{wagon.count} Stk</td>
+                  <td data-label="Status">
                     <span className={getWagonPillClass(wagon.status)}>
                       {rental ? 'Vermietet' : statusCfg.label}
                     </span>
@@ -225,12 +225,12 @@ export function WagonParkView({
                       </div>
                     )}
                   </td>
-                  <td className="tabular-nums">{wagon.capacity_t} t</td>
-                  <td className={`font-bold ${brakeCfg.color}`}>{wagon.brake_position}</td>
-                  <td className="tabular-nums text-slate-400">
+                  <td data-label="Kapazität" className="tabular-nums">{wagon.capacity_t} t</td>
+                  <td data-label="Bremse" className={`font-bold ${brakeCfg.color}`}>{wagon.brake_position}</td>
+                  <td data-label="Frist" className="tabular-nums text-slate-400">
                     {fristLabel} · {remaining}%
                   </td>
-                  <td>
+                  <td data-label="Aktionen" className="fi-mobile-card-actions">
                     <div className="flex flex-wrap gap-1">
                       <button onClick={() => setDetailWagonId(wagon.id)} className="btn-action btn-action-detail">
                         <Info className="h-3 w-3" /> Details

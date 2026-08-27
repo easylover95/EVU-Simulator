@@ -1,5 +1,5 @@
 import { useState, type RefObject } from 'react';
-import { BarChart3, BriefcaseBusiness, ChevronRight, ClipboardList, Home, Landmark, Mail, Menu, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound, X } from 'lucide-react';
+import { BarChart3, BriefcaseBusiness, ChevronDown, ChevronRight, ClipboardList, Home, Landmark, Mail, Menu, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound, X } from 'lucide-react';
 import type { Company } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
@@ -54,6 +54,7 @@ export function AppTopbar({
   const def = categoryDef(cat);
   const subnav = showsSubnav(view);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
   const mobileNavItems: Array<{ id: string; label: string; view: AppView; icon: typeof Home; active: boolean }> = [
     { id: 'home', label: 'Home', view: 'zentrale', icon: Home, active: cat === 'zentrale' },
     { id: 'dispo', label: 'Dispo', view: 'disposition', icon: ClipboardList, active: view === 'disposition' },
@@ -68,6 +69,7 @@ export function AppTopbar({
   function navigateMobile(viewId: AppView) {
     warmViewAssets(viewId);
     setMobileMenuOpen(false);
+    setMobileSectionOpen(false);
     onSetView(viewId);
   }
   const compactNavLabels: Record<(typeof NAV_CATEGORIES)[number]['id'], string> = {
@@ -228,6 +230,27 @@ export function AppTopbar({
         </div>
       </div>
 
+      {subnav && (
+        <div className="app-mobile-section-switcher">
+          <button
+            type="button"
+            className="app-mobile-section-trigger"
+            aria-expanded={mobileSectionOpen}
+            aria-haspopup="dialog"
+            onClick={() => {
+              setMobileMenuOpen(false);
+              setMobileSectionOpen(true);
+            }}
+          >
+            <span>
+              <small>Bereich</small>
+              <strong>{def.label} · {def.items.find((item) => item.id === view)?.label ?? def.defaultView}</strong>
+            </span>
+            <ChevronDown aria-hidden />
+          </button>
+        </div>
+      )}
+
       <div className="app-topbar-tabs-row">
         <nav className="app-nav-tabs no-scrollbar" aria-label="Hauptnavigation">
           {NAV_CATEGORIES.map((item) => {
@@ -289,11 +312,44 @@ export function AppTopbar({
             </button>
           );
         })}
-        <button type="button" aria-label="Menü öffnen" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(true)} className={`app-mobile-quicknav-item ${mobileMenuOpen ? 'is-active' : ''}`}>
+        <button type="button" aria-label="Menü öffnen" aria-expanded={mobileMenuOpen} onClick={() => { setMobileSectionOpen(false); setMobileMenuOpen(true); }} className={`app-mobile-quicknav-item ${mobileMenuOpen ? 'is-active' : ''}`}>
           <Menu className="app-mobile-quicknav-icon" aria-hidden />
           <span>Menü</span>
         </button>
       </nav>
+
+      {mobileSectionOpen && (
+        <div className="app-mobile-menu-layer" role="presentation">
+          <button type="button" className="app-mobile-menu-backdrop" aria-label="Bereichsauswahl schließen" onClick={() => setMobileSectionOpen(false)} />
+          <section className="app-mobile-menu-sheet" role="dialog" aria-modal="true" aria-label={`${def.label} Untermenü`}>
+            <div className="app-mobile-menu-handle" aria-hidden />
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-amber-300">Bereich wählen</p>
+                <h2 className="mt-1 text-base font-bold text-white">{def.label}</h2>
+              </div>
+              <button type="button" className="app-topbar-ctrl" aria-label="Bereichsauswahl schließen" onClick={() => setMobileSectionOpen(false)}><X className="h-4 w-4" /></button>
+            </div>
+            <div className="app-mobile-menu-actions">
+              {def.items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={view === item.id ? 'is-active' : ''}
+                  onPointerEnter={() => warmViewAssets(item.id)}
+                  onFocus={() => warmViewAssets(item.id)}
+                  onTouchStart={() => warmViewAssets(item.id)}
+                  onClick={() => navigateMobile(item.id)}
+                >
+                  <span className="app-mobile-menu-item-marker" aria-hidden />
+                  <span>{item.label}</span>
+                  <ChevronRight aria-hidden />
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      )}
 
       {mobileMenuOpen && (
         <div className="app-mobile-menu-layer" role="presentation">

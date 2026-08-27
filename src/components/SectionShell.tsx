@@ -79,12 +79,12 @@ export function SectionShell({
       </div>
 
       {strip.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-4">
           {strip.map((kpi) => (
-            <div key={kpi.label} className="app-glass rounded-xl p-3 text-center">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{kpi.label}</div>
-              <div className="mt-1 text-lg font-bold tabular-nums text-amber-400">{kpi.value}</div>
-              {kpi.hint && <div className="mt-0.5 text-[10px] text-slate-500">{kpi.hint}</div>}
+            <div key={kpi.label} className="app-section-kpi app-glass rounded-xl p-3 text-center">
+              <div className="app-section-kpi-label text-[10px] font-bold uppercase tracking-wider text-slate-500">{kpi.label}</div>
+              <div className="app-section-kpi-value mt-1 text-lg font-bold tabular-nums text-amber-400">{kpi.value}</div>
+              {kpi.hint && <div className="app-section-kpi-hint mt-0.5 text-[10px] text-slate-500">{kpi.hint}</div>}
             </div>
           ))}
         </div>

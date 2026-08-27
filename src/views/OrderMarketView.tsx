@@ -339,7 +339,7 @@ export function OrderMarketView({
       </div>
 
       <div className="fi-card overflow-x-auto">
-        <table className="fi-table">
+        <table className="fi-table fi-mobile-card-table">
           <thead>
             <tr>
               <th>Auftrags-Nr.</th>
@@ -360,7 +360,7 @@ export function OrderMarketView({
           <tbody>
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={11} className="py-8 text-center text-slate-500">
+                <td colSpan={11} className="fi-mobile-empty-state py-8 text-center text-slate-500">
                   Keine Aufträge in dieser Ansicht
                 </td>
               </tr>
@@ -380,8 +380,8 @@ export function OrderMarketView({
               const gate = orderGate(order);
               return (
                 <tr key={order.id} className="fi-deferred-list-row cursor-pointer" onClick={() => openOrder(order)}>
-                  <td className="font-mono text-[11px] font-bold text-white">{order.order_number}</td>
-                  <td>
+                  <td data-label="Auftrag" className="fi-mobile-card-title font-mono text-[11px] font-bold text-white">{order.order_number}</td>
+                  <td data-label="Typ">
                     <div className="flex flex-col items-start gap-1">
                       <span className={`inline-flex items-center gap-1 ${isConstruction ? 'fi-pill fi-pill-orange' : 'fi-pill fi-pill-blue'}`}>
                         {isConstruction ? <HardHat className="h-3 w-3" /> : <Package className="h-3 w-3" />}
@@ -390,19 +390,19 @@ export function OrderMarketView({
                       {badge && <span className={badge.className}>{badge.label}</span>}
                     </div>
                   </td>
-                  <td className="max-w-[240px] font-medium text-white">
+                  <td data-label="Fracht" className="fi-mobile-card-summary max-w-[240px] font-medium text-white">
                     <div>{order.title}</div>
                     {order.customer && <div className="text-[10px] font-normal text-slate-500">{order.customer}</div>}
                     {shortage && <div className="mt-0.5 text-[10px] font-bold text-rose-400">{shortage}</div>}
                   </td>
-                  <td className="whitespace-nowrap text-[11px] text-slate-400">
+                  <td data-label="Strecke" className="fi-mobile-card-summary whitespace-nowrap text-[11px] text-slate-400">
                     {order.origin} → {order.destination}
                     <span className="ml-1 text-slate-600">({order.distance_km} km · {corridorCountryHint(order)})</span>
                     {gate && <div className="mt-0.5 text-[10px] font-bold text-rose-400">{gate}</div>}
                   </td>
-                  <td className="tabular-nums">{Number(order.weight_t || 0).toLocaleString('de-DE')}</td>
-                  <td className="font-bold tabular-nums text-amber-300">{minBrh}</td>
-                  <td className="font-bold tabular-nums text-emerald-400">
+                  <td data-label="Last" className="tabular-nums">{Number(order.weight_t || 0).toLocaleString('de-DE')} t</td>
+                  <td data-label="Mindest-Brh" className="font-bold tabular-nums text-amber-300">{minBrh}</td>
+                  <td data-label="Ertrag" className="font-bold tabular-nums text-emerald-400">
                     {einsatz && order.daily_rate
                       ? `${formatEuro(order.daily_rate)}/Tag`
                       : formatEuro(Number(order.yield))}
@@ -410,8 +410,8 @@ export function OrderMarketView({
                       <div className="text-[10px] font-normal text-slate-500">{formatEuro(Number(order.yield))} gesamt</div>
                     )}
                   </td>
-                  <td className="tabular-nums text-rose-300/90">{formatPenalty(order)}</td>
-                  <td>
+                  <td data-label="Pönale" className="tabular-nums text-rose-300/90">{formatPenalty(order)}</td>
+                  <td data-label="Frist">
                     {time ? (
                       <span
                         className={`inline-flex items-center gap-1 font-bold tabular-nums ${time.critical ? 'text-rose-400' : time.urgent ? 'text-amber-400' : 'text-slate-400'}`}
@@ -425,12 +425,12 @@ export function OrderMarketView({
                       <span className="text-slate-500">—</span>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <span className={order.status === 'offen' ? 'fi-pill fi-pill-green' : getOrderPillClass(order.status)}>
                       {order.status === 'offen' ? 'Gültig' : statusCfg.label}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Aktionen" className="fi-mobile-card-actions">
                     <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
                       {order.status === 'offen' && (
                         <>
