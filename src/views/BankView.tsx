@@ -634,9 +634,9 @@ function ConfirmRows({ rows }: { rows: Array<[string, string]> }) {
   return (
     <dl className="divide-y divide-slate-700/70 overflow-hidden rounded-xl border border-slate-700/80 bg-slate-950/50 text-xs">
       {rows.map(([label, value]) => (
-        <div key={label} className="flex items-start justify-between gap-4 px-3 py-2">
+        <div key={label} className="flex flex-col gap-0.5 px-3 py-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <dt className="text-slate-500">{label}</dt>
-          <dd className="text-right font-semibold text-white">{value}</dd>
+          <dd className="break-words font-semibold text-white [overflow-wrap:anywhere] sm:text-right">{value}</dd>
         </div>
       ))}
     </dl>

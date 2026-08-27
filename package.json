@@ -20,6 +20,7 @@
     "test:clock-train": "tsx --tsconfig tsconfig.app.json simulation/testClockAndTrainProgress.ts",
     "test:adaptive-layout": "node simulation/testAdaptiveLayout.mjs",
     "test:mobile-ui": "node simulation/captureMobileClockViews.mjs",
+    "test:mobile-modals": "node simulation/testMobileModalOverlays.mjs",
     "test:clock-runtime": "node simulation/testRuntimeClockControls.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",

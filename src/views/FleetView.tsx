@@ -363,7 +363,7 @@ export function FleetView({
               <div className="font-mono text-[11px] text-amber-100/80">{detailLoco.designation}</div>
             </PhotoCardHeader>
             </div>
-            <div className="grid grid-cols-2 gap-3 p-4">
+            <div className="grid gap-3 p-4 sm:grid-cols-2">
               {detailTypeLabel !== detailLoco.designation && (
                 <DetailRow label="Typ" value={detailTypeLabel} />
               )}

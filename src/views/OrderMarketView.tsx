@@ -476,7 +476,7 @@ export function OrderMarketView({
             </div>
             <div className="space-y-3 p-4">
               <div className="text-sm font-bold text-white">{detailOrder.title}</div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3 sm:grid-cols-2">
                 <DetailRow label="Streckenprofil" value={`${detailOrder.origin} → ${detailOrder.destination} · ${detailOrder.distance_km} km · ${corridorCountryHint(detailOrder)}`} />
                 <DetailRow label="Zuglast" value={`${detailOrder.weight_t} t`} />
                 <DetailRow

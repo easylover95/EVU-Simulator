@@ -1,10 +1,14 @@
 import { spawn } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { rmSync } from 'node:fs';
 import { setTimeout as wait } from 'node:timers/promises';
 
 const baseUrl = process.argv[2] ?? 'http://localhost:4175/';
 const outputDir = '/home/ubuntu/evu-work/EVU-Simulator/simulation/mobile-clock-check';
 const debugPort = 9231;
+const profileDir = '/tmp/evu-adaptive-layout-chrome';
+
+rmSync(profileDir, { recursive: true, force: true });
 
 class CdpClient {
   constructor(socketUrl) {
@@ -86,7 +90,7 @@ function adaptiveSnapshot() {
 const browser = spawn('chromium', [
   '--headless=new', '--no-sandbox', '--disable-gpu', '--hide-scrollbars',
   `--remote-debugging-port=${debugPort}`, '--remote-allow-origins=*',
-  '--user-data-dir=/tmp/evu-adaptive-layout-chrome', '--window-size=1440,900', baseUrl,
+  `--user-data-dir=${profileDir}`, '--window-size=1440,900', baseUrl,
 ], { stdio: 'ignore' });
 
 try {
@@ -104,9 +108,9 @@ try {
   ]) {
     await client.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile, screenWidth: width, screenHeight: height });
     await wait(400);
-    await client.evaluate(`(() => { const create = [...document.querySelectorAll('button')].find((entry) => entry.offsetParent && entry.textContent?.trim().toUpperCase() === 'UNTERNEHMEN GRÜNDEN'); create?.click(); })()`);
+    await client.evaluate(`(() => { const create = [...document.querySelectorAll('button')].find((entry) => entry.offsetParent && entry.textContent?.toUpperCase().includes('UNTERNEHMEN GRÜNDEN')); create?.click(); })()`);
     await wait(200);
-    await client.evaluate(`(() => { const skip = [...document.querySelectorAll('button')].find((entry) => entry.offsetParent && entry.textContent?.trim().toUpperCase() === 'ÜBERSPRINGEN'); skip?.click(); })()`);
+    await client.evaluate(`(() => { const skip = [...document.querySelectorAll('button')].find((entry) => entry.offsetParent && entry.textContent?.toUpperCase().includes('ÜBERSPRINGEN')); skip?.click(); })()`);
     await wait(400);
     results[name] = await client.evaluate(adaptiveSnapshot());
     const shot = await client.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });

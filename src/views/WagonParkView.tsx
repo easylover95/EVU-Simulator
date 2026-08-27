@@ -278,7 +278,7 @@ export function WagonParkView({
                 ✕
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-3 p-4">
+            <div className="grid gap-3 p-4 sm:grid-cols-2">
               <DetailRow label="UIC-Kennung" value={detailWagon.type_code} />
               <DetailRow label="Bezeichnung" value={detailWagon.type_name} />
               <DetailRow label="Kategorie" value={getWagonCategoryConfig(detailWagon.category).label} />

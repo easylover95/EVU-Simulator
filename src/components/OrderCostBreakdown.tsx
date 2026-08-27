@@ -139,7 +139,7 @@ export function OrderCostBreakdown({
               <span className="text-[10px] font-bold uppercase tracking-wide text-sky-200">Traktionsvergleich</span>
               <span className="text-[10px] text-slate-500">Eine Option wählen · kein Doppelabzug</span>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid gap-2 sm:grid-cols-2">
               <div className="rounded-sm border border-amber-400/20 bg-amber-400/5 p-2">
                 <div className="flex items-center gap-1 text-[10px] font-bold text-amber-200"><Fuel className="h-3 w-3" /> Diesel</div>
                 <div className="mt-1 text-[10px] text-slate-400">Energie {formatEuro(diesel.energyCost)}{unit}</div>

@@ -2085,3 +2085,24 @@ body,
     transform: scale(1.65);
   }
 }
+
+/* Mobile dialog safety net: every standard transaction/detail modal must stay inside the visible viewport. */
+@media (max-width: 640px) {
+  .modal-scrim.modal-scrim {
+    align-items: flex-start;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0.75rem;
+  }
+
+  .modal-scrim.modal-scrim > form,
+  .modal-scrim.modal-scrim > .fi-card,
+  .modal-scrim.modal-scrim > .app-glass:not(.help-handbook):not(.achievements-gallery),
+  .modal-scrim.modal-scrim > [role='dialog']:not(.help-handbook):not(.achievements-gallery) {
+    width: 100%;
+    max-height: calc(100dvh - 3rem - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+}

@@ -879,7 +879,7 @@ function DriverDetailModal({
               {statusLabel}
             </span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid gap-3 sm:grid-cols-2">
             <DetailRow label="Wochenstunden" value={`${driver.hours_worked}/${driver.max_hours} h`} />
             <DetailRow label="Ruhezeit" value={`${restHours}h her${restOk ? '' : ' (!)'}`} />
             <DetailRow label="Schicht" value={shiftHours !== null ? `seit ${shiftHours}h` : '—'} />

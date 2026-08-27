@@ -90,7 +90,8 @@ Alle Skripte werden aus dem Repository-Root ausgeführt. Simulationsergebnisse u
 | `npm run tauri:dev` | Startet die native Tauri-Entwicklungsumgebung. |
 | `npm run tauri:build` | Paketiert die native Tauri-Anwendung. |
 | `npm run test:clock-train` | Prüft Zeitfaktoren, Pause, Zugfortschritt, ETA und Geschwindigkeit deterministisch. |
-| `npm run test:mobile-ui -- <Preview-URL>` | Prüft alle mobilen Kernansichten bei 390 × 844 px, einschließlich Zeitsteuerung, Disposition und Karte. |
+| `npm run test:mobile-ui -- <Preview-URL>` | Prüft alle mobilen Kernansichten bei 390 × 844 px, einschließlich Zeitsteuerung, Disposition, Karte und Posteingang. |
+| `npm run test:mobile-modals -- <Preview-URL>` | Prüft globale Gründungs-, Tutorial-, Handbuch-, Erfolgs-, Logout-, Firmen-, Bank- und Kartenlegenden-Overlays bei 390 × 844 px auf Viewportgrenzen und horizontalen Überlauf. |
 | `npm run test:adaptive-layout -- <Preview-URL>` | Prüft die CSS/Viewport-Umschaltung zwischen 1440 × 900 px und 390 × 844 px sowie horizontalen Überlauf. |
 | `npm run test:clock-runtime -- <Preview-URL>` | Bedient die mobilen 1×-, 2×-, 5×- und Pausensteuerungen per Browserautomation. |
 
@@ -107,6 +108,7 @@ npm run analyze:starting-capital
 npm run build
 npm run preview -- --host 0.0.0.0 --port 4176
 npm run test:mobile-ui -- http://localhost:4176/
+npm run test:mobile-modals -- http://localhost:4176/
 npm run test:adaptive-layout -- http://localhost:4176/
 npm run test:clock-runtime -- http://localhost:4176/
 git diff --check

@@ -116,7 +116,7 @@ function InvestmentForecastPanel({ forecast }: { forecast: InvestmentForecast })
   return (
     <section className={`rounded-lg border ${tone.border} bg-slate-950/45 p-3 text-[11px]`}>
       <div className={`font-bold uppercase tracking-wide ${tone.title}`}>Investitions-Prognose vor Bindung</div>
-      <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2">
+      <dl className="mt-2 grid gap-x-4 gap-y-2 sm:grid-cols-2">
         <div>
           <dt className="text-slate-500">Fixkosten / Tag</dt>
           <dd className="font-semibold text-white">{formatEuro(forecast.dailyFixedBefore)} → {formatEuro(forecast.dailyFixedAfter)}</dd>
@@ -128,16 +128,16 @@ function InvestmentForecastPanel({ forecast }: { forecast: InvestmentForecast })
           <dd className="text-slate-400">Reserve-Ziel {formatEuro(forecast.liquidity.recommendedReserve)}</dd>
         </div>
         {contribution != null ? (
-          <div className="col-span-2 border-t border-slate-700/70 pt-2">
+          <div className="border-t border-slate-700/70 pt-2 sm:col-span-2">
             <dt className="text-slate-500">Geschätzter Deckungsbeitrag / zusätzlichem Tageslauf</dt>
             <dd className={contribution >= 0 ? 'font-semibold text-emerald-300' : 'font-semibold text-rose-300'}>
               {formatEuro(contribution)} <span className="font-normal text-slate-400">aus {formatEuro(forecast.dailyRevenue ?? 0)} Erlös − {formatEuro(forecast.dailyOperatingCost ?? 0)} Trasse/Energie</span>
             </dd>
           </div>
         ) : (
-          <div className="col-span-2 border-t border-slate-700/70 pt-2 text-slate-400">{forecast.operationalLabel}</div>
+          <div className="border-t border-slate-700/70 pt-2 text-slate-400 sm:col-span-2">{forecast.operationalLabel}</div>
         )}
-        <div className="col-span-2 text-slate-400">Instandhaltungs-Fonds: {formatEuro(forecast.maintenanceFundBalance)} · {forecast.liquidity.message}</div>
+        <div className="text-slate-400 sm:col-span-2">Instandhaltungs-Fonds: {formatEuro(forecast.maintenanceFundBalance)} · {forecast.liquidity.message}</div>
       </dl>
     </section>
   );
