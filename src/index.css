@@ -1553,18 +1553,18 @@ body,
 }
 
 
-/* The gallery button is cover-mapped to the wooden wall picture. Its visual
-   outline is a separate overlay, so it can never alter the mapped hit area. */
+/* The gallery button is cover-mapped to the lower steam-loco wall picture above
+   the right monitor. Its visual outline is separate from the mapped hit area. */
 .office-hotspot--gallery {
   /* The source picture is photographed in slight perspective. The clip follows
-     its four inner photo edges, so neither hit target nor glow can touch wood. */
+     the lower frame's inner photo edges, so neither hit target nor glow touches wood. */
   box-sizing: border-box;
   overflow: hidden;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-  clip-path: polygon(0 0, 100% 18%, 100% 100%, 0 87%);
+  clip-path: polygon(0 0, 100% 6%, 100% 100%, 0 94%);
 }
 
 .office-hotspot--gallery-frame {
@@ -1580,7 +1580,7 @@ body,
     0 0 0 1px rgba(253, 230, 138, 0.28),
     0 0 18px rgba(251, 191, 36, 0.38),
     inset 0 0 18px rgba(251, 191, 36, 0.12);
-  opacity: 0;
+  opacity: 0 !important;
   pointer-events: none;
   transition: opacity 0.18s ease;
 }
@@ -1601,7 +1601,7 @@ body,
 .office-hotspot--gallery:hover .office-hotspot-gallery-frame,
 .office-hotspot--gallery:focus-visible .office-hotspot-gallery-frame,
 .office-hotspot--gallery:active .office-hotspot-gallery-frame {
-  opacity: 1;
+  opacity: 1 !important;
 }
 
 .office-hotspot--gallery:hover .office-hotspot-chip,

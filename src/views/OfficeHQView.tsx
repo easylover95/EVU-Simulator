@@ -45,13 +45,13 @@ const HOTSPOTS: OfficeHotspot[] = [
     id: 'gallery',
     label: 'Erfolge & Meilensteine',
     dest: 'gallery',
-    // Source % of leitstelle_bg.png: inner photo area of the upper-left steam-loco frame.
-    // The wooden picture frame remains outside the interactive outline by design.
-    x: 10.16,
-    y: 4.10,
-    w: 15.55,
-    h: 13.47,
-    z: 3,
+    // Source % of leitstelle_bg.webp: inner photo area of the steam-loco frame
+    // on the left wall, directly above the right PC monitor. The wood remains free.
+    x: 15.82,
+    y: 38.78,
+    w: 7.62,
+    h: 6.80,
+    z: 6,
     shape: 'rect',
     Icon: Trophy,
   },
@@ -169,6 +169,7 @@ export function OfficeHQView({
 }: OfficeHQViewProps) {
   const sceneRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
+  const [galleryFrameVisible, setGalleryFrameVisible] = useState(false);
 
   useEffect(() => {
     const el = sceneRef.current;
@@ -203,6 +204,11 @@ export function OfficeHQView({
           }
           className={`office-hotspot office-hotspot--${hs.shape}${hs.id === 'gallery' ? ' office-hotspot--gallery' : ''}`}
           style={coverHotspotStyle(box.w, box.h, hs)}
+          onPointerEnter={hs.id === 'gallery' ? () => setGalleryFrameVisible(true) : undefined}
+          onPointerLeave={hs.id === 'gallery' ? () => setGalleryFrameVisible(false) : undefined}
+          onPointerDown={hs.id === 'gallery' ? () => setGalleryFrameVisible(true) : undefined}
+          onFocus={hs.id === 'gallery' ? () => setGalleryFrameVisible(true) : undefined}
+          onBlur={hs.id === 'gallery' ? () => setGalleryFrameVisible(false) : undefined}
           onClick={() => {
             if (hs.dest === 'gallery') onOpenGallery?.();
             else onNavigate(hs.dest);
@@ -213,7 +219,13 @@ export function OfficeHQView({
               : hs.label
           }
         >
-          {hs.id === 'gallery' && <span className="office-hotspot-gallery-frame" aria-hidden="true" />}
+          {hs.id === 'gallery' && (
+            <span
+              className="office-hotspot-gallery-frame"
+              aria-hidden="true"
+              hidden={!galleryFrameVisible}
+            />
+          )}
           <span className="office-hotspot-chip">
             <hs.Icon className="office-hotspot-icon" aria-hidden />
             {hs.id === 'gallery' ? `Erfolge ${galleryUnlocked}/${galleryTotal}` : hs.label}
