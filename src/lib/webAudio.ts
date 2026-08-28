@@ -177,3 +177,12 @@ export async function closeSoundContext(): Promise<void> {
   context = null;
   for (const effect of Object.keys(lastScheduledAt) as SoundEffect[]) delete lastScheduledAt[effect];
 }
+
+export function syncAudioWithDocumentVisibility(): void {
+  if (typeof document === 'undefined' || !context) return;
+  if (document.visibilityState === 'hidden') {
+    if (context.state === 'running') void context.suspend().catch(() => undefined);
+    return;
+  }
+  if (context.state === 'suspended') void context.resume().catch(() => undefined);
+}
