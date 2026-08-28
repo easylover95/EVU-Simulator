@@ -28,10 +28,12 @@ import {
   hireNachschulungFee,
   missingFleetSeries,
   seriesLabel,
+  seriesQuickPayQuote,
   seriesTrainingQuote,
   staffEfficiencyPct,
   xpProgressToNextRank,
 } from '@/lib/personal';
+import { nextRankTraining, rankQuickPayCost, type StaffRole } from '@/lib/jobcenter';
 import { TICKS_PER_DAY } from '@/lib/storage';
 
 type HireMode = 'standard' | 'quickpay';
@@ -45,9 +47,11 @@ interface PersonnelViewProps {
   staffMeta?: Record<string, StaffMeta>;
   bekanntheit?: number;
   onRecruit?: (listing: JobListing, withFleetTraining?: boolean) => boolean;
-  onStartTraining?: (driverId: string, seriesId: string) => boolean;
+  onStartTraining?: (driverId: string, seriesId: string, instant?: boolean) => boolean;
+  onStartRankTraining?: (driverId: string, instant?: boolean) => boolean;
   balance?: number;
   overdraftLimit?: number;
+  staffCap?: number;
 }
 
 export function PersonnelView({
@@ -60,8 +64,10 @@ export function PersonnelView({
   bekanntheit = 0,
   onRecruit,
   onStartTraining,
+  onStartRankTraining,
   balance = 0,
   overdraftLimit = 0,
+  staffCap,
 }: PersonnelViewProps) {
   const { gameNow, tick } = useGameClock();
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -69,6 +75,8 @@ export function PersonnelView({
   const [hireMode, setHireMode] = useState<HireMode | null>(null);
   const [trainDriverId, setTrainDriverId] = useState<string | null>(null);
   const [pendingTrainingSeriesId, setPendingTrainingSeriesId] = useState<string | null>(null);
+  const [trainingInstant, setTrainingInstant] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<'all' | StaffRole>('all');
   const [pendingAttestDriverId, setPendingAttestDriverId] = useState<string | null>(null);
 
   const detailDriver = drivers.find((driver) => driver.id === detailId) ?? null;
@@ -97,6 +105,7 @@ export function PersonnelView({
   const closeTrainingFlow = () => {
     setPendingTrainingSeriesId(null);
     setTrainDriverId(null);
+    setTrainingInstant(false);
   };
 
   if (loading) {
@@ -112,7 +121,7 @@ export function PersonnelView({
   return (
     <SectionShell
       title="Personal"
-      subtitle={`${drivers.length} Mitarbeiter im Dienstplan · Ruhezeit 8 h · 48-h-Fenster`}
+      subtitle={`${drivers.length}${staffCap != null ? ` / ${staffCap}` : ''} Mitarbeiter · Tf, Werkstatt (AZF/RB) und Wagenprüfer`}
       tutorialId="tutorial-personal"
     >
       {onRecruit && (
@@ -135,16 +144,39 @@ export function PersonnelView({
             </div>
           </div>
 
+          <div className="mt-4 flex flex-wrap gap-2">
+            {(
+              [
+                ['all', 'Alle'],
+                ['tf', 'Triebfahrzeugführer'],
+                ['azf', 'Werkstatt / AZF'],
+                ['wagenpruefer', 'Wagenprüfer'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setRoleFilter(id === 'all' ? 'all' : id)}
+                className={`fi-filter min-h-12 px-3 ${roleFilter === id || (id === 'all' && roleFilter === 'all') ? 'fi-filter-active' : ''}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {listings.map((listing) => {
+            {listings
+              .filter((listing) => roleFilter === 'all' || listing.role === roleFilter)
+              .map((listing) => {
               const locked = bekanntheit < listing.minBekanntheit;
               const isTf = listing.role === 'tf';
               const missing = isTf ? missingFleetSeries(listing.seriesIds, locomotives, listing.qualifications) : [];
               const hasFleetFitContext = isTf && fleetIds.length > 0;
               const quickPayFee = hireNachschulungFee(missing.length);
               const quickPayTotal = listing.hiringCost + quickPayFee;
-              const canHire = canSpend(balance, listing.hiringCost, overdraftLimit);
-              const canQuickPay = canSpend(balance, quickPayTotal, overdraftLimit);
+              const housingFull = staffCap != null && drivers.length >= staffCap;
+              const canHire = !housingFull && canSpend(balance, listing.hiringCost, overdraftLimit);
+              const canQuickPay = !housingFull && canSpend(balance, quickPayTotal, overdraftLimit);
 
               return (
                 <article key={listing.id} className="personnel-candidate">
@@ -205,12 +237,16 @@ export function PersonnelView({
                     <strong>{formatEuro(listing.salary)}</strong>
                   </div>
 
-                  {locked ? (
+                  {housingFull ? (
+                    <div className="mt-3 text-[11px] font-semibold text-amber-400">
+                      Personal-Kapazität voll — weitere Betriebsstelle oder Lok-Ausbau nötig.
+                    </div>
+                  ) : locked ? (
                     <div className="mt-3 text-[11px] font-semibold text-amber-400">Ab Bekanntheit {listing.minBekanntheit}</div>
                   ) : (
                     <button
                       type="button"
-                      className="btn-gold mt-3 w-full"
+                      className="btn-gold mt-3 min-h-12 w-full"
                       disabled={!canHire && !(missing.length > 0 && canQuickPay)}
                       onClick={() => setPendingHire(listing)}
                     >
@@ -266,12 +302,14 @@ export function PersonnelView({
         <TrainingCommitModal
           driver={trainDriver}
           seriesId={pendingTrainingSeriesId}
+          instant={trainingInstant}
           balance={balance}
           overdraftLimit={overdraftLimit}
           onBack={() => setPendingTrainingSeriesId(null)}
           onClose={closeTrainingFlow}
+          onToggleInstant={() => setTrainingInstant((v) => !v)}
           onConfirm={() => {
-            const ok = onStartTraining?.(trainDriver.id, pendingTrainingSeriesId) ?? false;
+            const ok = onStartTraining?.(trainDriver.id, pendingTrainingSeriesId, trainingInstant) ?? false;
             if (ok) closeTrainingFlow();
           }}
         />
@@ -296,7 +334,7 @@ export function PersonnelView({
       </div>
 
       <div className="fi-card overflow-x-auto">
-        <table className="fi-table">
+        <table className="fi-table fi-mobile-card-table">
           <thead>
             <tr>
               <th>Name</th>
@@ -313,12 +351,17 @@ export function PersonnelView({
           <tbody>
             {drivers.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-8 text-center text-slate-500">
+                <td colSpan={9} className="fi-mobile-empty-state py-8 text-center text-slate-500">
                   Kein Personal im Bestand
                 </td>
               </tr>
             )}
-            {drivers.map((driver) => {
+            {drivers
+              .filter((driver) => {
+                if (roleFilter === 'all') return true;
+                return (staffMeta[driver.id]?.role ?? inferRole(driver)) === roleFilter;
+              })
+              .map((driver) => {
               const cfg = getDriverStatusConfig(driver.status);
               const hoursPct = driver.max_hours > 0 ? (driver.hours_worked / driver.max_hours) * 100 : 0;
               const hoursColor = hoursPct >= 85 ? 'text-rose-400' : hoursPct >= 65 ? 'text-amber-400' : 'text-emerald-400';
@@ -339,7 +382,7 @@ export function PersonnelView({
 
               return (
                 <tr key={driver.id}>
-                  <td>
+                  <td data-label="Name" className="fi-mobile-card-title">
                     <div className="flex items-center gap-2">
                       <span className="flex h-7 w-7 items-center justify-center rounded-sm border border-slate-600 bg-slate-800 text-[10px] font-bold text-slate-400">
                         {driver.name
@@ -351,13 +394,13 @@ export function PersonnelView({
                       <span className="font-bold text-white">{driver.name}</span>
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <span className={getDriverPillClass(driver.status)}>
                       <span className={`status-dot ${cfg.dot} ${driver.status === 'im_einsatz' ? 'animate-pulse' : ''}`} />
                       {statusLabel}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Qualifikationen">
                     <div className="flex flex-wrap gap-1">
                       {driver.qualifications.map((qualification) => (
                         <QualificationBadge key={qualification} qual={qualification} />
@@ -369,14 +412,14 @@ export function PersonnelView({
                       ))}
                     </div>
                   </td>
-                  <td className={`font-bold tabular-nums ${hoursColor}`}>
+                  <td data-label="48h" className={`font-bold tabular-nums ${hoursColor}`}>
                     {driver.hours_worked}/{driver.max_hours}h
                   </td>
-                  <td className={`tabular-nums ${restOk ? 'text-slate-300' : 'font-bold text-rose-400'}`}>
+                  <td data-label="Ruhezeit" className={`tabular-nums ${restOk ? 'text-slate-300' : 'font-bold text-rose-400'}`}>
                     {restHours}h{restOk ? '' : ' ⚠'}
                   </td>
-                  <td className="tabular-nums text-slate-300">{shiftHours !== null ? `${shiftHours}h` : '—'}</td>
-                  <td className="text-[11px] text-slate-300">
+                  <td data-label="Schicht" className="tabular-nums text-slate-300">{shiftHours !== null ? `${shiftHours}h` : '—'}</td>
+                  <td data-label="Rang / Gehalt" className="text-[11px] text-slate-300">
                     {meta
                       ? `${meta.role === 'tf' ? 'Tf' : meta.role === 'azf' ? 'AZF/RB' : 'Wp'} ${meta.rank} · ${meta.xp ?? 0} XP · ${formatEuro(meta.salary)}`
                       : '—'}
@@ -387,7 +430,7 @@ export function PersonnelView({
                       </span>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Telefon">
                     {driver.phone ? (
                       <span className="inline-flex items-center gap-1 text-slate-400">
                         <Phone className="h-2.5 w-2.5 text-slate-600" />
@@ -397,14 +440,19 @@ export function PersonnelView({
                       '—'
                     )}
                   </td>
-                  <td>
+                  <td data-label="Aktionen" className="fi-mobile-card-actions">
                     <div className="flex flex-wrap gap-1">
                       <button type="button" onClick={() => setDetailId(driver.id)} className="btn-action btn-action-detail">
                         <Info className="h-3 w-3" /> Details
                       </button>
                       {canTrain && (
-                        <button type="button" onClick={() => setTrainDriverId(driver.id)} className="btn-action btn-action-dispo">
+                        <button type="button" onClick={() => setTrainDriverId(driver.id)} className="btn-action btn-action-dispo min-h-12">
                           <GraduationCap className="h-3 w-3" /> Schulung
+                        </button>
+                      )}
+                      {onStartRankTraining && meta && meta.rank < 3 && meta.trainingUntilTick == null && (
+                        <button type="button" className="btn-action btn-action-detail min-h-12" onClick={() => setDetailId(driver.id)}>
+                          Stufe {meta.rank + 1}
                         </button>
                       )}
                     </div>
@@ -439,10 +487,27 @@ export function PersonnelView({
                 }
               : undefined
           }
+          onStartRankTraining={
+            onStartRankTraining
+              ? (instant) => {
+                  const ok = onStartRankTraining(detailDriver.id, instant);
+                  if (ok) setDetailId(null);
+                }
+              : undefined
+          }
+          balance={balance}
+          overdraftLimit={overdraftLimit}
         />
       )}
     </SectionShell>
   );
+}
+
+function inferRole(driver: Driver): StaffRole {
+  const blob = (driver.qualifications ?? []).join(' ').toLowerCase();
+  if (blob.includes('wagenprüfer') || blob.includes('wagenpruefer')) return 'wagenpruefer';
+  if (blob.includes('azf') || blob.includes('rangierbegleiter') || /\brb\b/.test(blob)) return 'azf';
+  return 'tf';
 }
 
 function CandidateFact({ label, value }: { label: string; value: string }) {
@@ -690,21 +755,27 @@ function TrainingSelectionModal({
 function TrainingCommitModal({
   driver,
   seriesId,
+  instant,
   balance,
   overdraftLimit,
   onBack,
   onClose,
+  onToggleInstant,
   onConfirm,
 }: {
   driver: Driver;
   seriesId: string;
+  instant: boolean;
   balance: number;
   overdraftLimit: number;
   onBack: () => void;
   onClose: () => void;
+  onToggleInstant: () => void;
   onConfirm: () => void;
 }) {
-  const quote = seriesTrainingQuote(seriesId);
+  const wait = seriesTrainingQuote(seriesId);
+  const quick = seriesQuickPayQuote(seriesId);
+  const quote = instant ? quick : wait;
   const affordable = canSpend(balance, quote.cost, overdraftLimit);
 
   return (
@@ -713,23 +784,30 @@ function TrainingCommitModal({
         <GraduationCap className="h-5 w-5" />
         <div>
           <p className="text-sm font-bold text-white">{seriesLabel(seriesId)} freigeben?</p>
-          <p className="mt-0.5 text-[11px] text-slate-400">Reguläre Nachschulung für {driver.name}.</p>
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            {instant ? `Quick-Pay Sofortqualifikation für ${driver.name}.` : `Reguläre Nachschulung für ${driver.name}.`}
+          </p>
         </div>
       </div>
+      <button type="button" className="personnel-choice-card mt-3 min-h-12" onClick={onToggleInstant}>
+        <span>
+          <strong>{instant ? 'Quick-Pay aktiv' : 'Optional: Quick-Pay Sofort'}</strong>
+          <small>
+            {instant
+              ? 'Freigabe sofort, ohne Ruhezeiten neu zu definieren'
+              : `${wait.durationDays} ${wait.durationDays === 1 ? 'Tag' : 'Tage'} gebunden, günstiger`}
+          </small>
+        </span>
+        <b>{formatEuro(quick.cost)}</b>
+      </button>
       <div className="mt-4 space-y-2">
-        <CostLine label="Schulungskosten" value={quote.cost} />
+        <CostLine label={instant ? 'Quick-Pay' : 'Schulungskosten'} value={quote.cost} />
         <div className="flex items-center justify-between text-xs text-slate-300">
           <span>Dauer</span>
-          <span className="font-semibold text-amber-300">{quote.durationDays} {quote.durationDays === 1 ? 'Tag' : 'Tage'}</span>
+          <span className="font-semibold text-amber-300">
+            {instant ? 'Sofort' : `${quote.durationDays} ${quote.durationDays === 1 ? 'Tag' : 'Tage'}`}
+          </span>
         </div>
-        <div className="flex items-center justify-between text-xs text-slate-300">
-          <span>Status während der Schulung</span>
-          <span className="font-semibold text-rose-300">Nicht einsetzbar</span>
-        </div>
-      </div>
-      <div className="mt-4 rounded-lg border border-amber-500/25 bg-amber-950/25 p-3 text-[11px] leading-relaxed text-amber-100">
-        Nach Bestätigung wird der Betrag sofort gebucht. Die Baureihen-Freigabe wird automatisch nach Abschluss der Schulung
-        in der Personalakte hinterlegt.
       </div>
       {!affordable && <p className="mt-3 text-[11px] font-semibold text-rose-400">Der verfügbare Rahmen reicht für diese Schulung nicht aus.</p>}
       <div className="mt-5 flex flex-wrap justify-end gap-2">
@@ -740,7 +818,7 @@ function TrainingCommitModal({
           Abbrechen
         </Button>
         <Button disabled={!affordable} onClick={onConfirm}>
-          Schulung verbindlich starten
+          {instant ? 'Sofort freigeben' : 'Schulung verbindlich starten'}
         </Button>
       </div>
     </ModalShell>
@@ -840,6 +918,9 @@ function DriverDetailModal({
   onClose,
   onRequestGesundmelden,
   onOpenTraining,
+  onStartRankTraining,
+  balance = 0,
+  overdraftLimit = 0,
 }: {
   driver: Driver;
   meta?: StaffMeta;
@@ -848,6 +929,9 @@ function DriverDetailModal({
   onClose: () => void;
   onRequestGesundmelden?: () => void;
   onOpenTraining?: () => void;
+  onStartRankTraining?: (instant: boolean) => void;
+  balance?: number;
+  overdraftLimit?: number;
 }) {
   const cfg = getDriverStatusConfig(driver.status);
   const restHours = hoursBetween(driver.last_rest_end, gameNow);
@@ -913,10 +997,27 @@ function DriverDetailModal({
             </div>
           )}
           {onOpenTraining && meta?.role === 'tf' && missing.length > 0 && meta.trainingUntilTick == null && (
-            <Button className="w-full" onClick={onOpenTraining}>
+            <Button className="min-h-12 w-full" onClick={onOpenTraining}>
               <GraduationCap className="h-3.5 w-3.5" /> Schulung prüfen
             </Button>
           )}
+          {onStartRankTraining && meta && meta.rank < 3 && meta.trainingUntilTick == null && (() => {
+            const quote = nextRankTraining(meta.rank);
+            const quick = rankQuickPayCost(meta.rank);
+            if (!quote || quick == null) return null;
+            const canWait = canSpend(balance, quote.cost, overdraftLimit);
+            const canQuick = canSpend(balance, quick, overdraftLimit);
+            return (
+              <div className="grid gap-2">
+                <Button className="min-h-12 w-full" disabled={!canWait} onClick={() => onStartRankTraining(false)}>
+                  Stufe {quote.nextRank} · {formatEuro(quote.cost)} · {quote.durationDays} Tag
+                </Button>
+                <Button className="min-h-12 w-full" disabled={!canQuick} onClick={() => onStartRankTraining(true)}>
+                  Quick-Pay Stufe {quote.nextRank} · {formatEuro(quick)}
+                </Button>
+              </div>
+            );
+          })()}
           {showErsatzattest && (
             <button
               type="button"

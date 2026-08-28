@@ -2,6 +2,8 @@ import type { AssignmentWithDetails, Company, CountryPackage, Notification, Orde
 import { isNewGameDay, loadJson, saveJson, TICKS_PER_DAY, clampReputation } from '@/lib/storage';
 import { newNotificationId, tickToIso } from '@/lib/gameTime';
 import { computeSpotYield, freightRevenueMultiplier, type FreightCustomerCategory, type CommercialStanding } from '@/lib/orderMarket';
+import { EXCLUSIVE_YIELD_FACTOR, reputationGainForFulfilledContract } from '@/lib/reputation';
+import { isNetworkSiteOwned, type DepotState } from '@/lib/depot';
 import { calcOrderOperatingCosts } from '@/lib/operatingCosts';
 import { sendMessage } from '@/lib/inbox';
 import { formatEuro } from '@/lib/status';
@@ -34,6 +36,9 @@ export interface IndustrialContract {
   originCountry?: CountryPackage;
   destCountry?: CountryPackage;
   requiresEtcs?: boolean;
+  electrified?: boolean;
+  exclusive?: boolean;
+  requiredSiteId?: string;
   /** Runs completed in the current game-day (reset after settlement). */
   fulfilledToday?: number;
   lastSettledDay?: number;
@@ -87,6 +92,8 @@ const CATALOG: Omit<IndustrialContract, 'status'>[] = [
     requiredWagonCount: 6,
     originCountry: 'D',
     destCountry: 'D',
+    electrified: true,
+    requiredSiteId: 'duisburg',
     ...industrialDaily('stahl', 55, 360, 1),
   },
   {
@@ -102,6 +109,8 @@ const CATALOG: Omit<IndustrialContract, 'status'>[] = [
     trainWeightT: 1000,
     requiredWagonType: 'Res',
     requiredWagonCount: 6,
+    electrified: true,
+    requiredSiteId: 'duisburg',
     ...industrialDaily('stahl', 280, 1000, 2),
   },
   {
@@ -117,6 +126,8 @@ const CATALOG: Omit<IndustrialContract, 'status'>[] = [
     trainWeightT: 600,
     requiredWagonType: 'Zans',
     requiredWagonCount: 8,
+    electrified: true,
+    requiredSiteId: 'mannheim-rbf',
     ...industrialDaily('chemie', 280, 600, 1),
   },
   {
@@ -132,6 +143,7 @@ const CATALOG: Omit<IndustrialContract, 'status'>[] = [
     trainWeightT: 1200,
     requiredWagonType: 'Eanos',
     requiredWagonCount: 12,
+    electrified: true,
     ...industrialDaily('energie', 90, 1200, 3),
   },
   {
@@ -147,6 +159,8 @@ const CATALOG: Omit<IndustrialContract, 'status'>[] = [
     trainWeightT: 1400,
     requiredWagonType: 'Sggrss',
     requiredWagonCount: 6,
+    electrified: true,
+    requiredSiteId: 'hamburg-hafen',
     ...industrialDaily('intermodal', 790, 1400, 1),
   },
   {
@@ -162,6 +176,8 @@ const CATALOG: Omit<IndustrialContract, 'status'>[] = [
     trainWeightT: 800,
     requiredWagonType: 'Hbbillns',
     requiredWagonCount: 10,
+    electrified: true,
+    exclusive: true,
     ...industrialDaily('intermodal', 280, 800, 2),
   },
   {
@@ -177,6 +193,8 @@ const CATALOG: Omit<IndustrialContract, 'status'>[] = [
     trainWeightT: 1300,
     requiredWagonType: 'Eanos',
     requiredWagonCount: 12,
+    electrified: true,
+    requiredSiteId: 'duisburg',
     ...industrialDaily('stahl', 280, 1300, 2),
   },
   {
@@ -192,6 +210,8 @@ const CATALOG: Omit<IndustrialContract, 'status'>[] = [
     trainWeightT: 1300,
     requiredWagonType: 'Sggrss',
     requiredWagonCount: 6,
+    electrified: true,
+    requiredSiteId: 'hamburg-hafen',
     ...industrialDaily('intermodal', 660, 1300, 1),
   },
   {
@@ -207,6 +227,8 @@ const CATALOG: Omit<IndustrialContract, 'status'>[] = [
     trainWeightT: 900,
     requiredWagonType: 'Eanos',
     requiredWagonCount: 8,
+    electrified: true,
+    requiredSiteId: 'muenchen-ost',
     ...industrialDaily('energie', 230, 900, 1),
   },
   {
@@ -222,25 +244,69 @@ const CATALOG: Omit<IndustrialContract, 'status'>[] = [
     trainWeightT: 550,
     requiredWagonType: 'Zans',
     requiredWagonCount: 6,
+    electrified: true,
+    requiredSiteId: 'mannheim-rbf',
     ...industrialDaily('chemie', 80, 550, 1),
+  },
+  {
+    id: 'fc-hh-erz-ganzzug',
+    title: 'Erz-Ganzzug Maschen–Duisburg',
+    partner: 'Nordsee Erz AG',
+    corridor: 'Maschen Rbf → Duisburg Hafen',
+    periodDays: 60,
+    dailyDepartures: 2,
+    minBekanntheit: 70,
+    minLevel: 4,
+    corridorKm: 380,
+    trainWeightT: 1600,
+    requiredWagonType: 'Eanos',
+    requiredWagonCount: 14,
+    electrified: true,
+    exclusive: true,
+    requiredSiteId: 'maschen-rbf',
+    ...industrialDaily('stahl', 380, 1600, 2),
+  },
+  {
+    id: 'fc-sued-box-exclusive',
+    title: 'Premium-Shuttle München Ost–Hamburg',
+    partner: 'Alpen-Nord Intermodal',
+    corridor: 'München Ost → Hamburg Hafen',
+    periodDays: 90,
+    dailyDepartures: 1,
+    minBekanntheit: 85,
+    minLevel: 5,
+    corridorKm: 790,
+    trainWeightT: 1500,
+    requiredWagonType: 'Sggrss',
+    requiredWagonCount: 12,
+    electrified: true,
+    exclusive: true,
+    requiredSiteId: 'muenchen-ost',
+    ...industrialDaily('intermodal', 790, 1500, 1),
   },
 ];
 
 export function industrialPayableDaily(
-  contract: Pick<IndustrialContract, 'dailyRevenue'>,
+  contract: Pick<IndustrialContract, 'dailyRevenue' | 'exclusive'>,
   standing?: CommercialStanding | Pick<Company, 'level' | 'reputation'> | null,
 ): number {
-  return Math.round(Number(contract.dailyRevenue) * freightRevenueMultiplier(standing));
+  const exclusiveBoost = contract.exclusive ? EXCLUSIVE_YIELD_FACTOR : 1;
+  return Math.round(Number(contract.dailyRevenue) * freightRevenueMultiplier(standing) * exclusiveBoost);
 }
 
 export function canAcceptIndustrial(
-  contract: Pick<IndustrialContract, 'minBekanntheit' | 'minLevel' | 'status'>,
+  contract: Pick<IndustrialContract, 'minBekanntheit' | 'minLevel' | 'status' | 'requiredSiteId'>,
   company: Pick<Company, 'level' | 'reputation'>,
+  depot?: DepotState | null,
 ): boolean {
   if (contract.status != null && contract.status !== 'available') return false;
-  return (
-    company.level >= (contract.minLevel ?? 1) && company.reputation >= (contract.minBekanntheit ?? 0)
-  );
+  if (company.level < (contract.minLevel ?? 1) || company.reputation < (contract.minBekanntheit ?? 0)) {
+    return false;
+  }
+  if (contract.requiredSiteId && depot && !isNetworkSiteOwned(depot, contract.requiredSiteId)) {
+    return false;
+  }
+  return true;
 }
 
 export function industrialWagonNeed(
@@ -297,7 +363,7 @@ export function requiredDeparturesFor(
 }
 
 export function contractTripYield(
-  contract: Pick<IndustrialContract, 'dailyRevenue' | 'dailyDepartures'>,
+  contract: Pick<IndustrialContract, 'dailyRevenue' | 'dailyDepartures' | 'exclusive'>,
   standing?: CommercialStanding | Pick<Company, 'level' | 'reputation'> | null,
 ): number {
   const deps = Math.max(1, Number(contract.dailyDepartures) || 1);
@@ -370,7 +436,7 @@ export function buildContractRunOrder(
     penalty: contractMissPenalty(contract, standing),
     deadline,
     status: 'offen',
-    notes: `Rahmenvertrag ${contract.partner} · ${contract.requiredWagonCount ?? 0}× ${contract.requiredWagonType ?? 'Wagen'}`,
+    notes: `${contract.exclusive ? 'Exklusiv-Ganzzug · ' : ''}Rahmenvertrag ${contract.partner} · ${contract.requiredWagonCount ?? 0}× ${contract.requiredWagonType ?? 'Wagen'}`,
     min_brh: 62,
     required_wagon_type: contract.requiredWagonType ?? null,
     required_wagon_count: contract.requiredWagonCount ?? 0,
@@ -387,6 +453,9 @@ export function buildContractRunOrder(
     deployment_days: null,
     daily_rate: null,
     required_drivers: 1,
+    electrified: contract.electrified !== false,
+    special: contract.exclusive === true,
+    exclusive: contract.exclusive === true,
   };
 }
 
@@ -550,10 +619,15 @@ export function processFreightContractsTick(
       );
     } else {
       operatingKm += Math.max(0, Number(c.corridorKm) || 0) * done;
+      const repGain = reputationGainForFulfilledContract(done);
+      nextCompany = {
+        ...nextCompany,
+        reputation: clampReputation(nextCompany.reputation + repGain),
+      };
       notifications.push({
         type: 'success',
         title: 'Rahmenvertrag erfüllt',
-        message: `${c.title}: ${done}/${need} Pflichtläufe disponiert.`,
+        message: `${c.title}: ${done}/${need} Pflichtläufe disponiert. Reputation +${repGain}.`,
         read: false,
         created_at: company.updated_at,
       });

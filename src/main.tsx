@@ -2,6 +2,7 @@ import { Component, type ReactNode, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { hydrateLocalStorageFromIndexedDb } from '@/lib/storage';
 
 class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
   state = { error: null as Error | null };
@@ -23,13 +24,15 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, { error: Erro
   }
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <RootErrorBoundary>
-      <App />
-    </RootErrorBoundary>
-  </StrictMode>,
-);
+void hydrateLocalStorageFromIndexedDb().finally(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <RootErrorBoundary>
+        <App />
+      </RootErrorBoundary>
+    </StrictMode>,
+  );
+});
 
 /**
  * Register only from a production build. This keeps Vite development free of

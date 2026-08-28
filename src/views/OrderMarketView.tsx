@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, memo, type ReactNode } from 'react';
 import {
   Package,
   HardHat,
@@ -17,11 +17,11 @@ import {
   timeRemaining,
   clampOrderMinBrh,
   getOrderStatusConfig,
-  getOrderTypeConfig,
   getOrderPillClass,
   MIN_BRH_RANGE,
 } from '@/lib/status';
 import { isBaugleisEinsatz, isOpenUnexpiredMarketOrder } from '@/lib/orderMarket';
+import { bestFleetFit, isOrderElectrified, type AssignmentFit } from '@/lib/traction';
 import { useGameClock } from '@/lib/GameClockContext';
 import { SectionShell } from '@/components/SectionShell';
 import { OrderCostBreakdown } from '@/components/OrderCostBreakdown';
@@ -31,6 +31,11 @@ import { Button } from '@/components/ui';
 import type { Acquisition } from '@/lib/dealer';
 import { corridorCountryHint, networkAcceptBlock, type NetworkAccessState } from '@/lib/networkAccess';
 import { closureBlockMessage, orderBlockedByClosure, type WorldEventState } from '@/lib/events';
+import { FrameworkContractsPanel, type FrameworkContractsPanelProps } from '@/components/FrameworkContractsPanel';
+import { exclusiveJobsUnlocked, reputationTier } from '@/lib/reputation';
+import { ContextHelpTooltip } from '@/components/ContextHelpTooltip';
+import type { HandbookOpenTo } from '@/lib/handbook';
+import { buildOrderContractCard, derivedUsableLengthM, locoHasEtcsFleet } from '@/lib/contractCard';
 
 interface OrderMarketViewProps {
   orders: Order[];
@@ -50,6 +55,10 @@ interface OrderMarketViewProps {
   locomotives?: Locomotive[];
   worldEvents?: WorldEventState;
   onOpenNetworkDealer?: () => void;
+  framework?: FrameworkContractsPanelProps;
+  bekanntheit?: number;
+  companyLevel?: number;
+  onOpenHandbook?: (target?: HandbookOpenTo) => void;
 }
 
 function sperrpauseCountdown(
@@ -129,31 +138,36 @@ function SortHeader({
   active,
   dir,
   onSort,
+  extra,
 }: {
   label: string;
   column: MarketSortKey;
   active: boolean;
   dir: SortDir;
   onSort: (column: MarketSortKey) => void;
+  extra?: ReactNode;
 }) {
   return (
     <th aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button
-        type="button"
-        onClick={() => onSort(column)}
-        className={`inline-flex cursor-pointer items-center gap-1 bg-transparent p-0 font-bold uppercase tracking-wide ${
-          active ? 'text-amber-300' : 'text-slate-400 hover:text-slate-200'
-        }`}
-      >
-        {label}
-        {active ? (
-          <span aria-hidden className="text-[10px] leading-none">
-            {dir === 'asc' ? '▲' : '▼'}
-          </span>
-        ) : (
-          <ChevronsUpDown aria-hidden className="h-3 w-3 text-slate-600" />
-        )}
-      </button>
+      <span className="inline-flex items-center">
+        <button
+          type="button"
+          onClick={() => onSort(column)}
+          className={`inline-flex cursor-pointer items-center gap-1 bg-transparent p-0 font-bold uppercase tracking-wide ${
+            active ? 'text-amber-300' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          {label}
+          {active ? (
+            <span aria-hidden className="text-[10px] leading-none">
+              {dir === 'asc' ? '▲' : '▼'}
+            </span>
+          ) : (
+            <ChevronsUpDown aria-hidden className="h-3 w-3 text-slate-600" />
+          )}
+        </button>
+        {extra}
+      </span>
     </th>
   );
 }
@@ -164,7 +178,7 @@ function durationBadge(days: number): { label: string; className: string } {
   return { label: `${days} Tage`, className: 'fi-pill fi-pill-orange' };
 }
 
-export function OrderMarketView({
+export const OrderMarketView = memo(function OrderMarketView({
   orders,
   wagons,
   loading,
@@ -182,13 +196,18 @@ export function OrderMarketView({
   locomotives = [],
   worldEvents,
   onOpenNetworkDealer,
+  framework,
+  bekanntheit = 0,
+  companyLevel = 1,
+  onOpenHandbook,
 }: OrderMarketViewProps) {
   const { gameNow, tick } = useGameClock();
-  const [filter, setFilter] = useState<'all' | OrderType | 'einsatz'>('all');
+  const [filter, setFilter] = useState<'all' | OrderType | 'einsatz' | 'rahmen' | 'exklusiv'>('all');
   const [search, setSearch] = useState('');
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [sortKey, setSortKey] = useState<MarketSortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [certFilter, setCertFilter] = useState<'all' | 'etcs' | 'length'>('all');
 
   const toggleSort = (column: MarketSortKey) => {
     if (sortKey === column) {
@@ -236,7 +255,8 @@ export function OrderMarketView({
   const filtered = useMemo(() => {
     let result = marketOrders;
     if (filter === 'einsatz') result = result.filter((o) => isBaugleisEinsatz(o));
-    else if (filter !== 'all') result = result.filter((o) => o.type === filter && !isBaugleisEinsatz(o));
+    else if (filter === 'exklusiv') result = result.filter((o) => o.exclusive === true);
+    else if (filter !== 'all' && filter !== 'rahmen') result = result.filter((o) => o.type === filter && !isBaugleisEinsatz(o));
     if (search) {
       const s = search.toLowerCase();
       result = result.filter(
@@ -248,8 +268,12 @@ export function OrderMarketView({
           (o.customer ?? '').toLowerCase().includes(s),
       );
     }
+    if (certFilter === 'etcs') result = result.filter((o) => Boolean(o.requires_etcs));
+    if (certFilter === 'length') {
+      result = result.filter((o) => (o.required_wagon_count ?? 0) > 0);
+    }
     return result;
-  }, [marketOrders, filter, search]);
+  }, [marketOrders, filter, search, certFilter]);
 
   const sorted = useMemo(() => {
     if (!sortKey) return filtered;
@@ -261,6 +285,12 @@ export function OrderMarketView({
     });
     return copy;
   }, [filtered, sortKey, sortDir, gameNow]);
+
+  const fleetFits = useMemo(() => {
+    const next = new Map<string, ReturnType<typeof bestFleetFit>>();
+    for (const order of sorted) next.set(order.id, bestFleetFit(order, locomotives));
+    return next;
+  }, [sorted, locomotives]);
 
   const marketActions = (
     <div className="fi-market-actions flex flex-wrap items-center gap-2">
@@ -312,7 +342,7 @@ export function OrderMarketView({
   return (
     <SectionShell
       title="Frachtbörse"
-      subtitle={`${marketOrders.length} Aufträge · Frühspiel: mindestens 3 Leichtaufträge mit 4–6 Wagen · Schwere Züge ab Level 3 + 36 Wagen-Stellplätzen · Brh Güter ${MIN_BRH_RANGE.gueterverkehr.min}–${MIN_BRH_RANGE.gueterverkehr.max} · Bau ${MIN_BRH_RANGE.baugleis.min}–${MIN_BRH_RANGE.baugleis.max}`}
+      subtitle={`${marketOrders.length} Aufträge · Reputation ${reputationTier(bekanntheit).label} ${bekanntheit}/100${exclusiveJobsUnlocked(bekanntheit) ? ' · Exklusiv-Ganzzüge frei' : ' · Exklusiv ab 70 Reputation'} · Generator: Fuhrpark + Depot-Regionen · Frühspiel: mindestens 3 Leichtaufträge`}
       actions={marketActions}
       tutorialId="tutorial-frachtboerse"
     >
@@ -324,10 +354,13 @@ export function OrderMarketView({
             ['gueterverkehr', 'Güterverkehr'],
             ['baugleis', 'Baustelle'],
             ['einsatz', 'Baugleis-Einsatz'],
+            ['rahmen', 'Rahmenverträge'],
+            ['exklusiv', 'Exklusiv'],
           ] as const
         ).map(([key, label]) => (
           <button
             key={key}
+            type="button"
             onClick={() => setFilter(key)}
             className={`fi-filter ${filter === key ? 'fi-filter-active' : ''}`}
           >
@@ -337,21 +370,74 @@ export function OrderMarketView({
           </button>
         ))}
       </div>
+      <div className="fi-filter-bar">
+        <button type="button" className={`fi-filter min-h-12 ${certFilter === 'all' ? 'fi-filter-active' : ''}`} onClick={() => setCertFilter('all')}>
+          Alle Freigaben
+        </button>
+        <button type="button" className={`fi-filter min-h-12 ${certFilter === 'etcs' ? 'fi-filter-active' : ''}`} onClick={() => setCertFilter('etcs')}>
+          ETCS-Zertifikat
+        </button>
+        <button type="button" className={`fi-filter min-h-12 ${certFilter === 'length' ? 'fi-filter-active' : ''}`} onClick={() => setCertFilter('length')}>
+          Mit Nutzlänge
+        </button>
+        <span className="fi-filter-meta">
+          Reputation {bekanntheit}/100 · Level {companyLevel}
+        </span>
+      </div>
 
-      <div className="fi-card overflow-x-auto">
+      {filter === 'rahmen' && framework ? (
+        <FrameworkContractsPanel {...framework} />
+      ) : (
+      <div className="fi-card fi-market-table-wrap">
         <table className="fi-table fi-mobile-card-table">
           <thead>
             <tr>
               <th>Auftrags-Nr.</th>
               <th>Typ</th>
               <th>Kunde / Titel</th>
-              <th>Strecke</th>
-              <SortHeader label="Last (t)" column="weight" active={sortKey === 'weight'} dir={sortDir} onSort={toggleSort} />
-              <th title="Erforderliche Bremshundertstel (Mindest-Bremsleistung für diese Strecke)">
-                Mindest-Brh
+              <th className="whitespace-nowrap">
+                <span className="inline-flex items-center">
+                  Strecke
+                  <ContextHelpTooltip topicId="traktion" onOpenManual={onOpenHandbook} />
+                </span>
               </th>
-              <SortHeader label="Ertrag (€)" column="yield" active={sortKey === 'yield'} dir={sortDir} onSort={toggleSort} />
-              <SortHeader label="Pönale" column="penalty" active={sortKey === 'penalty'} dir={sortDir} onSort={toggleSort} />
+              <SortHeader
+                label="Tonnage"
+                column="weight"
+                active={sortKey === 'weight'}
+                dir={sortDir}
+                onSort={toggleSort}
+                extra={<ContextHelpTooltip topicId="hakenlast" onOpenManual={onOpenHandbook} />}
+              />
+              <th className="whitespace-nowrap">
+                <span className="inline-flex items-center">
+                  Nutzlänge
+                  <ContextHelpTooltip topicId="nutzlaenge" onOpenManual={onOpenHandbook} />
+                </span>
+              </th>
+              <th>Wagen</th>
+              <th className="whitespace-nowrap">
+                <span className="inline-flex items-center">
+                  Mindest-Brh
+                  <ContextHelpTooltip topicId="brh" onOpenManual={onOpenHandbook} />
+                </span>
+              </th>
+              <SortHeader
+                label="Ertrag (€)"
+                column="yield"
+                active={sortKey === 'yield'}
+                dir={sortDir}
+                onSort={toggleSort}
+                extra={<ContextHelpTooltip topicId="deckungsbeitrag" onOpenManual={onOpenHandbook} />}
+              />
+              <SortHeader
+                label="Pönale"
+                column="penalty"
+                active={sortKey === 'penalty'}
+                dir={sortDir}
+                onSort={toggleSort}
+                extra={<ContextHelpTooltip topicId="poenale" onOpenManual={onOpenHandbook} />}
+              />
               <SortHeader label="Frist" column="frist" active={sortKey === 'frist'} dir={sortDir} onSort={toggleSort} />
               <th>Status</th>
               <th>Aktion</th>
@@ -360,13 +446,12 @@ export function OrderMarketView({
           <tbody>
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={11} className="fi-mobile-empty-state py-8 text-center text-slate-500">
+                <td colSpan={13} className="fi-mobile-empty-state py-8 text-center text-slate-500">
                   Keine Aufträge in dieser Ansicht
                 </td>
               </tr>
             )}
             {sorted.map((order) => {
-              const typeCfg = getOrderTypeConfig(order.type);
               const statusCfg = getOrderStatusConfig(order.status);
               const time = order.deadline
                 ? timeRemaining(order.deadline, gameNow, { accepted: order.status !== 'offen' })
@@ -378,29 +463,70 @@ export function OrderMarketView({
               const wagonCheck = checkWagonAvailability(order, wagons);
               const shortage = wagonShortageLabel(wagonCheck);
               const gate = orderGate(order);
+              const card = buildOrderContractCard(order, wagons, {
+                level: companyLevel,
+                reputation: bekanntheit,
+                hasEtcs: locoHasEtcsFleet(locomotives),
+              });
               return (
                 <tr key={order.id} className="fi-deferred-list-row cursor-pointer" onClick={() => openOrder(order)}>
                   <td data-label="Auftrag" className="fi-mobile-card-title font-mono text-[11px] font-bold text-white">{order.order_number}</td>
                   <td data-label="Typ">
                     <div className="flex flex-col items-start gap-1">
-                      <span className={`inline-flex items-center gap-1 ${isConstruction ? 'fi-pill fi-pill-orange' : 'fi-pill fi-pill-blue'}`}>
+                      <span className={`inline-flex items-center gap-1 ${card.kind === 'baugleis' ? 'fi-pill fi-pill-orange' : card.kind === 'rahmen' ? 'fi-pill fi-pill-gold' : 'fi-pill fi-pill-blue'}`}>
                         {isConstruction ? <HardHat className="h-3 w-3" /> : <Package className="h-3 w-3" />}
-                        {einsatz ? 'Baugleis-Einsatz' : typeCfg.label}
+                        {einsatz ? 'Baugleis-Einsatz' : card.kindLabel}
                       </span>
                       {badge && <span className={badge.className}>{badge.label}</span>}
+                      {card.clearances
+                        .filter((row) => row.id === 'etcs' || row.id === 'exclusive')
+                        .map((row) => (
+                          <span key={row.id} className={row.met ? 'fi-pill fi-pill-green' : 'fi-pill fi-pill-orange'}>
+                            {row.label}
+                          </span>
+                        ))}
                     </div>
                   </td>
-                  <td data-label="Fracht" className="fi-mobile-card-summary max-w-[240px] font-medium text-white">
-                    <div>{order.title}</div>
+                  <td data-label="Kunde / Titel" className="fi-mobile-card-summary fi-market-title-cell font-medium text-white">
+                    <div className="fi-market-title">{order.title}</div>
                     {order.customer && <div className="text-[10px] font-normal text-slate-500">{order.customer}</div>}
-                    {shortage && <div className="mt-0.5 text-[10px] font-bold text-rose-400">{shortage}</div>}
                   </td>
-                  <td data-label="Strecke" className="fi-mobile-card-summary whitespace-nowrap text-[11px] text-slate-400">
-                    {order.origin} → {order.destination}
-                    <span className="ml-1 text-slate-600">({order.distance_km} km · {corridorCountryHint(order)})</span>
+                  <td data-label="Strecke" className="fi-mobile-card-summary whitespace-normal text-[11px] text-slate-400">
+                    <MarketSpec
+                      value={`${order.origin} → ${order.destination}`}
+                      hint={`${order.distance_km} km · ${corridorCountryHint(order)} · ${
+                        isOrderElectrified(order) ? 'Fahrdraht / E-Lok möglich' : 'Ohne Oberleitung · Diesel/Dual'
+                      }${order.special ? ' · Spezialauftrag' : ''}${order.exclusive ? ' · Exklusiv-Ganzzug' : ''}`}
+                    />
                     {gate && <div className="mt-0.5 text-[10px] font-bold text-rose-400">{gate}</div>}
                   </td>
-                  <td data-label="Last" className="tabular-nums">{Number(order.weight_t || 0).toLocaleString('de-DE')} t</td>
+                  <td data-label="Tonnage / Hakenlast">
+                    <MarketSpec
+                      value={`${Number(order.weight_t || 0).toLocaleString('de-DE')} t`}
+                      hint={hakenlastHint(fleetFits.get(order.id))}
+                      hintClass={
+                        fleetFits.get(order.id)?.ok
+                          ? 'text-emerald-400'
+                          : fleetFits.get(order.id)
+                            ? 'text-amber-300'
+                            : undefined
+                      }
+                    />
+                  </td>
+                  <td data-label="Nutzlänge" className="tabular-nums">
+                    {card.usableLengthM != null ? `${card.usableLengthM.toLocaleString('de-DE')} m` : '—'}
+                  </td>
+                  <td data-label="Wagen">
+                    <MarketSpec
+                      value={
+                        card.requiredWagonType
+                          ? `${card.requiredWagonCount ?? 0}× ${card.requiredWagonType}`
+                          : 'Keine gebundene Gattung'
+                      }
+                      hint={shortage}
+                      hintClass={shortage ? 'font-bold text-rose-400' : undefined}
+                    />
+                  </td>
                   <td data-label="Mindest-Brh" className="font-bold tabular-nums text-amber-300">{minBrh}</td>
                   <td data-label="Ertrag" className="font-bold tabular-nums text-emerald-400">
                     {einsatz && order.daily_rate
@@ -434,16 +560,16 @@ export function OrderMarketView({
                     <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
                       {order.status === 'offen' && (
                         <>
-                          <button onClick={() => acceptOrder(order)} className="btn-action btn-action-dispo">
+                          <button type="button" onClick={() => acceptOrder(order)} className="btn-action btn-action-dispo">
                             <ClipboardList className="h-3 w-3" />{' '}
                             {gate ? 'Netzzugang fehlt' : wagonCheck.sufficient ? 'Zur Disposition' : 'Wagen fehlen'}
                           </button>
-                          <button onClick={() => onReject?.(order)} className="btn-action btn-action-reject">
+                          <button type="button" onClick={() => onReject?.(order)} className="btn-action btn-action-reject">
                             <Ban className="h-3 w-3" /> Ablehnen
                           </button>
                         </>
                       )}
-                      <button onClick={() => openOrder(order)} className="btn-action btn-action-detail">
+                      <button type="button" onClick={() => openOrder(order)} className="btn-action btn-action-detail">
                         <Info className="h-3 w-3" /> Details
                       </button>
                     </div>
@@ -454,6 +580,7 @@ export function OrderMarketView({
           </tbody>
         </table>
       </div>
+      )}
 
       {detailOrder && (
         <div
@@ -478,7 +605,34 @@ export function OrderMarketView({
               <div className="text-sm font-bold text-white">{detailOrder.title}</div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailRow label="Streckenprofil" value={`${detailOrder.origin} → ${detailOrder.destination} · ${detailOrder.distance_km} km · ${corridorCountryHint(detailOrder)}`} />
-                <DetailRow label="Zuglast" value={`${detailOrder.weight_t} t`} />
+                <DetailRow
+                  label="Fahrleitung"
+                  value={
+                    isOrderElectrified(detailOrder)
+                      ? 'Elektrifiziert — E-Lok, Dual und Diesel zulässig'
+                      : 'Keine Oberleitung — nur Diesel oder Dual, Hakenlast prüfen'
+                  }
+                />
+                <div className="-mt-2 flex justify-end">
+                  <ContextHelpTooltip topicId="oberleitung" onOpenManual={onOpenHandbook} />
+                  <ContextHelpTooltip topicId="nutzlaenge" onOpenManual={onOpenHandbook} />
+                </div>
+                <DetailRow
+                  label="Fuhrpark-Check"
+                  value={bestFleetFit(detailOrder, locomotives)?.message ?? 'Kein Triebfahrzeug im Bestand'}
+                />
+                <DetailRow
+                  label="Tonnage"
+                  value={`${Number(detailOrder.weight_t || 0).toLocaleString('de-DE')} t`}
+                />
+                <DetailRow
+                  label="Hakenlast"
+                  value={hakenlastHint(bestFleetFit(detailOrder, locomotives))}
+                />
+                <DetailRow
+                  label="Nutzlänge"
+                  value={usableLengthLabel(detailOrder, wagons)}
+                />
                 <DetailRow
                   label="Mindest-Brh"
                   value={`${clampOrderMinBrh(detailOrder.type, detailOrder.min_brh)} (${(MIN_BRH_RANGE[detailOrder.type] ?? MIN_BRH_RANGE.gueterverkehr).min}–${(MIN_BRH_RANGE[detailOrder.type] ?? MIN_BRH_RANGE.gueterverkehr).max})`}
@@ -513,6 +667,9 @@ export function OrderMarketView({
                   />
                 )}
                 <DetailRow label="Pönale" value={formatPenalty(detailOrder)} />
+                <div className="-mt-2 flex justify-end">
+                  <ContextHelpTooltip topicId="poenale" onOpenManual={onOpenHandbook} />
+                </div>
                 {detailOrder.sperrpause_start && (
                   <DetailRow
                     label="Sperrpause"
@@ -523,6 +680,18 @@ export function OrderMarketView({
                   label="Status"
                   value={detailOrder.status === 'offen' ? 'Gültig' : getOrderStatusConfig(detailOrder.status).label}
                 />
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {buildOrderContractCard(detailOrder, wagons, {
+                  level: companyLevel,
+                  reputation: bekanntheit,
+                  hasEtcs: locoHasEtcsFleet(locomotives),
+                }).clearances.map((row) => (
+                  <span key={row.id} className={row.met ? 'fi-pill fi-pill-green' : 'fi-pill fi-pill-orange'}>
+                    {row.label}: {row.detail}
+                  </span>
+                ))}
               </div>
 
               {orderGate(detailOrder) && (
@@ -536,7 +705,12 @@ export function OrderMarketView({
                 </p>
               )}
 
-              <OrderCostBreakdown order={detailOrder} />
+              <div className="relative">
+                <OrderCostBreakdown order={detailOrder} />
+                <div className="absolute right-1 top-1">
+                  <ContextHelpTooltip topicId="deckungsbeitrag" onOpenManual={onOpenHandbook} />
+                </div>
+              </div>
 
               <WagonShortageBanner
                 check={checkWagonAvailability(detailOrder, wagons)}
@@ -584,7 +758,7 @@ export function OrderMarketView({
       )}
     </SectionShell>
   );
-}
+});
 
 function SperrpauseBanner({
   start,
@@ -624,4 +798,31 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <div className="text-sm font-medium text-white">{value}</div>
     </div>
   );
+}
+
+function MarketSpec({
+  value,
+  hint,
+  hintClass,
+}: {
+  value: string;
+  hint?: string | null;
+  hintClass?: string;
+}) {
+  return (
+    <div className="fi-market-spec">
+      <span className="fi-market-spec-value">{value}</span>
+      {hint ? <span className={`fi-market-spec-hint ${hintClass ?? ''}`}>{hint}</span> : null}
+    </div>
+  );
+}
+
+function usableLengthLabel(order: Order, wagons: Wagon[]): string {
+  const meters = derivedUsableLengthM(order, wagons);
+  return meters != null ? `${meters.toLocaleString('de-DE')} m` : '—';
+}
+
+function hakenlastHint(fit: AssignmentFit | null | undefined): string {
+  if (!fit) return 'Hakenlast im Detail prüfen';
+  return `Hakenlast ${fit.trailingLoadT.toLocaleString('de-DE')} t ${fit.ok ? 'trägt die Last' : 'zu gering'}`;
 }
