@@ -1,9 +1,10 @@
 import { useState, type RefObject } from 'react';
-import { BarChart3, BriefcaseBusiness, ChevronDown, ChevronRight, ClipboardList, Home, Landmark, Mail, Menu, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound, X } from 'lucide-react';
+import { BarChart3, BriefcaseBusiness, ChevronDown, ChevronRight, ClipboardList, CircleHelp, Home, Landmark, Mail, Menu, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound, X } from 'lucide-react';
 import type { Company } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
 import { NAV_CATEGORIES, categoryDef, categoryForView, prefetchAssetsForView, showsSubnav, type AppView } from '@/lib/navigation';
+import { reputationTier } from '@/lib/reputation';
 import { NetworkStatusNotice } from '@/components/NetworkStatusNotice';
 import type { NetworkStatus } from '@/lib/networkStatus';
 
@@ -100,6 +101,9 @@ export function AppTopbar({
               <span className="tabular-nums">{personnelCount}</span>
               <Star className="h-3 w-3 text-amber-400/80" />
               <span className="tabular-nums text-amber-300">{company?.reputation ?? 0}</span>
+              <span className="hidden text-[10px] uppercase tracking-wide text-slate-500 sm:inline">
+                {reputationTier(company?.reputation).label}
+              </span>
             </div>
           </div>
         </div>
@@ -188,6 +192,9 @@ export function AppTopbar({
             <Mail className="h-3.5 w-3.5" />
             {unreadCount > 0 && <span className="app-topbar-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
           </button>
+          <button type="button" className="app-topbar-ctrl min-h-12 min-w-12" aria-label="Handbuch" onClick={onHelp}>
+            <CircleHelp className="h-3.5 w-3.5" />
+          </button>
           <button type="button" className="app-topbar-ctrl" aria-label="Einstellungen" onClick={onEditCompany}><Settings className="h-3.5 w-3.5" /></button>
         </div>
       </div>
@@ -251,47 +258,49 @@ export function AppTopbar({
         </div>
       )}
 
-      <div className="app-topbar-tabs-row">
-        <nav className="app-nav-tabs no-scrollbar" aria-label="Hauptnavigation">
-          {NAV_CATEGORIES.map((item) => {
-            const active = cat === item.id;
-            return (
+      <div className="app-topbar-nav-chrome">
+        <div className="app-topbar-tabs-row">
+          <nav className="app-nav-tabs no-scrollbar" aria-label="Hauptnavigation">
+            {NAV_CATEGORIES.map((item) => {
+              const active = cat === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  title={item.label}
+                  aria-label={item.label}
+                  onPointerEnter={() => warmViewAssets(item.defaultView)}
+                  onFocus={() => warmViewAssets(item.defaultView)}
+                  onTouchStart={() => warmViewAssets(item.defaultView)}
+                  onClick={() => onSetView(item.defaultView)}
+                  className={`app-nav-tab ${active ? 'is-active' : ''}`}
+                >
+                  <span className="app-nav-tab-label-wide">{item.label}</span>
+                  <span className="app-nav-tab-label-compact">{compactNavLabels[item.id]}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {subnav && (
+          <nav className="app-topbar-sub no-scrollbar" aria-label="Untermenü">
+            {def.items.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                title={item.label}
-                aria-label={item.label}
-                onPointerEnter={() => warmViewAssets(item.defaultView)}
-                onFocus={() => warmViewAssets(item.defaultView)}
-                onTouchStart={() => warmViewAssets(item.defaultView)}
-                onClick={() => onSetView(item.defaultView)}
-                className={`app-nav-tab ${active ? 'is-active' : ''}`}
+                onPointerEnter={() => warmViewAssets(item.id)}
+                onFocus={() => warmViewAssets(item.id)}
+                onTouchStart={() => warmViewAssets(item.id)}
+                onClick={() => onSetView(item.id)}
+                className={`app-sub-tab ${view === item.id ? 'is-active' : ''}`}
               >
-                <span className="app-nav-tab-label-wide">{item.label}</span>
-                <span className="app-nav-tab-label-compact">{compactNavLabels[item.id]}</span>
+                {item.label}
               </button>
-            );
-          })}
-        </nav>
+            ))}
+          </nav>
+        )}
       </div>
-
-      {subnav && (
-        <nav className="app-topbar-sub no-scrollbar" aria-label="Untermenü">
-          {def.items.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onPointerEnter={() => warmViewAssets(item.id)}
-              onFocus={() => warmViewAssets(item.id)}
-              onTouchStart={() => warmViewAssets(item.id)}
-              onClick={() => onSetView(item.id)}
-              className={`app-sub-tab ${view === item.id ? 'is-active' : ''}`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-      )}
 
       <nav className="app-mobile-quicknav" aria-label="Mobile Hauptnavigation">
         {mobileNavItems.map((item) => {

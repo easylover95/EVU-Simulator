@@ -125,6 +125,16 @@ export function seriesTrainingQuote(seriesId: string): { cost: number; durationD
   };
 }
 
+/** Instant series clearance for an already hired Tf. Rest/maintenance rules stay untouched. */
+export function seriesQuickPayQuote(seriesId: string): { cost: number; durationDays: number; durationTicks: number } {
+  const wait = seriesTrainingQuote(seriesId);
+  return {
+    cost: Math.max(hireNachschulungFee(1), Math.round(wait.cost * 1.35)),
+    durationDays: 0,
+    durationTicks: 0,
+  };
+}
+
 export function pickSeriesForHire(rng: () => number, rank: StaffRank, role: 'tf' | 'azf' | 'wagenpruefer'): string[] {
   if (role !== 'tf') return [];
   const pool = allSeriesIds();

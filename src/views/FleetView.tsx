@@ -8,6 +8,7 @@ import { EtcsRetrofitModal } from '@/components/EtcsRetrofitModal';
 import { PhotoCardHeader } from '@/components/LocoPhoto';
 import { getLocoDisplayName } from '@/lib/locoPhotos';
 import { offerForLoco } from '@/lib/dealer';
+import { trailingLoadT } from '@/lib/traction';
 import {
   allFristen,
   canBookWorkshopJob,
@@ -27,11 +28,17 @@ import {
 import { useGameClock } from '@/lib/GameClockContext';
 import { SectionShell } from '@/components/SectionShell';
 import { DepotUpgradePanel } from '@/components/DepotUpgradePanel';
+import { NetworkSitesPanel } from '@/components/NetworkSitesPanel';
 import { VehicleCard } from '@/components/VehicleCard';
 import { WagonRentModal } from '@/components/WagonRentModal';
 import { Button } from '@/components/ui';
 import { activeWagonRental, type RentalState, type RentalTermMonths } from '@/lib/rental';
-import { locoBerthCap, workshopSlotCap, type DepotState } from '@/lib/depot';
+import {
+  locoBerthCap,
+  staffHousingCap,
+  workshopSlotCap,
+  type DepotState,
+} from '@/lib/depot';
 import { canSpend } from '@/lib/bank';
 import { activeLivery, liveryCssClass } from '@/lib/achievements';
 import type { AchievementState } from '@/lib/achievements';
@@ -50,6 +57,8 @@ interface FleetViewProps {
   onOpenWagenpark?: () => void;
   onRentWagons: (wagonId: string, months: RentalTermMonths) => boolean;
   onBuyDepotExpansion: (expansionId: string) => boolean;
+  onBuyNetworkSite?: (siteId: string) => boolean;
+  onRelocateLoco?: (locoId: string, siteId: string) => boolean;
   onStartWorkshopJob?: (locoId: string, kind: WorkshopJobKind, channel?: WorkshopChannel) => boolean;
   workshopDiscountPct?: number;
   achievements?: AchievementState | null;
@@ -75,6 +84,8 @@ export function FleetView({
   onOpenWagenpark,
   onRentWagons,
   onBuyDepotExpansion,
+  onBuyNetworkSite,
+  onRelocateLoco,
   onStartWorkshopJob,
   workshopDiscountPct = 0,
   achievements = null,
@@ -149,7 +160,7 @@ export function FleetView({
   return (
     <SectionShell
       title="Fuhrpark"
-      subtitle={`${locomotives.length} / ${locoCap} Triebfahrzeuge · Werkstatt ${slotsUsed}/${workshopCap} Slots`}
+      subtitle={`${locomotives.length} / ${locoCap} Triebfahrzeuge · Werkstatt ${slotsUsed}/${workshopCap} Slots · Personalplätze ${staffHousingCap(depot)}`}
       actions={fleetActions}
       tutorialId="tutorial-fuhrpark"
     >
@@ -163,6 +174,16 @@ export function FleetView({
         workshopUsed={slotsUsed}
         onBuy={onBuyDepotExpansion}
       />
+      {onBuyNetworkSite && onRelocateLoco && (
+        <NetworkSitesPanel
+          depot={depot}
+          companyLevel={companyLevel}
+          balance={balance}
+          locomotives={locomotives}
+          onBuySite={onBuyNetworkSite}
+          onRelocate={onRelocateLoco}
+        />
+      )}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {filtered.map((raw) => {
           const loco = ensureMaintenance(raw);
@@ -218,10 +239,11 @@ export function FleetView({
               <div className="mt-3 space-y-3">
                 <ProgressBar value={loco.fuel_level} label="Kraftstoff" tone="fuel" />
                 <ProgressBar value={loco.brake_pct} label="Bremsleistung" tone="brake" />
-                <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                <div className="grid grid-cols-2 gap-2 text-center text-[11px] sm:grid-cols-4">
                   <Spec label="kW" value={loco.power_kw?.toLocaleString('de-DE') ?? '—'} />
                   <Spec label="km/h" value={loco.max_speed != null ? String(loco.max_speed) : '—'} />
                   <Spec label="t" value={loco.weight_t != null ? String(loco.weight_t) : '—'} />
+                  <Spec label="Hakenlast" value={`${trailingLoadT(loco).toLocaleString('de-DE')} t`} />
                 </div>
                 <div className="rounded-lg border border-slate-700 bg-slate-800/60 px-2 py-1.5 text-left text-[10px]">
                   <div className="font-bold text-slate-300">
@@ -379,7 +401,7 @@ export function FleetView({
               <DetailRow label="Bremsleistung" value={`${detailLoco.brake_pct}%`} />
               <DetailRow label="Leistung" value={`${detailLoco.power_kw?.toLocaleString('de-DE') ?? '—'} kW`} />
               <DetailRow label="Höchstgeschw." value={`${detailLoco.max_speed ?? '—'} km/h`} />
-              <DetailRow label="Masse" value={`${detailLoco.weight_t ?? '—'} t`} />
+              <DetailRow label="Hakenlast" value={`${trailingLoadT(detailLoco).toLocaleString('de-DE')} t`} />
               <DetailRow
                 label="Letzter Dienst"
                 value={
