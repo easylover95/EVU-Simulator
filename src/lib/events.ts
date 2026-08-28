@@ -180,9 +180,9 @@ export function processWorldEventsTick(
   let next = pruneState(state, nextTick);
   let drivers = input.drivers;
   let assignments = input.assignments;
-  let extraPathCost = 0;
+  const extraPathCost = 0;
   let fired = false;
-  let nextCompany = company;
+  const nextCompany = company;
 
   if (!isNewGameDay(prevTick, nextTick)) {
     publishLive(next);
