@@ -201,7 +201,7 @@ export function TourOverviewView({ assignments, onOpenDisposition }: TourOvervie
       }
     >
       <Card className="p-0">
-        <table className="fi-table">
+        <table className="fi-table fi-mobile-card-table">
           <thead>
             <tr>
               <th>Auftrag</th>
@@ -214,25 +214,25 @@ export function TourOverviewView({ assignments, onOpenDisposition }: TourOvervie
           <tbody>
             {assignments.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-8 text-center text-slate-500">
+                <td colSpan={5} className="fi-mobile-empty-state py-8 text-center text-slate-500">
                   Keine Touren
                 </td>
               </tr>
             )}
             {assignments.map((a) => (
               <tr key={a.id}>
-                <td className="text-white">{a.order?.title ?? a.order_id}</td>
-                <td className="text-slate-400">
+                <td data-label="Auftrag" className="fi-mobile-card-title text-white">{a.order?.title ?? a.order_id}</td>
+                <td data-label="Strecke" className="fi-mobile-card-summary text-slate-400">
                   {a.order ? `${a.order.origin} → ${a.order.destination}` : '—'}
                 </td>
-                <td>{a.locomotive ? getLocoDisplayName(a.locomotive.designation) : '—'}</td>
-                <td>
+                <td data-label="Lok">{a.locomotive ? getLocoDisplayName(a.locomotive.designation) : '—'}</td>
+                <td data-label="Tf">
                   <span className="inline-flex items-center gap-1">
                     <User className="h-3 w-3 text-amber-400" />
                     {a.driver?.name ?? '—'}
                   </span>
                 </td>
-                <td className="uppercase text-amber-300">{a.status}</td>
+                <td data-label="Status" className="uppercase text-amber-300">{a.status}</td>
               </tr>
             ))}
           </tbody>

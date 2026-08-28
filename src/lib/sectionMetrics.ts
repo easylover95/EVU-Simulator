@@ -4,6 +4,7 @@ import { formatEuro } from '@/lib/status';
 import {
   emptyDepotState,
   locoBerthCap,
+  staffHousingCap,
   wagonBerthCap,
   wagonUnitCount,
   type DepotState,
@@ -48,6 +49,7 @@ export function buildDefaultKpis(pulse: SectionPulse): SectionKpi[] {
   const wagonUnits = wagonUnitCount(pulse.wagons);
   const activeLocos = pulse.locomotives.filter((loco) => loco.status === 'einsatz').length;
   const staff = pulse.drivers.length;
+  const staffCap = staffHousingCap(depot);
   const xp = pulse.company?.xp ?? 0;
   const xpNext = pulse.company?.xp_next ?? 0;
 
@@ -64,7 +66,7 @@ export function buildDefaultKpis(pulse: SectionPulse): SectionKpi[] {
     {
       label: 'Aktive Fahrzeuge / Personal',
       value: `${activeLocos} / ${staff}`,
-      hint: 'Im Einsatz · Mitarbeiter',
+      hint: `Im Einsatz · Mitarbeiter ${staff}/${staffCap}`,
     },
     {
       label: 'Firmen-Level',
