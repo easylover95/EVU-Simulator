@@ -6,6 +6,7 @@ import { composeTripDelay } from '@/lib/personal';
 import { isNewGameDay, loadJson, saveJson, TICKS_PER_DAY } from '@/lib/storage';
 import { formatEuro } from '@/lib/status';
 import { newNotificationId } from '@/lib/gameTime';
+import { clampEnergyMarketMultiplier, clampPathMarketMultiplier } from '@/lib/operatingRates';
 
 export const WORLD_EVENTS_KEY = 'evu-world-events';
 
@@ -58,9 +59,9 @@ function pruneState(state: WorldEventState, tick: number): WorldEventState {
   const closures = (state.closures ?? []).filter((c) => c && c.untilTick > tick);
   return {
     ...state,
-    dieselMultiplier: dieselOn ? Math.max(1, Number(state.dieselMultiplier) || 1) : 1,
+    dieselMultiplier: dieselOn ? clampEnergyMarketMultiplier(Number(state.dieselMultiplier) || 1) : 1,
     dieselUntilTick: dieselOn ? state.dieselUntilTick : 0,
-    pathCostMultiplier: pathOn ? Math.max(1, Number(state.pathCostMultiplier) || 1) : 1,
+    pathCostMultiplier: pathOn ? clampPathMarketMultiplier(Number(state.pathCostMultiplier) || 1) : 1,
     pathCostUntilTick: pathOn ? state.pathCostUntilTick : 0,
     closures,
   };
@@ -73,13 +74,15 @@ function publishLive(state: WorldEventState): void {
 }
 
 export function getDieselPriceMultiplier(): number {
-  const n = Number(liveDiesel);
-  return Number.isFinite(n) && n > 1 ? n : 1;
+  return getEnergyPriceMultiplier();
+}
+
+export function getEnergyPriceMultiplier(): number {
+  return clampEnergyMarketMultiplier(Number(liveDiesel) || 1);
 }
 
 export function getPathCostMultiplier(): number {
-  const n = Number(livePath);
-  return Number.isFinite(n) && n > 1 ? n : 1;
+  return clampPathMarketMultiplier(Number(livePath) || 1);
 }
 
 export function loadWorldEvents(tick = 0): WorldEventState {
@@ -244,36 +247,32 @@ export function processWorldEventsTick(
     }
   } else if (roll < 0.78) {
     const hours = randInt(36, 72);
-    const multiplier = 1.35 + Math.random() * 0.4;
+    const dip = Math.random() < 0.65;
+    const multiplier = dip ? 0.92 + Math.random() * 0.06 : 1.02 + Math.random() * 0.04;
     next = {
       ...next,
-      dieselMultiplier: Math.round(multiplier * 100) / 100,
+      dieselMultiplier: clampEnergyMarketMultiplier(Math.round(multiplier * 100) / 100),
       dieselUntilTick: nextTick + hours,
     };
+    const pct = Math.round((next.dieselMultiplier - 1) * 100);
     sendMessage(
       'Finanzen',
-      'Dieselpreisspitze',
-      `Kraftstoff +${Math.round((next.dieselMultiplier - 1) * 100)} % für ca. ${Math.round(hours / TICKS_PER_DAY)} Spieltage. Diesel-Trassen werden teurer (Trasse/Energie).`,
+      dip ? 'Günstiger Energiemarkt' : 'Leichte Energie-Schwankung',
+      `Traktionsstrom und Diesel ${pct >= 0 ? '+' : ''}${pct} % für ca. ${Math.round(hours / TICKS_PER_DAY)} Spieltage. Die Marge bleibt hoch — nur eine sanfte Marktbewegung.`,
       nextTick,
     );
   } else {
     const hours = randInt(18, 48);
-    const mult = 1.12 + Math.random() * 0.18;
+    const mult = clampPathMarketMultiplier(0.94 + Math.random() * 0.05);
     next = {
       ...next,
       pathCostMultiplier: Math.round(mult * 100) / 100,
       pathCostUntilTick: nextTick + hours,
     };
-    const delay = randInt(2, 6);
-    assignments = assignments.map((a) =>
-      a.status === 'aktiv' || a.status === 'geplant' ? addAssignmentDelay(a, delay, input.locos) : a,
-    );
-    extraPathCost = randInt(400, 1_600);
-    nextCompany = { ...nextCompany, balance: nextCompany.balance - extraPathCost };
     sendMessage(
       'Disposition',
-      'Trassenstörung im Netz',
-      `Zusätzliche Fahrzeit (+${delay} h) und Trassenaufschlag ${formatEuro(extraPathCost)}. Aufschlag ${Math.round((mult - 1) * 100)} % für ${hours} Spielstunden.`,
+      'Trassenrabatt im Netz',
+      `Infrastrukturbetreiber gewährt ${Math.round((1 - mult) * 100)} % Nachlass auf den Trassenkilometer für ${hours} Spielstunden. Kein Aufschlag über den Basistarif.`,
       nextTick,
     );
   }

@@ -136,6 +136,7 @@ import {
   standingFromCompany,
   isMarketRefreshAvailable,
 } from '@/lib/orderMarket';
+import { evaluateAssignmentFit } from '@/lib/traction';
 import {
   cancelBaugleisDeployment,
   hydrateDeploymentAssignments,
@@ -840,6 +841,10 @@ function App() {
         ? persisted
         : refreshMarketOrders(SEED_ORDERS, nextCompany.tick, standingFromCompany(nextCompany), {
             wagonBerthCapacity: wagonBerthCap(depotRef.current),
+            locomotives: applyLocoMaintPatches(
+              mergeFleet(SEED_LOCOMOTIVES, extra.locomotives, sold.locomotives),
+              locoMaintRef.current,
+            ),
           });
     const market = purgeExpiredOpenOrders(marketRaw, gameNowAtLoad);
     const hydrated = hydrateDeploymentAssignments(
@@ -1717,6 +1722,7 @@ function App() {
     setOrders((prev) =>
       refreshMarketOrders(prev, t, standingFromCompany(current), {
         wagonBerthCapacity: wagonBerthCap(depotRef.current),
+        locomotives: locomotivesRef.current,
       }),
     );
   }
@@ -1747,6 +1753,12 @@ function App() {
     const dispatchBlock = networkDispatchBlock(order, loco);
     if (dispatchBlock) {
       sendMessage('Warnung', 'Netzzugang / ETCS', dispatchBlock, tick);
+      playUiSound('warning');
+      return;
+    }
+    const tractionFit = evaluateAssignmentFit(order, loco);
+    if (tractionFit && !tractionFit.ok) {
+      sendMessage('Warnung', 'Zuweisung gesperrt', tractionFit.message, tick);
       playUiSound('warning');
       return;
     }
