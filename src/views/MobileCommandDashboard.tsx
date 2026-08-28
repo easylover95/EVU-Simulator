@@ -115,8 +115,8 @@ export function MobileCommandDashboard({ company, orders, assignments, locomotiv
   });
   const openOrders = orders.filter((order) => order.status === 'offen' || order.status === 'zugewiesen').slice(0, 3);
   const revenue = openOrders.reduce((sum, order) => sum + order.yield, 0);
-  const projectedRevenue = revenue || Math.max(company?.balance ?? 0, 245_000);
-  const projectedCosts = Math.round(projectedRevenue * 0.4);
+  const projectedRevenue = revenue || 7_333;
+  const projectedCosts = Math.round(projectedRevenue * 0.39);
   const freeLocos = locomotives.filter((loco) => loco.status === 'frei').length;
   const level = company?.level ?? 1;
 
@@ -189,7 +189,7 @@ export function MobileCommandDashboard({ company, orders, assignments, locomotiv
           </div>
           <div className="tycoon-budget-balance"><span>Kontostand</span><strong>{formatEuro(company?.balance ?? 0)}</strong><small><TrendingUp aria-hidden /> +4,8% diese Woche</small></div>
           <div className="tycoon-budget-chart" aria-label="Einnahmen-Ausgaben-Verlauf">
-            <div className="tycoon-chart-labels"><span>12M</span><span>10M</span><span>8M</span></div>
+            <div className="tycoon-chart-labels"><span>250k</span><span>200k</span><span>150k</span></div>
             <svg viewBox="0 0 420 138" preserveAspectRatio="none" role="img" aria-label="Steigender Kontostand-Verlauf">
               <defs><linearGradient id="tycoon-chart-fill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#f4b51b" stopOpacity="0.34" /><stop offset="1" stopColor="#f4b51b" stopOpacity="0" /></linearGradient></defs>
               <path d="M0 108 L42 91 L82 100 L122 78 L164 84 L207 55 L247 72 L289 58 L330 36 L374 27 L420 8 V138 H0 Z" fill="url(#tycoon-chart-fill)" />
@@ -198,7 +198,7 @@ export function MobileCommandDashboard({ company, orders, assignments, locomotiv
             </svg>
             <div className="tycoon-chart-axis"><span>-24h</span><span>-18h</span><span>-12h</span><span>-6h</span><span>Jetzt</span></div>
           </div>
-          <div className="tycoon-budget-stats"><div><span>Einnahmen / h</span><strong className="is-positive">+ {compactEuro(projectedRevenue)}</strong></div><div><span>Ausgaben / h</span><strong className="is-negative">- {compactEuro(projectedCosts)}</strong></div></div>
+          <div className="tycoon-budget-stats"><div><span>Ø Brutto / Fahrt</span><strong className="is-positive">+ {compactEuro(projectedRevenue)}</strong></div><div><span>Ø Betriebskosten</span><strong className="is-negative">- {compactEuro(projectedCosts)}</strong></div></div>
         </section>
       </div>
 

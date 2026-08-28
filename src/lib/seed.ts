@@ -65,7 +65,7 @@ export const SEED_COMPANY: Company = {
   id: 1,
   name: 'AixRail GmbH',
   hq_location: 'Duisburg',
-  balance: 150000,
+  balance: 225000,
   reputation: 0,
   level: 1,
   xp: 0,
@@ -386,7 +386,7 @@ export const SEED_NOTIFICATIONS: Notification[] = [
     type: 'info',
     title: 'Betrieb gestartet',
     message:
-      'Start: 150.000 €, 2 Dieselloks (BR 218), 10 Güterwagen (6× Res, 4× Eanos), 2 Triebfahrzeugführer. Bekanntheit 0. Dispo 25.000 €. Weitere Tf und AZF/RB über die Jobbörse, Loks beim Händler.',
+      'Start: 225.000 €, 2 Dieselloks (BR 218), 10 Güterwagen (6× Res, 4× Eanos), 2 Triebfahrzeugführer. Bekanntheit 0. Dispo 25.000 €. Weitere Tf und AZF/RB über die Jobbörse, Loks beim Händler.',
     read: false,
     created_at: nowIso,
   },

@@ -45,9 +45,9 @@ export interface FreightRevenueRate {
  * The player-level multiplier is applied to both components equally and is intentionally visible in the order notes.
  */
 export const SPOT_REVENUE_RATES: Record<FreightPriceBand, FreightRevenueRate> = {
-  intermodal: { baseFee: 4_800, eurPerTkm: 0.11 },
-  block: { baseFee: 4_000, eurPerTkm: 0.1 },
-  bulk: { baseFee: 3_500, eurPerTkm: 0.09 },
+  intermodal: { baseFee: 3_500, eurPerTkm: 0.065 },
+  block: { baseFee: 2_400, eurPerTkm: 0.06 },
+  bulk: { baseFee: 2_000, eurPerTkm: 0.06 },
 };
 
 export interface CommercialStanding {
