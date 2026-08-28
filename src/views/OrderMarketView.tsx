@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, memo } from 'react';
+import { useEffect, useMemo, useState, memo, type ReactNode } from 'react';
 import {
   Package,
   HardHat,
@@ -34,6 +34,8 @@ import { corridorCountryHint, networkAcceptBlock, type NetworkAccessState } from
 import { closureBlockMessage, orderBlockedByClosure, type WorldEventState } from '@/lib/events';
 import { FrameworkContractsPanel, type FrameworkContractsPanelProps } from '@/components/FrameworkContractsPanel';
 import { exclusiveJobsUnlocked, reputationTier } from '@/lib/reputation';
+import { ContextHelpTooltip } from '@/components/ContextHelpTooltip';
+import type { HandbookOpenTo } from '@/lib/handbook';
 
 interface OrderMarketViewProps {
   orders: Order[];
@@ -55,6 +57,7 @@ interface OrderMarketViewProps {
   onOpenNetworkDealer?: () => void;
   framework?: FrameworkContractsPanelProps;
   bekanntheit?: number;
+  onOpenHandbook?: (target?: HandbookOpenTo) => void;
 }
 
 function sperrpauseCountdown(
@@ -134,31 +137,36 @@ function SortHeader({
   active,
   dir,
   onSort,
+  extra,
 }: {
   label: string;
   column: MarketSortKey;
   active: boolean;
   dir: SortDir;
   onSort: (column: MarketSortKey) => void;
+  extra?: ReactNode;
 }) {
   return (
     <th aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
-      <button
-        type="button"
-        onClick={() => onSort(column)}
-        className={`inline-flex cursor-pointer items-center gap-1 bg-transparent p-0 font-bold uppercase tracking-wide ${
-          active ? 'text-amber-300' : 'text-slate-400 hover:text-slate-200'
-        }`}
-      >
-        {label}
-        {active ? (
-          <span aria-hidden className="text-[10px] leading-none">
-            {dir === 'asc' ? '▲' : '▼'}
-          </span>
-        ) : (
-          <ChevronsUpDown aria-hidden className="h-3 w-3 text-slate-600" />
-        )}
-      </button>
+      <span className="inline-flex items-center">
+        <button
+          type="button"
+          onClick={() => onSort(column)}
+          className={`inline-flex cursor-pointer items-center gap-1 bg-transparent p-0 font-bold uppercase tracking-wide ${
+            active ? 'text-amber-300' : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          {label}
+          {active ? (
+            <span aria-hidden className="text-[10px] leading-none">
+              {dir === 'asc' ? '▲' : '▼'}
+            </span>
+          ) : (
+            <ChevronsUpDown aria-hidden className="h-3 w-3 text-slate-600" />
+          )}
+        </button>
+        {extra}
+      </span>
     </th>
   );
 }
@@ -189,6 +197,7 @@ export const OrderMarketView = memo(function OrderMarketView({
   onOpenNetworkDealer,
   framework,
   bekanntheit = 0,
+  onOpenHandbook,
 }: OrderMarketViewProps) {
   const { gameNow, tick } = useGameClock();
   const [filter, setFilter] = useState<'all' | OrderType | 'einsatz' | 'rahmen' | 'exklusiv'>('all');
@@ -364,13 +373,47 @@ export const OrderMarketView = memo(function OrderMarketView({
               <th>Auftrags-Nr.</th>
               <th>Typ</th>
               <th>Kunde / Titel</th>
-              <th>Strecke</th>
-              <SortHeader label="Last (t)" column="weight" active={sortKey === 'weight'} dir={sortDir} onSort={toggleSort} />
-              <th title="Erforderliche Bremshundertstel (Mindest-Bremsleistung für diese Strecke)">
-                Mindest-Brh
+              <th className="whitespace-nowrap">
+                <span className="inline-flex items-center">
+                  Strecke
+                  <ContextHelpTooltip topicId="traktion" onOpenManual={onOpenHandbook} />
+                </span>
               </th>
-              <SortHeader label="Ertrag (€)" column="yield" active={sortKey === 'yield'} dir={sortDir} onSort={toggleSort} />
-              <SortHeader label="Pönale" column="penalty" active={sortKey === 'penalty'} dir={sortDir} onSort={toggleSort} />
+              <SortHeader
+                label="Last (t)"
+                column="weight"
+                active={sortKey === 'weight'}
+                dir={sortDir}
+                onSort={toggleSort}
+                extra={
+                  <>
+                    <ContextHelpTooltip topicId="hakenlast" onOpenManual={onOpenHandbook} />
+                    <ContextHelpTooltip topicId="nutzlaenge" onOpenManual={onOpenHandbook} />
+                  </>
+                }
+              />
+              <th className="whitespace-nowrap">
+                <span className="inline-flex items-center">
+                  Mindest-Brh
+                  <ContextHelpTooltip topicId="brh" onOpenManual={onOpenHandbook} />
+                </span>
+              </th>
+              <SortHeader
+                label="Ertrag (€)"
+                column="yield"
+                active={sortKey === 'yield'}
+                dir={sortDir}
+                onSort={toggleSort}
+                extra={<ContextHelpTooltip topicId="deckungsbeitrag" onOpenManual={onOpenHandbook} />}
+              />
+              <SortHeader
+                label="Pönale"
+                column="penalty"
+                active={sortKey === 'penalty'}
+                dir={sortDir}
+                onSort={toggleSort}
+                extra={<ContextHelpTooltip topicId="poenale" onOpenManual={onOpenHandbook} />}
+              />
               <SortHeader label="Frist" column="frist" active={sortKey === 'frist'} dir={sortDir} onSort={toggleSort} />
               <th>Status</th>
               <th>Aktion</th>
@@ -521,6 +564,10 @@ export const OrderMarketView = memo(function OrderMarketView({
                       : 'Keine Oberleitung — nur Diesel oder Dual, Hakenlast prüfen'
                   }
                 />
+                <div className="-mt-2 flex justify-end">
+                  <ContextHelpTooltip topicId="oberleitung" onOpenManual={onOpenHandbook} />
+                  <ContextHelpTooltip topicId="nutzlaenge" onOpenManual={onOpenHandbook} />
+                </div>
                 <DetailRow
                   label="Fuhrpark-Check"
                   value={bestFleetFit(detailOrder, locomotives)?.message ?? 'Kein Triebfahrzeug im Bestand'}
@@ -559,6 +606,9 @@ export const OrderMarketView = memo(function OrderMarketView({
                   />
                 )}
                 <DetailRow label="Pönale" value={formatPenalty(detailOrder)} />
+                <div className="-mt-2 flex justify-end">
+                  <ContextHelpTooltip topicId="poenale" onOpenManual={onOpenHandbook} />
+                </div>
                 {detailOrder.sperrpause_start && (
                   <DetailRow
                     label="Sperrpause"
@@ -582,7 +632,12 @@ export const OrderMarketView = memo(function OrderMarketView({
                 </p>
               )}
 
-              <OrderCostBreakdown order={detailOrder} />
+              <div className="relative">
+                <OrderCostBreakdown order={detailOrder} />
+                <div className="absolute right-1 top-1">
+                  <ContextHelpTooltip topicId="deckungsbeitrag" onOpenManual={onOpenHandbook} />
+                </div>
+              </div>
 
               <WagonShortageBanner
                 check={checkWagonAvailability(detailOrder, wagons)}

@@ -138,6 +138,7 @@ import {
 } from '@/lib/orderMarket';
 import { networkSiteById, RELOCATION_COST } from '@/lib/networkSites';
 import { evaluateAssignmentFit } from '@/lib/traction';
+import type { HandbookOpenTo } from '@/lib/handbook';
 import {
   cancelBaugleisDeployment,
   hydrateDeploymentAssignments,
@@ -375,7 +376,7 @@ const PlayerMarketView = lazy(() => import('@/views/PlayerMarketView').then(({ P
 const TourPlannerView = lazy(() => import('@/views/TourPlannerView').then(({ TourPlannerView }) => ({ default: TourPlannerView })));
 const TourOverviewView = lazy(() => import('@/views/TourPlannerView').then(({ TourOverviewView }) => ({ default: TourOverviewView })));
 const BuildingsView = lazy(() => import('@/views/BuildingsView').then(({ BuildingsView }) => ({ default: BuildingsView })));
-const HelpHandbookModal = lazy(() => import('@/components/HelpHandbookModal').then(({ HelpHandbookModal }) => ({ default: HelpHandbookModal })));
+const ManualModal = lazy(() => import('@/components/ManualModal').then(({ ManualModal }) => ({ default: ManualModal })));
 const AchievementsGalleryModal = lazy(() => import('@/components/AchievementsGalleryModal').then(({ AchievementsGalleryModal }) => ({ default: AchievementsGalleryModal })));
 const LogoutConfirmModal = lazy(() => import('@/components/LogoutConfirmModal').then(({ LogoutConfirmModal }) => ({ default: LogoutConfirmModal })));
 
@@ -413,6 +414,7 @@ function App() {
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialEpoch, setTutorialEpoch] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [helpTarget, setHelpTarget] = useState<HandbookOpenTo | null>(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [resetGameOpen, setResetGameOpen] = useState(false);
   const [atMainMenu, setAtMainMenu] = useState(() => !isSessionActive());
@@ -1640,13 +1642,20 @@ function App() {
     saveAchievementState(achievementsRef.current);
   }, [persistBank, persistCompany, persistDepot, persistMaintenanceFund, persistRentals]);
 
-  function handleHelp() {
+  const handleHelp = useCallback((target?: HandbookOpenTo) => {
     setLogoutOpen(false);
+    setHelpTarget(target ?? null);
     setHelpOpen(true);
-  }
+  }, []);
+
+  const closeHelp = useCallback(() => {
+    setHelpOpen(false);
+    setHelpTarget(null);
+  }, []);
 
   function handleReplayTutorial() {
     setHelpOpen(false);
+    setHelpTarget(null);
     setFoundingOpen(false);
     setView('zentrale');
     setTutorialEpoch((n) => n + 1);
@@ -3150,6 +3159,7 @@ function App() {
                     setView('haendler');
                   }}
                   bekanntheit={company?.reputation ?? 0}
+                  onOpenHandbook={handleHelp}
                   framework={{
                     industrial,
                     wagons,
@@ -3203,6 +3213,7 @@ function App() {
                     setView('haendler');
                   }}
                   networkStatus={networkStatus}
+                  onOpenHandbook={handleHelp}
                 />
               )}
               {view === 'tourenplaner' && (
@@ -3414,7 +3425,7 @@ function App() {
           />
         )}
         {helpOpen && !tutorialOpen && (
-          <HelpHandbookModal onClose={() => setHelpOpen(false)} onReplayTutorial={handleReplayTutorial} />
+          <ManualModal onClose={closeHelp} onReplayTutorial={handleReplayTutorial} openTo={helpTarget} />
         )}
         {galleryOpen && company && (
           <AchievementsGalleryModal

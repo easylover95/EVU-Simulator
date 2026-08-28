@@ -69,6 +69,8 @@ import { seriesDispatchBlock, seriesIdForLoco, seriesLabel } from '@/lib/persona
 import type { StaffMeta } from '@/lib/jobcenter';
 import { TrackingMapSurface } from '@/components/TrackingMapSurface';
 import type { NetworkStatus } from '@/lib/networkStatus';
+import { ContextHelpTooltip } from '@/components/ContextHelpTooltip';
+import type { HandbookOpenTo } from '@/lib/handbook';
 
 interface DispatchViewProps {
   orders: Order[];
@@ -100,6 +102,7 @@ interface DispatchViewProps {
   staffMeta?: Record<string, StaffMeta>;
   onOpenNetworkDealer?: (pack?: string) => void;
   networkStatus?: NetworkStatus;
+  onOpenHandbook?: (target?: HandbookOpenTo) => void;
 }
 
 type AzfMode = 'none' | 'eigen' | 'pdl';
@@ -156,6 +159,7 @@ export function DispatchView({
   staffMeta = {},
   onOpenNetworkDealer,
   networkStatus = 'online',
+  onOpenHandbook,
 }: DispatchViewProps) {
   const { gameNow, tick } = useGameClock();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(preselectOrder ?? null);
@@ -764,13 +768,18 @@ export function DispatchView({
                   )}
                 </div>
 
-                <OrderCostBreakdown
-                  order={selectedOrder}
-                  fuelType={selectedLocoObj?.fuel_type}
-                  compact
-                  azfSource={azfMode === 'eigen' ? 'eigen' : 'pdl'}
-                  azfUnresolved={baugleisOrder && azfMode === 'none'}
-                />
+                <div className="relative">
+                  <OrderCostBreakdown
+                    order={selectedOrder}
+                    fuelType={selectedLocoObj?.fuel_type}
+                    compact
+                    azfSource={azfMode === 'eigen' ? 'eigen' : 'pdl'}
+                    azfUnresolved={baugleisOrder && azfMode === 'none'}
+                  />
+                  <div className="absolute right-0 top-0">
+                    <ContextHelpTooltip topicId="deckungsbeitrag" onOpenManual={onOpenHandbook} />
+                  </div>
+                </div>
 
                 <div>
                   <label className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400">
@@ -781,6 +790,9 @@ export function DispatchView({
                         · {isOrderElectrified(selectedOrder) ? 'Oberleitung' : 'ohne Fahrdraht'} · Hakenlast
                       </span>
                     )}
+                    <ContextHelpTooltip topicId="traktion" onOpenManual={onOpenHandbook} />
+                    <ContextHelpTooltip topicId="hakenlast" onOpenManual={onOpenHandbook} />
+                    <ContextHelpTooltip topicId="nutzlaenge" onOpenManual={onOpenHandbook} />
                   </label>
                   <select
                     value={selectedLoco}
@@ -813,7 +825,13 @@ export function DispatchView({
                         : 'border-rose-500/40 bg-rose-950/30 text-rose-100'
                     }`}
                   >
-                    <div className="font-bold uppercase tracking-wide text-[10px] opacity-80">Zuweisungs-Check</div>
+                    <div className="flex items-center justify-between gap-1">
+                      <div className="font-bold uppercase tracking-wide text-[10px] opacity-80">Zuweisungs-Check</div>
+                      <ContextHelpTooltip
+                        topicId={tractionFit.code === 'ohle_missing' ? 'oberleitung' : tractionFit.code === 'trailing_load' ? 'hakenlast' : 'traktion'}
+                        onOpenManual={onOpenHandbook}
+                      />
+                    </div>
                     <p className="mt-0.5 leading-relaxed">{tractionFit.message}</p>
                   </div>
                 )}
@@ -1063,7 +1081,10 @@ export function DispatchView({
                     <div className="flex items-start gap-2">
                       {brhCheck.passed ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
                       <div className="flex-1">
-                        <span className="font-bold">Bremshundertstel-Prüfung (Brh)</span>
+                        <span className="inline-flex items-center gap-1 font-bold">
+                          Bremshundertstel-Prüfung (Brh)
+                          <ContextHelpTooltip topicId="brh" onOpenManual={onOpenHandbook} />
+                        </span>
                         <div className="mt-0.5">{brhCheck.message}</div>
                       </div>
                     </div>

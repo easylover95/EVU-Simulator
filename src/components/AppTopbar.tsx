@@ -1,5 +1,5 @@
 import { useState, type RefObject } from 'react';
-import { BarChart3, BriefcaseBusiness, ChevronDown, ChevronRight, ClipboardList, Home, Landmark, Mail, Menu, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound, X } from 'lucide-react';
+import { BarChart3, BriefcaseBusiness, ChevronDown, ChevronRight, ClipboardList, CircleHelp, Home, Landmark, Mail, Menu, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound, X } from 'lucide-react';
 import type { Company } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
@@ -191,6 +191,9 @@ export function AppTopbar({
           <button type="button" className="app-topbar-ctrl relative" aria-label="Posteingang" onClick={onOpenInbox}>
             <Mail className="h-3.5 w-3.5" />
             {unreadCount > 0 && <span className="app-topbar-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+          </button>
+          <button type="button" className="app-topbar-ctrl min-h-12 min-w-12" aria-label="Handbuch" onClick={onHelp}>
+            <CircleHelp className="h-3.5 w-3.5" />
           </button>
           <button type="button" className="app-topbar-ctrl" aria-label="Einstellungen" onClick={onEditCompany}><Settings className="h-3.5 w-3.5" /></button>
         </div>
