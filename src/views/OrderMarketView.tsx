@@ -244,8 +244,7 @@ export const OrderMarketView = memo(function OrderMarketView({
     let result = marketOrders;
     if (filter === 'einsatz') result = result.filter((o) => isBaugleisEinsatz(o));
     else if (filter === 'exklusiv') result = result.filter((o) => o.exclusive === true);
-    else if (filter === 'rahmen') result = result;
-    else if (filter !== 'all') result = result.filter((o) => o.type === filter && !isBaugleisEinsatz(o));
+    else if (filter !== 'all' && filter !== 'rahmen') result = result.filter((o) => o.type === filter && !isBaugleisEinsatz(o));
     if (search) {
       const s = search.toLowerCase();
       result = result.filter(
