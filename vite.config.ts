@@ -3,10 +3,36 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
 const host = process.env.TAURI_DEV_HOST;
+const isGithubPages = process.env.GITHUB_ACTIONS === 'true';
+const githubPagesBase = '/EVU-Simulator/';
+
+/**
+ * Public assets stay in /public because the desktop/Tauri build consumes them
+ * directly. GitHub Pages serves this app below a repository sub-path, so only
+ * known public asset roots are rewritten in emitted production files.
+ */
+function githubPagesPublicAssets() {
+  const assetRoot = /([\"'`(])\/(assets|locos|wagons|maps|icons|bg-rail-atmosphere\.webp|manifest\.json|sw\.js)(?=[/'\"`\)])/g;
+  return {
+    name: 'github-pages-public-assets',
+    generateBundle(_options: unknown, bundle: Record<string, { type: string; source?: string; code?: string }>) {
+      if (!isGithubPages) return;
+      for (const item of Object.values(bundle)) {
+        if (item.type === 'asset' && typeof item.source === 'string') {
+          item.source = item.source.replace(assetRoot, `$1${githubPagesBase}$2`);
+        }
+        if (item.type === 'chunk' && typeof item.code === 'string') {
+          item.code = item.code.replace(assetRoot, `$1${githubPagesBase}$2`);
+        }
+      }
+    },
+  };
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  base: isGithubPages ? githubPagesBase : '/',
+  plugins: [react(), githubPagesPublicAssets()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
