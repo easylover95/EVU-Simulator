@@ -1,5 +1,14 @@
-import type { Wagon } from '@/lib/supabase';
+import type { Locomotive, Wagon } from '@/lib/supabase';
 import { loadJson, saveJson } from '@/lib/storage';
+import {
+  RELOCATION_COST,
+  STARTER_SITE_ID,
+  knownNetworkSiteIds,
+  networkSiteById,
+  normalizeOwnedSiteIds,
+  siteCapacityBonus,
+  type NetworkSite,
+} from '@/lib/networkSites';
 
 export const DEPOT_STATE_KEY = 'evu-depot-state';
 
@@ -7,6 +16,8 @@ export const BASE_LOCO_BERTHS = 2;
 /** Start: 25 Wagen-Stellplätze für den 10-Wagen-Starterpark plus Reserve. */
 export const BASE_WAGON_BERTHS = 25;
 export const BASE_WORKSHOP_SLOTS = 2;
+/** Startpersonal (Seed: 8 Tf) — wächst mit Lok-Ausbauten und neuen Betriebsstellen. */
+export const BASE_STAFF_SLOTS = 8;
 
 export type DepotKind = 'loco' | 'wagon' | 'workshop';
 
@@ -21,6 +32,10 @@ export interface DepotExpansion {
 
 export interface DepotState {
   purchasedIds: string[];
+  /** Owned EVU operating sites (always includes the Duisburg starter). */
+  ownedSiteIds: string[];
+  /** locomotiveId → network site id */
+  stationing: Record<string, string>;
 }
 
 /** Sequential Ausbauten: Loks ab Lvl 2, Wagen ab Lvl 2, Werkstatt ab Lvl 3 (skaliert mit der Flotte). */
@@ -49,7 +64,7 @@ export const DEPOT_EXPANSIONS: readonly DepotExpansion[] = [
 ] as const;
 
 export function emptyDepotState(): DepotState {
-  return { purchasedIds: [] };
+  return { purchasedIds: [], ownedSiteIds: [STARTER_SITE_ID], stationing: {} };
 }
 
 export function expansionsFor(kind: DepotKind): DepotExpansion[] {
@@ -70,15 +85,23 @@ function addedFor(state: DepotState, kind: DepotKind): number {
 }
 
 export function locoBerthCap(state: DepotState | null | undefined): number {
-  return BASE_LOCO_BERTHS + addedFor(state ?? emptyDepotState(), 'loco');
+  const current = state ?? emptyDepotState();
+  return BASE_LOCO_BERTHS + addedFor(current, 'loco') + siteCapacityBonus(current.ownedSiteIds).loco;
 }
 
 export function wagonBerthCap(state: DepotState | null | undefined): number {
-  return BASE_WAGON_BERTHS + addedFor(state ?? emptyDepotState(), 'wagon');
+  const current = state ?? emptyDepotState();
+  return BASE_WAGON_BERTHS + addedFor(current, 'wagon') + siteCapacityBonus(current.ownedSiteIds).wagon;
 }
 
 export function workshopSlotCap(state: DepotState | null | undefined): number {
-  return BASE_WORKSHOP_SLOTS + addedFor(state ?? emptyDepotState(), 'workshop');
+  const current = state ?? emptyDepotState();
+  return BASE_WORKSHOP_SLOTS + addedFor(current, 'workshop') + siteCapacityBonus(current.ownedSiteIds).workshop;
+}
+
+export function staffHousingCap(state: DepotState | null | undefined): number {
+  const current = state ?? emptyDepotState();
+  return BASE_STAFF_SLOTS + addedFor(current, 'loco') * 2 + siteCapacityBonus(current.ownedSiteIds).staff;
 }
 
 export function freeLocoBerths(state: DepotState, parkedLocos: number): number {
@@ -117,7 +140,108 @@ export function canBuyDepotExpansion(
 
 export function purchaseDepotExpansion(state: DepotState, expansion: DepotExpansion): DepotState {
   if (purchasedSet(state).has(expansion.id)) return state;
-  return { purchasedIds: [...state.purchasedIds, expansion.id] };
+  return { ...state, purchasedIds: [...state.purchasedIds, expansion.id] };
+}
+
+export function isNetworkSiteOwned(state: DepotState | null | undefined, siteId: string): boolean {
+  return normalizeOwnedSiteIds(state?.ownedSiteIds).includes(siteId);
+}
+
+export function canBuyNetworkSite(
+  state: DepotState,
+  site: NetworkSite,
+  companyLevel: number,
+): boolean {
+  if (site.starter) return false;
+  if (isNetworkSiteOwned(state, site.id)) return false;
+  return Math.max(1, companyLevel) >= site.unlockLevel;
+}
+
+export function purchaseNetworkSite(state: DepotState, siteId: string): DepotState {
+  if (isNetworkSiteOwned(state, siteId)) return state;
+  if (!networkSiteById(siteId) || siteId === STARTER_SITE_ID) return state;
+  return { ...state, ownedSiteIds: normalizeOwnedSiteIds([...(state.ownedSiteIds ?? []), siteId]) };
+}
+
+export function locoStation(state: DepotState | null | undefined, locoId: string): string {
+  const assigned = state?.stationing?.[locoId];
+  const known = knownNetworkSiteIds();
+  if (typeof assigned === 'string' && known.has(assigned) && isNetworkSiteOwned(state, assigned)) return assigned;
+  return STARTER_SITE_ID;
+}
+
+export function siteLocoBerthCap(state: DepotState | null | undefined, siteId: string): number {
+  const current = state ?? emptyDepotState();
+  const site = networkSiteById(siteId);
+  if (!site) return 0;
+  if (site.starter) return BASE_LOCO_BERTHS + addedFor(current, 'loco');
+  return Math.max(1, site.addLocoBerths);
+}
+
+export function locosAtSite(
+  state: DepotState | null | undefined,
+  locomotives: Array<Pick<Locomotive, 'id'>>,
+  siteId: string,
+): number {
+  return locomotives.filter((loco) => locoStation(state, loco.id) === siteId).length;
+}
+
+export function freeSiteLocoBerths(
+  state: DepotState | null | undefined,
+  locomotives: Array<Pick<Locomotive, 'id'>>,
+  siteId: string,
+): number {
+  return Math.max(0, siteLocoBerthCap(state, siteId) - locosAtSite(state, locomotives, siteId));
+}
+
+export function defaultStationForNewLoco(
+  state: DepotState | null | undefined,
+  locomotives: Array<Pick<Locomotive, 'id'>>,
+): string {
+  const current = state ?? emptyDepotState();
+  const owned = normalizeOwnedSiteIds(current.ownedSiteIds);
+  const withSpace = owned.find((id) => freeSiteLocoBerths(current, locomotives, id) > 0);
+  return withSpace ?? STARTER_SITE_ID;
+}
+
+export function canRelocateLoco(
+  state: DepotState,
+  locomotives: Array<Pick<Locomotive, 'id' | 'status'>>,
+  locoId: string,
+  toSiteId: string,
+): { ok: boolean; message: string; cost: number } {
+  const loco = locomotives.find((row) => row.id === locoId);
+  if (!loco) return { ok: false, message: 'Triebfahrzeug nicht gefunden.', cost: 0 };
+  if (loco.status === 'einsatz') {
+    return { ok: false, message: 'Lok ist im Einsatz und kann nicht umstationiert werden.', cost: 0 };
+  }
+  if (!isNetworkSiteOwned(state, toSiteId)) {
+    return { ok: false, message: 'Ziel-Betriebsstelle gehört dem EVU nicht.', cost: 0 };
+  }
+  const from = locoStation(state, locoId);
+  if (from === toSiteId) return { ok: false, message: 'Die Lok steht bereits an dieser Betriebsstelle.', cost: 0 };
+  const others = locomotives.filter((row) => row.id !== locoId);
+  if (freeSiteLocoBerths(state, others, toSiteId) <= 0) {
+    const site = networkSiteById(toSiteId);
+    return {
+      ok: false,
+      message: `${site?.name ?? toSiteId} hat keine freien Lok-Stellplätze.`,
+      cost: 0,
+    };
+  }
+  return { ok: true, message: `Umstationierung nach ${networkSiteById(toSiteId)?.name ?? toSiteId}.`, cost: RELOCATION_COST };
+}
+
+export function relocateLoco(state: DepotState, locoId: string, toSiteId: string): DepotState {
+  if (!isNetworkSiteOwned(state, toSiteId)) return state;
+  return { ...state, stationing: { ...state.stationing, [locoId]: toSiteId } };
+}
+
+export function dropStationing(state: DepotState, locoId: string): DepotState {
+  if (!state.stationing[locoId]) return state;
+  const next = { ...state.stationing };
+  delete next[locoId];
+  return { ...state, stationing: next };
 }
 
 /** Legacy saves with a larger fleet get matching Ausbauten, ohne nochmal zu kassieren. */
@@ -149,10 +273,27 @@ export function ensureDepotFits(
 
 export function normalizeDepotState(raw: unknown): DepotState {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return emptyDepotState();
-  const ids = (raw as DepotState).purchasedIds;
-  if (!Array.isArray(ids)) return emptyDepotState();
-  const known = new Set(DEPOT_EXPANSIONS.map((e) => e.id));
-  return { purchasedIds: ids.filter((id): id is string => typeof id === 'string' && known.has(id)) };
+  const record = raw as DepotState;
+  const ids = record.purchasedIds;
+  const knownExp = new Set(DEPOT_EXPANSIONS.map((e) => e.id));
+  const purchasedIds = Array.isArray(ids)
+    ? ids.filter((id): id is string => typeof id === 'string' && knownExp.has(id))
+    : [];
+  const knownSites = knownNetworkSiteIds();
+  const stationingRaw = record.stationing;
+  const stationing: Record<string, string> = {};
+  if (stationingRaw && typeof stationingRaw === 'object' && !Array.isArray(stationingRaw)) {
+    for (const [locoId, siteId] of Object.entries(stationingRaw)) {
+      if (typeof locoId === 'string' && typeof siteId === 'string' && knownSites.has(siteId)) {
+        stationing[locoId] = siteId;
+      }
+    }
+  }
+  return {
+    purchasedIds,
+    ownedSiteIds: normalizeOwnedSiteIds(record.ownedSiteIds),
+    stationing,
+  };
 }
 
 export function loadDepotState(): DepotState {

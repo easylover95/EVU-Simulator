@@ -1,9 +1,10 @@
 import { useState, type RefObject } from 'react';
-import { BarChart3, BriefcaseBusiness, ChevronDown, ChevronRight, ClipboardList, Home, Landmark, Mail, Menu, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound, X } from 'lucide-react';
+import { BarChart3, BriefcaseBusiness, ChevronDown, ChevronRight, ClipboardList, CircleHelp, Home, Landmark, Mail, Menu, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound, X } from 'lucide-react';
 import type { Company } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
 import { NAV_CATEGORIES, categoryDef, categoryForView, prefetchAssetsForView, showsSubnav, type AppView } from '@/lib/navigation';
+import { reputationTier } from '@/lib/reputation';
 import { NetworkStatusNotice } from '@/components/NetworkStatusNotice';
 import type { NetworkStatus } from '@/lib/networkStatus';
 
@@ -100,6 +101,9 @@ export function AppTopbar({
               <span className="tabular-nums">{personnelCount}</span>
               <Star className="h-3 w-3 text-amber-400/80" />
               <span className="tabular-nums text-amber-300">{company?.reputation ?? 0}</span>
+              <span className="hidden text-[10px] uppercase tracking-wide text-slate-500 sm:inline">
+                {reputationTier(company?.reputation).label}
+              </span>
             </div>
           </div>
         </div>
@@ -187,6 +191,9 @@ export function AppTopbar({
           <button type="button" className="app-topbar-ctrl relative" aria-label="Posteingang" onClick={onOpenInbox}>
             <Mail className="h-3.5 w-3.5" />
             {unreadCount > 0 && <span className="app-topbar-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>}
+          </button>
+          <button type="button" className="app-topbar-ctrl min-h-12 min-w-12" aria-label="Handbuch" onClick={onHelp}>
+            <CircleHelp className="h-3.5 w-3.5" />
           </button>
           <button type="button" className="app-topbar-ctrl" aria-label="Einstellungen" onClick={onEditCompany}><Settings className="h-3.5 w-3.5" /></button>
         </div>
