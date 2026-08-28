@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, memo, type ReactNode } from 'react';
+import React, { useEffect, useMemo, useState, memo, type ReactNode } from 'react';
 import {
   Package,
   HardHat,
@@ -131,8 +131,20 @@ function marketSortValue(order: Order, key: MarketSortKey, now: Date): number {
   }
 }
 
-const MARKET_GRID =
-  'grid w-full min-w-[1130px] grid-cols-[140px_80px_minmax(0,1fr)_200px_90px_100px_100px_90px_90px_140px] items-center';
+const marketRowStyle: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '150px 70px 1fr 180px 80px 100px 90px 80px 80px 150px',
+  alignItems: 'center',
+  gap: '8px',
+  padding: '10px 16px',
+};
+
+const marketCellClip: React.CSSProperties = {
+  minWidth: 0,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+};
 
 function SortHeader({
   label,
@@ -253,36 +265,43 @@ const MarketOrderRow = memo(function MarketOrderRow(props: MarketRowHandlers) {
   return (
     <div
       role="row"
-      className={`${MARKET_GRID} h-14 cursor-pointer border-b border-slate-800 hover:bg-slate-800/40`}
+      className="h-14 cursor-pointer border-b border-slate-800 hover:bg-slate-800/40"
+      style={marketRowStyle}
       onClick={() => onOpen(order)}
     >
-      <div className="w-[140px] shrink-0 overflow-visible pl-4 font-mono text-sm text-slate-200" title={order.order_number}>
+      <div className="overflow-visible font-mono text-sm text-slate-200" title={order.order_number}>
         {order.order_number}
       </div>
-      <div className="flex w-[80px] shrink-0 justify-center">
+      <div className="flex justify-center">
         <TypePill isConstruction={model.isConstruction} kind={model.card.kind} typeLabel={model.typeLabel} />
       </div>
-      <div className="min-w-0 truncate overflow-hidden text-left font-medium text-white" title={model.titleLine}>
+      <div className="text-left font-medium text-white" style={marketCellClip} title={model.titleLine}>
         {model.titleLine}
       </div>
       <div
-        className={`w-[200px] shrink-0 truncate text-left text-[11px] ${gate ? 'font-bold text-rose-400' : 'text-slate-400'}`}
+        className={`text-left text-[11px] ${gate ? 'font-bold text-rose-400' : 'text-slate-400'}`}
+        style={marketCellClip}
         title={`${order.origin} → ${order.destination}${gate ? ` · ${gate}` : ''}`}
       >
         {order.origin} → {order.destination}
       </div>
-      <div className="w-[90px] shrink-0 text-right font-mono text-slate-200">
+      <div className="text-right font-mono text-slate-200">
         {Number(order.weight_t || 0).toLocaleString('de-DE')} t
       </div>
       <div
-        className={`w-[100px] shrink-0 truncate text-left text-xs ${model.shortage ? 'text-rose-400' : 'text-slate-200'}`}
+        className={`text-left text-xs ${model.shortage ? 'text-rose-400' : 'text-slate-200'}`}
+        style={marketCellClip}
         title={model.shortage || model.wagonSummary}
       >
         {model.wagonSummary}
       </div>
-      <div className="w-[100px] shrink-0 truncate text-right font-mono font-semibold text-emerald-400">{model.yieldLabel}</div>
-      <div className="w-[90px] shrink-0 truncate text-right font-mono text-rose-400">{formatPenalty(order)}</div>
-      <div className="w-[90px] shrink-0 text-center font-mono">
+      <div className="truncate text-right font-mono font-semibold text-emerald-400" style={marketCellClip}>
+        {model.yieldLabel}
+      </div>
+      <div className="truncate text-right font-mono text-rose-400" style={marketCellClip}>
+        {formatPenalty(order)}
+      </div>
+      <div className="text-center font-mono">
         {model.time ? (
           <span
             className={`tabular-nums ${model.time.critical ? 'font-bold text-rose-400' : model.time.urgent ? 'font-bold text-amber-400' : 'text-slate-400'}`}
@@ -293,7 +312,7 @@ const MarketOrderRow = memo(function MarketOrderRow(props: MarketRowHandlers) {
           <span className="text-slate-500">—</span>
         )}
       </div>
-      <div className="flex w-[140px] shrink-0 items-center justify-end gap-2 pr-4" onClick={(e) => e.stopPropagation()}>
+      <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
         <span className={`shrink-0 ${order.status === 'offen' ? 'fi-pill fi-pill-green' : getOrderPillClass(order.status)}`}>
           {order.status === 'offen' ? 'Gültig' : model.statusCfg.label}
         </span>
@@ -571,12 +590,13 @@ export const OrderMarketView = memo(function OrderMarketView({
         <FrameworkContractsPanel {...framework} />
       ) : (
       <div className="fi-card fi-market-table-wrap overflow-x-auto">
-        <div className="hidden md:block">
+        <div className="hidden min-w-[1160px] md:block">
           <div
-            className={`${MARKET_GRID} h-12 border-b border-slate-800 bg-slate-950/90 text-xs font-bold uppercase tracking-wider text-slate-400`}
+            className="h-12 border-b border-slate-800 bg-slate-950/90 text-xs font-bold uppercase tracking-wider text-slate-400"
             role="row"
+            style={marketRowStyle}
           >
-            <div className="pl-4 text-left font-mono" role="columnheader">
+            <div className="text-left font-mono" role="columnheader">
               Auftrags-Nr.
             </div>
             <div className="text-center" role="columnheader">
@@ -628,7 +648,7 @@ export const OrderMarketView = memo(function OrderMarketView({
               onSort={toggleSort}
               className="text-center font-mono"
             />
-            <div className="pr-4 text-right" role="columnheader">
+            <div className="text-right" role="columnheader">
               Aktion
             </div>
           </div>
