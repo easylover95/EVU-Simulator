@@ -1,5 +1,5 @@
 import { useState, type RefObject } from 'react';
-import { BarChart3, BriefcaseBusiness, ChevronDown, ChevronRight, ClipboardList, Home, Landmark, Mail, Menu, Pause, Play, Settings, Star, Train, TrainFront, Users, UsersRound, X } from 'lucide-react';
+import { BarChart3, BriefcaseBusiness, ChevronDown, ChevronRight, ClipboardList, Home, Mail, Menu, Pause, Play, Settings, ShoppingCart, Star, Train, Trophy, Users, UsersRound, X } from 'lucide-react';
 import type { Company } from '@/lib/supabase';
 import { formatEuro } from '@/lib/status';
 import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
@@ -56,10 +56,10 @@ export function AppTopbar({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
   const mobileNavItems: Array<{ id: string; label: string; view: AppView; icon: typeof Home; active: boolean }> = [
-    { id: 'home', label: 'Home', view: 'zentrale', icon: Home, active: cat === 'zentrale' },
-    { id: 'dispo', label: 'Dispo', view: 'disposition', icon: ClipboardList, active: view === 'disposition' },
-    { id: 'flotte', label: 'Flotte', view: 'fuhrpark', icon: TrainFront, active: cat === 'fleet' },
-    { id: 'finanzen', label: 'Finanzen', view: 'bank', icon: Landmark, active: cat === 'finance' },
+    { id: 'home', label: 'Home', view: 'zentrale', icon: Home, active: view === 'zentrale' || view === 'dashboard' },
+    { id: 'missionen', label: 'Missionen', view: 'disposition', icon: ClipboardList, active: view === 'disposition' || view === 'tourenplaner' || view === 'tourenuebersicht' },
+    { id: 'markt', label: 'Markt', view: 'auftragsmarkt', icon: ShoppingCart, active: view === 'auftragsmarkt' || view === 'spielerboerse' },
+    { id: 'rangliste', label: 'Rangliste', view: 'auswertungen', icon: Trophy, active: view === 'auswertungen' || view === 'statistikarchiv' },
   ];
 
   function warmViewAssets(viewId: AppView) {
@@ -176,13 +176,15 @@ export function AppTopbar({
 
       <div className="app-mobile-status-strip" aria-label="Mobiler Spielstatus">
         <div className="app-mobile-status-company">
+          <span className="tycoon-level-badge" aria-label={`Level ${company?.level ?? 1}`}><strong>{company?.level ?? 1}</strong><small>Lvl</small></span>
           <span className="app-topbar-mark" aria-hidden>EVU</span>
           <div className="min-w-0">
             <p>{company?.name ?? 'AixRail GmbH'}</p>
-            <span>Lvl {company?.level ?? 1} · {company?.xp ?? 0} XP</span>
+            <span>Güterkönig · {company?.xp ?? 0} XP</span>
           </div>
         </div>
         <div className="app-mobile-status-balance"><span>Konto</span><strong>{formatEuro(company?.balance ?? 0)}</strong></div>
+        <div className="app-mobile-status-premium" aria-label="Premium-Gold"><span className="tycoon-gold-bars" aria-hidden>◆</span><strong>2.875</strong></div>
         <div className="app-mobile-status-actions">
           <button type="button" className="app-topbar-ctrl relative" aria-label="Posteingang" onClick={onOpenInbox}>
             <Mail className="h-3.5 w-3.5" />
@@ -314,7 +316,7 @@ export function AppTopbar({
         })}
         <button type="button" aria-label="Menü öffnen" aria-expanded={mobileMenuOpen} onClick={() => { setMobileSectionOpen(false); setMobileMenuOpen(true); }} className={`app-mobile-quicknav-item ${mobileMenuOpen ? 'is-active' : ''}`}>
           <Menu className="app-mobile-quicknav-icon" aria-hidden />
-          <span>Menü</span>
+          <span>Mehr</span>
         </button>
       </nav>
 

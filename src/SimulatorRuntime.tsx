@@ -214,9 +214,6 @@ import {
   type DepotState,
 } from '@/lib/depot';
 import {
-  ACHIEVEMENT_CATEGORIES,
-  ACHIEVEMENTS,
-  achievementCount,
   applyCashReward,
   loadAchievementState,
   noteCompletedTrip,
@@ -346,7 +343,6 @@ function persistQuietly(task: PromiseLike<unknown>) {
 
 // Große Fachansichten werden erst beim Öffnen geladen. Dadurch bleiben Karten, Dialoge und
 // seltene Verwaltungsbereiche aus dem kritischen mobilen Startpfad heraus.
-const OfficeHQView = lazy(() => import('@/views/OfficeHQView').then(({ OfficeHQView }) => ({ default: OfficeHQView })));
 const FleetView = lazy(() => import('@/views/FleetView').then(({ FleetView }) => ({ default: FleetView })));
 const WagonParkView = lazy(() => import('@/views/WagonParkView').then(({ WagonParkView }) => ({ default: WagonParkView })));
 const OrderMarketView = lazy(() => import('@/views/OrderMarketView').then(({ OrderMarketView }) => ({ default: OrderMarketView })));
@@ -1568,13 +1564,6 @@ function App() {
   const unreadCount = unreadInboxCount(inbox);
   const fleetCount = locomotives.length + wagons.reduce((s, w) => s + w.count, 0);
   const wsDiscount = workshopDiscountPct(achievements);
-  const galleryCategoryUnlocked = useMemo(() => {
-    const map: Partial<Record<(typeof ACHIEVEMENT_CATEGORIES)[number]['id'], boolean>> = {};
-    for (const cat of ACHIEVEMENT_CATEGORIES) {
-      map[cat.id] = ACHIEVEMENTS.some((def) => def.category === cat.id && achievements.unlockedIds.includes(def.id));
-    }
-    return map;
-  }, [achievements.unlockedIds]);
   const sectionPulse = useMemo(
     () => ({ company, locomotives, drivers, wagons, depot }),
     [company, locomotives, drivers, wagons, depot],
@@ -2957,7 +2946,7 @@ function App() {
 
         <main className={glass ? 'relative z-10' : 'relative z-10 min-h-[100dvh] bg-transparent'}>
           <Suspense fallback={<AppLoadingFallback />}>
-          {view === 'zentrale' && (isMobileViewport ? (
+          {view === 'zentrale' && (
             <MobileCommandDashboard
               company={company}
               orders={orders}
@@ -2965,16 +2954,7 @@ function App() {
               locomotives={locomotives}
               onNavigate={setView}
             />
-          ) : (
-            <OfficeHQView
-              onNavigate={(dest) => setView(dest)}
-              onEditCompany={openCompanyEditor}
-              onOpenGallery={() => setGalleryOpen(true)}
-              galleryUnlocked={achievements.unlockedIds.length}
-              galleryTotal={achievementCount()}
-              galleryCategoryUnlocked={galleryCategoryUnlocked}
-            />
-          ))}
+          )}
           {glass && (
             <div
               className="app-main-content"
