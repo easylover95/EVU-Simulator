@@ -131,29 +131,48 @@ function marketSortValue(order: Order, key: MarketSortKey, now: Date): number {
   }
 }
 
+const MARKET_CELL = 'box-border py-3 px-2 align-middle';
+const MARKET_HEAD = `${MARKET_CELL} text-xs font-bold uppercase tracking-wider text-slate-400`;
+
+const MARKET_COL = {
+  nr: 'w-[150px] min-w-[150px]',
+  typ: 'w-[80px] min-w-[80px]',
+  title: 'w-[220px] min-w-[220px]',
+  route: 'w-[180px] min-w-[180px]',
+  tons: 'w-[110px] min-w-[110px]',
+  wagons: 'w-[120px] min-w-[120px]',
+  yield: 'w-[100px] min-w-[100px]',
+  penalty: 'w-[90px] min-w-[90px]',
+  deadline: 'w-[90px] min-w-[90px]',
+  action: 'w-[150px] min-w-[150px]',
+} as const;
+
 function SortHeader({
   label,
   column,
+  extra,
+  className,
+  align = 'right',
   active,
   dir,
   onSort,
-  extra,
-  className,
 }: {
   label: string;
   column: MarketSortKey;
+  extra?: ReactNode;
+  className?: string;
+  align?: 'left' | 'center' | 'right';
   active: boolean;
   dir: SortDir;
   onSort: (column: MarketSortKey) => void;
-  extra?: ReactNode;
-  className?: string;
 }) {
+  const justify = align === 'left' ? 'justify-start' : align === 'center' ? 'justify-center' : 'justify-end';
   return (
     <th
       aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
-      className={`text-xs uppercase tracking-wider ${className ?? ''}`}
+      className={className}
     >
-      <span className="inline-flex items-center">
+      <span className={`inline-flex w-full items-center ${justify}`}>
         <button
           type="button"
           onClick={() => onSort(column)}
@@ -381,14 +400,26 @@ export const OrderMarketView = memo(function OrderMarketView({
         <FrameworkContractsPanel {...framework} />
       ) : (
       <div className="fi-card overflow-x-auto fi-market-table-wrap">
-        <table className="fi-table fi-mobile-card-table w-full table-fixed border-collapse md:min-w-[1250px]">
+        <table className="fi-table fi-mobile-card-table fi-market-grid-table w-full table-fixed border-collapse md:min-w-[1290px]">
+          <colgroup>
+            <col className={MARKET_COL.nr} />
+            <col className={MARKET_COL.typ} />
+            <col className={MARKET_COL.title} />
+            <col className={MARKET_COL.route} />
+            <col className={MARKET_COL.tons} />
+            <col className={MARKET_COL.wagons} />
+            <col className={MARKET_COL.yield} />
+            <col className={MARKET_COL.penalty} />
+            <col className={MARKET_COL.deadline} />
+            <col className={MARKET_COL.action} />
+          </colgroup>
           <thead>
-            <tr className="text-xs uppercase tracking-wider text-slate-400">
-              <th className="w-[110px] text-left font-mono text-xs uppercase tracking-wider text-slate-400">Auftrags-Nr.</th>
-              <th className="w-[80px] text-center text-xs uppercase tracking-wider text-slate-400">Typ</th>
-              <th className="w-[220px] truncate text-left text-xs uppercase tracking-wider text-slate-400">Kunde / Titel</th>
-              <th className="w-[200px] truncate text-left text-xs uppercase tracking-wider text-slate-400">
-                <span className="inline-flex items-center">
+            <tr>
+              <th className={`${MARKET_HEAD} ${MARKET_COL.nr} pl-4 text-left font-mono`}>Auftrags-Nr.</th>
+              <th className={`${MARKET_HEAD} ${MARKET_COL.typ} text-center`}>Typ</th>
+              <th className={`${MARKET_HEAD} ${MARKET_COL.title} truncate text-left`}>Kunde / Titel</th>
+              <th className={`${MARKET_HEAD} ${MARKET_COL.route} truncate text-left`}>
+                <span className="inline-flex w-full items-center justify-start">
                   Strecke
                   <ContextHelpTooltip topicId="traktion" onOpenManual={onOpenHandbook} />
                 </span>
@@ -399,17 +430,17 @@ export const OrderMarketView = memo(function OrderMarketView({
                 active={sortKey === 'weight'}
                 dir={sortDir}
                 onSort={toggleSort}
-                className="w-[100px] text-right font-mono text-slate-400"
+                className={`${MARKET_HEAD} ${MARKET_COL.tons} text-right font-mono`}
                 extra={<ContextHelpTooltip topicId="hakenlast" onOpenManual={onOpenHandbook} />}
               />
-              <th className="w-[140px] text-left text-xs uppercase tracking-wider text-slate-400">Wagenpark</th>
+              <th className={`${MARKET_HEAD} ${MARKET_COL.wagons} text-left`}>Wagenpark</th>
               <SortHeader
                 label="Ertrag"
                 column="yield"
                 active={sortKey === 'yield'}
                 dir={sortDir}
                 onSort={toggleSort}
-                className="w-[100px] text-right font-mono text-slate-400"
+                className={`${MARKET_HEAD} ${MARKET_COL.yield} text-right font-mono`}
                 extra={<ContextHelpTooltip topicId="deckungsbeitrag" onOpenManual={onOpenHandbook} />}
               />
               <SortHeader
@@ -418,18 +449,19 @@ export const OrderMarketView = memo(function OrderMarketView({
                 active={sortKey === 'penalty'}
                 dir={sortDir}
                 onSort={toggleSort}
-                className="w-[90px] text-right font-mono text-slate-400"
+                className={`${MARKET_HEAD} ${MARKET_COL.penalty} text-right font-mono`}
                 extra={<ContextHelpTooltip topicId="poenale" onOpenManual={onOpenHandbook} />}
               />
               <SortHeader
                 label="Frist"
                 column="frist"
+                align="center"
                 active={sortKey === 'frist'}
                 dir={sortDir}
                 onSort={toggleSort}
-                className="w-[90px] text-center font-mono text-slate-400"
+                className={`${MARKET_HEAD} ${MARKET_COL.deadline} text-center font-mono`}
               />
-              <th className="w-[120px] text-right text-xs uppercase tracking-wider text-slate-400">Status / Aktion</th>
+              <th className={`${MARKET_HEAD} ${MARKET_COL.action} pr-4 text-right`}>Status / Aktion</th>
             </tr>
           </thead>
           <tbody>
@@ -466,10 +498,10 @@ export const OrderMarketView = memo(function OrderMarketView({
                   className="fi-deferred-list-row cursor-pointer align-middle hover:bg-slate-800/50 md:h-14"
                   onClick={() => openOrder(order)}
                 >
-                  <td data-label="Auftrags-Nr." className="fi-mobile-card-title w-[110px] px-4 py-3 text-left align-middle font-mono text-[11px] font-bold text-white">
+                  <td data-label="Auftrags-Nr." className={`fi-mobile-card-title ${MARKET_CELL} ${MARKET_COL.nr} pl-4 text-left font-mono text-[11px] font-bold whitespace-nowrap text-white`}>
                     {order.order_number}
                   </td>
-                  <td data-label="Typ" className="w-[80px] px-4 py-3 text-center align-middle">
+                  <td data-label="Typ" className={`${MARKET_CELL} ${MARKET_COL.typ} text-center`}>
                     <span
                       className={`inline-flex max-w-full items-center justify-center gap-0.5 truncate ${card.kind === 'baugleis' ? 'fi-pill fi-pill-orange' : card.kind === 'rahmen' ? 'fi-pill fi-pill-gold' : 'fi-pill fi-pill-blue'}`}
                       title={typeLabel}
@@ -480,39 +512,39 @@ export const OrderMarketView = memo(function OrderMarketView({
                   </td>
                   <td
                     data-label="Kunde / Titel"
-                    className="fi-mobile-card-summary fi-market-title-cell w-[220px] truncate whitespace-nowrap px-4 py-3 text-left align-middle font-medium text-white"
+                    className={`fi-mobile-card-summary fi-market-title-cell ${MARKET_CELL} ${MARKET_COL.title} truncate whitespace-nowrap text-left font-medium text-white`}
                     title={titleLine}
                   >
                     <div className="fi-market-title truncate whitespace-nowrap">{titleLine}</div>
                   </td>
                   <td
                     data-label="Strecke"
-                    className="fi-mobile-card-summary w-[200px] truncate px-4 py-3 text-left align-middle text-[11px] text-slate-400"
+                    className={`fi-mobile-card-summary ${MARKET_CELL} ${MARKET_COL.route} truncate text-left text-[11px] text-slate-400`}
                     title={`${order.origin} → ${order.destination}${gate ? ` · ${gate}` : ''}`}
                   >
-                    <span className={gate ? 'truncate font-bold text-rose-400' : 'truncate'}>
+                    <span className={gate ? 'block truncate font-bold text-rose-400' : 'block truncate'}>
                       {order.origin} → {order.destination}
                     </span>
                   </td>
-                  <td data-label="Tonnage / Last" className="w-[100px] px-4 py-3 text-right align-middle font-mono">
+                  <td data-label="Tonnage / Last" className={`${MARKET_CELL} ${MARKET_COL.tons} text-right font-mono`}>
                     {Number(order.weight_t || 0).toLocaleString('de-DE')} t
                   </td>
                   <td
                     data-label="Wagenpark"
-                    className={`w-[140px] truncate px-4 py-3 text-left align-middle text-xs ${shortage ? 'text-rose-400' : 'text-slate-200'}`}
+                    className={`${MARKET_CELL} ${MARKET_COL.wagons} truncate text-left text-xs ${shortage ? 'text-rose-400' : 'text-slate-200'}`}
                     title={shortage || wagonSummary}
                   >
                     {wagonSummary}
                   </td>
-                  <td data-label="Ertrag" className="w-[100px] px-4 py-3 text-right align-middle font-mono font-semibold text-emerald-400">
+                  <td data-label="Ertrag" className={`${MARKET_CELL} ${MARKET_COL.yield} text-right font-mono font-semibold text-emerald-400`}>
                     {einsatz && order.daily_rate
                       ? `${formatEuro(order.daily_rate)}/Tag`
                       : formatEuro(Number(order.yield))}
                   </td>
-                  <td data-label="Pönale" className="w-[90px] px-4 py-3 text-right align-middle font-mono text-rose-400">
+                  <td data-label="Pönale" className={`${MARKET_CELL} ${MARKET_COL.penalty} text-right font-mono text-rose-400`}>
                     {formatPenalty(order)}
                   </td>
-                  <td data-label="Frist" className="w-[90px] px-4 py-3 text-center align-middle font-mono">
+                  <td data-label="Frist" className={`${MARKET_CELL} ${MARKET_COL.deadline} text-center font-mono`}>
                     {time ? (
                       <span
                         className={`tabular-nums ${time.critical ? 'font-bold text-rose-400' : time.urgent ? 'font-bold text-amber-400' : 'text-slate-400'}`}
@@ -523,13 +555,13 @@ export const OrderMarketView = memo(function OrderMarketView({
                       <span className="text-slate-500">—</span>
                     )}
                   </td>
-                  <td data-label="Status / Aktion" className="fi-mobile-card-actions w-[120px] px-4 py-3 text-right align-middle">
-                    <div className="flex flex-wrap items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                  <td data-label="Status / Aktion" className={`fi-mobile-card-actions ${MARKET_CELL} ${MARKET_COL.action} pr-4 text-right`}>
+                    <div className="fi-market-row-actions flex flex-col items-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                       <span className={order.status === 'offen' ? 'fi-pill fi-pill-green' : getOrderPillClass(order.status)}>
                         {order.status === 'offen' ? 'Gültig' : statusCfg.label}
                       </span>
                       {order.status === 'offen' && (
-                        <>
+                        <div className="flex items-center justify-end gap-1">
                           <button
                             type="button"
                             onClick={() => acceptOrder(order)}
@@ -542,7 +574,7 @@ export const OrderMarketView = memo(function OrderMarketView({
                           <button type="button" onClick={() => onReject?.(order)} className="btn-action btn-action-reject" title="Ablehnen">
                             <Ban className="h-3 w-3" />
                           </button>
-                        </>
+                        </div>
                       )}
                       <button type="button" onClick={() => openOrder(order)} className="btn-action btn-action-detail" title="Details">
                         <Info className="h-3 w-3" />

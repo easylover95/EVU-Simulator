@@ -554,6 +554,28 @@
   -webkit-overflow-scrolling: touch;
 }
 
+.fi-market-grid-table.fi-table {
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.fi-market-grid-table.fi-table thead th,
+.fi-market-grid-table.fi-table tbody td {
+  box-sizing: border-box;
+  padding: 0.75rem 0.5rem;
+  vertical-align: middle;
+}
+
+.fi-market-grid-table.fi-table thead th:first-child,
+.fi-market-grid-table.fi-table tbody td:first-child {
+  padding-left: 1rem;
+}
+
+.fi-market-grid-table.fi-table thead th:last-child,
+.fi-market-grid-table.fi-table tbody td:last-child {
+  padding-right: 1rem;
+}
+
 .fi-market-spec {
   display: flex;
   flex-direction: column;
@@ -2576,6 +2598,13 @@ body,
   .fi-mobile-card-table tbody td.fi-mobile-card-actions > div {
     width: 100%;
     gap: 0.42rem;
+  }
+
+  .fi-mobile-card-table tbody td.fi-mobile-card-actions .fi-market-row-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    justify-content: flex-end;
   }
 
   .fi-mobile-card-table tbody td.fi-mobile-card-actions .btn-action {
