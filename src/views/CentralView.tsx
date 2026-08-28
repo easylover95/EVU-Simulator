@@ -29,6 +29,11 @@ import {
   type CorporateMilestoneState,
 } from '@/lib/corporateMilestones';
 import { CORE_LEVEL_CAP, CORPORATE_MILESTONE_XP_STEP } from '@/lib/progression';
+import { reputationBarClass, reputationTextClass, reputationTier } from '@/lib/reputation';
+import { identitySnapshot, type IdentitySnapshot } from '@/lib/operatingCertificates';
+import { operationalEfficiency, type PerformanceLedger } from '@/lib/performanceLedger';
+import { liveryCssClass, type AchievementState, emptyAchievementState } from '@/lib/achievements';
+import type { NetworkAccessState } from '@/lib/networkAccess';
 
 interface CentralViewProps {
   company: Company | null;
@@ -41,6 +46,9 @@ interface CentralViewProps {
   corporateMilestones: CorporateMilestoneState;
   onEditCompany?: () => void;
   onOpenArchive?: () => void;
+  achievements?: AchievementState;
+  networkAccess?: NetworkAccessState | null;
+  performanceLedger?: PerformanceLedger | null;
 }
 
 export function CentralView({
@@ -54,6 +62,9 @@ export function CentralView({
   corporateMilestones,
   onEditCompany,
   onOpenArchive,
+  achievements = emptyAchievementState(),
+  networkAccess,
+  performanceLedger,
 }: CentralViewProps) {
   const activeAssignments = assignments.filter(
     (a) => a.status === 'geplant' || a.status === 'aktiv',
@@ -77,16 +88,24 @@ export function CentralView({
     .filter((o) => o.status === 'abgeschlossen' || o.status === 'zugewiesen')
     .reduce((sum, o) => sum + o.distance_km * o.weight_t, 0);
   const xpPct = company && company.xp_next > 0 ? Math.min(100, (company.xp / company.xp_next) * 100) : 0;
-  const repColor =
-    (company?.reputation ?? 0) >= 70 ? 'text-emerald-400' : (company?.reputation ?? 0) >= 40 ? 'text-amber-400' : 'text-rose-400';
-  const repBarColor =
-    (company?.reputation ?? 0) >= 70 ? 'bg-emerald-500' : (company?.reputation ?? 0) >= 40 ? 'bg-amber-500' : 'bg-rose-500';
+  const rep = company?.reputation ?? 0;
+  const repColor = reputationTextClass(rep);
+  const repBarColor = reputationBarClass(rep);
+  const repTier = reputationTier(rep);
   const coreLevel = Math.min(CORE_LEVEL_CAP, Math.max(1, company?.level ?? 1));
   const corporateRank = corporateRankForProgress(coreLevel, corporateMilestones.totalXp);
   const nextRank = nextCorporateRank(coreLevel, corporateMilestones.totalXp);
   const milestoneProgress = milestoneXpTowardNext(corporateMilestones);
   const milestonePct = Math.min(100, (milestoneProgress / CORPORATE_MILESTONE_XP_STEP) * 100);
   const milestoneNumber = corporateMilestones.completedMilestones + 1;
+  const identity: IdentitySnapshot = identitySnapshot({
+    level: company?.level ?? 1,
+    reputation: company?.reputation ?? 0,
+    locos: locomotives,
+    network: networkAccess,
+    achievements,
+    milestones: corporateMilestones,
+  });
 
   return (
     <SectionShell
@@ -136,9 +155,10 @@ export function CentralView({
             <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Reputation</span>
             <Star className={`h-4 w-4 ${repColor}`} />
           </div>
-          <div className={`mt-1 text-lg font-bold ${repColor}`}>{company?.reputation ?? 0}/100</div>
+          <div className={`mt-1 text-lg font-bold ${repColor}`}>{rep}/100</div>
+          <p className="text-[10px] text-slate-500">{repTier.label}</p>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-700">
-            <div className={`h-full rounded-full ${repBarColor}`} style={{ width: `${company?.reputation ?? 0}%` }} />
+            <div className={`h-full rounded-full ${repBarColor}`} style={{ width: `${rep}%` }} />
           </div>
         </div>
       </div>
@@ -177,6 +197,61 @@ export function CentralView({
           </p>
         )}
       </div>
+
+      <div className="game-box p-4">
+        <div className="text-[10px] font-bold uppercase tracking-wide text-amber-300">Unternehmensidentität</div>
+        <p className="mt-1 text-sm font-bold text-white">
+          {identity.rankLabel}
+          {identity.livery ? ` · Lackierung ${identity.livery.label}` : ''}
+        </p>
+        <p className="mt-1 text-[11px] text-slate-400">
+          Abzeichen und Zertifikate bleiben nach Level {CORE_LEVEL_CAP} erhalten — kein Reset.
+        </p>
+        {identity.livery && <div className={`mt-2 h-2 rounded-full ${liveryCssClass(identity.livery.id)}`} />}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {identity.certificates.map((cert) => (
+            <span
+              key={cert.id}
+              className={`rounded-full border px-2 py-1 text-[10px] font-bold ${
+                cert.earned ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200' : 'border-slate-600 text-slate-500'
+              }`}
+              title={cert.detail}
+            >
+              {cert.label}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {performanceLedger && (performanceLedger.monthly.length > 0 || performanceLedger.seasonal.length > 0) && (
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="game-box p-3">
+            <div className="text-[10px] font-bold uppercase text-slate-500">Monatlicher Umsatz</div>
+            <div className="mt-2 space-y-1">
+              {performanceLedger.monthly.slice(-6).reverse().map((row) => (
+                <div key={row.id} className="flex items-center justify-between text-[11px] text-slate-300">
+                  <span>{row.label}</span>
+                  <span className="tabular-nums text-emerald-300">{formatEuro(row.revenue)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="game-box p-3">
+            <div className="text-[10px] font-bold uppercase text-slate-500">Operative Effizienz (Umsatz/Kosten)</div>
+            <div className="mt-2 space-y-1">
+              {performanceLedger.seasonal.slice(-4).reverse().map((row) => {
+                const eff = operationalEfficiency(row);
+                return (
+                  <div key={row.id} className="flex items-center justify-between text-[11px] text-slate-300">
+                    <span>{row.label}</span>
+                    <span className="tabular-nums text-sky-300">{eff != null ? `${eff.toFixed(2)}×` : '—'}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {dailyFixed && <DailyFixedCostsCard costs={dailyFixed} variant="compact" />}
 

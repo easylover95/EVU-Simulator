@@ -39,6 +39,14 @@ export function driverRestStatus(driver: Driver, now: Date): DriverRestStatus {
   };
 }
 
+export function remainingDutyHours(status: DriverRestStatus): number {
+  return Math.max(0, Math.round((status.maxHours - status.hoursWorked) * 10) / 10);
+}
+
+export function hoursUntilLegalRest(status: DriverRestStatus): number {
+  return Math.max(0, Math.round((MIN_REST_HOURS - status.restHours) * 10) / 10);
+}
+
 export function restStatusHint(status: DriverRestStatus): string | null {
   if (!status.violated) return null;
   if (status.insufficientRest && status.overHours) {

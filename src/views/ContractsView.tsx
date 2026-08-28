@@ -1,23 +1,15 @@
 import type { ReactNode } from 'react';
-import { FileText, MapPin, Package, Factory } from 'lucide-react';
-import type { AssignmentWithDetails, Order, Wagon } from '@/lib/supabase';
+import { FileText, MapPin, Package } from 'lucide-react';
+import type { AssignmentWithDetails, Locomotive, Order, Wagon } from '@/lib/supabase';
 import { formatEuro, getOrderPillClass, getOrderStatusConfig, getOrderTypeConfig } from '@/lib/status';
-import { Button, Card } from '@/components/ui';
 import { SectionShell } from '@/components/SectionShell';
-import {
-  canAcceptIndustrial,
-  contractObligation,
-  industrialDailyOperatingCost,
-  industrialPayableDaily,
-  industrialWagonNeed,
-  requiredDeparturesFor,
-  type IndustrialContract,
-} from '@/lib/freightContracts';
+import { type IndustrialContract } from '@/lib/freightContracts';
 import { checkWagonAvailability, wagonShortageLabel } from '@/lib/brh';
 import { WagonShortageBanner } from '@/components/WagonShortageBanner';
 import type { Acquisition } from '@/lib/dealer';
-import { networkAcceptBlock, type NetworkAccessState } from '@/lib/networkAccess';
-import type { Locomotive } from '@/lib/supabase';
+import type { NetworkAccessState } from '@/lib/networkAccess';
+import { FrameworkContractsPanel } from '@/components/FrameworkContractsPanel';
+import type { DepotState } from '@/lib/depot';
 
 interface ContractsViewProps {
   orders: Order[];
@@ -38,6 +30,7 @@ interface ContractsViewProps {
   networkAccess?: NetworkAccessState;
   locomotives?: Locomotive[];
   onOpenNetworkDealer?: () => void;
+  depot?: DepotState;
 }
 
 export function ContractsView({
@@ -59,12 +52,11 @@ export function ContractsView({
   networkAccess,
   locomotives = [],
   onOpenNetworkDealer,
+  depot,
 }: ContractsViewProps) {
   const active = orders.filter((o) => o.status === 'zugewiesen');
   const done = orders.filter((o) => o.status === 'abgeschlossen');
   const rest = orders.filter((o) => o.status === 'offen' || o.status === 'abgelehnt');
-  const offers = industrial.filter((c) => c.status === 'available' || c.status === 'active');
-  const archive = industrial.filter((c) => c.status === 'declined' || c.status === 'expired');
 
   return (
     <SectionShell
@@ -73,142 +65,25 @@ export function ContractsView({
     >
 
       {onAcceptIndustrial && (
-        <div className="grid gap-3 lg:grid-cols-2">
-          {offers.map((c) => {
-            const standing = { level: companyLevel, reputation: bekanntheit, tick: companyTick };
-            const payable = industrialPayableDaily(c, standing);
-            const op = industrialDailyOperatingCost(c);
-            const activeC = c.status === 'active';
-            const lockedOffer = c.status === 'available' && !canAcceptIndustrial(c, standing);
-            const wagonNeed = industrialWagonNeed(c);
-            const wagonCheck = checkWagonAvailability(wagonNeed, wagons);
-            const obl = activeC ? contractObligation(c, standing, assignments) : null;
-            const needRuns = requiredDeparturesFor(c, companyLevel);
-            const netBlock = networkAccess
-              ? networkAcceptBlock(
-                  {
-                    origin: c.corridor.split('→')[0]?.trim() ?? c.corridor,
-                    destination: c.corridor.split('→')[1]?.trim() ?? c.corridor,
-                    origin_country: c.originCountry,
-                    destination_country: c.destCountry,
-                    requires_etcs: c.requiresEtcs,
-                  },
-                  networkAccess,
-                  locomotives,
-                )
-              : null;
-            const lockHint = lockedOffer
-              ? companyLevel < (c.minLevel ?? 1)
-                ? `Ab EVU-Level ${c.minLevel}`
-                : `Ab Bekanntheit ${c.minBekanntheit}`
-              : null;
-            return (
-              <Card key={c.id} className="p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 text-amber-400">
-                    <Factory className="h-4 w-4" />
-                    <h3 className="text-sm font-bold text-white">{c.title}</h3>
-                  </div>
-                  <span className="text-[10px] font-bold uppercase text-amber-300">
-                    {activeC ? 'Aktiv' : lockHint ? lockHint : 'Angebot'}
-                  </span>
-                </div>
-                <p className="mt-1 text-xs text-slate-400">
-                  {c.partner} · {c.corridor}
-                </p>
-                <dl className="mt-3 grid grid-cols-3 gap-2 text-[11px]">
-                  <div>
-                    <dt className="uppercase text-slate-500">Laufzeit</dt>
-                    <dd className="font-bold text-white">{c.periodDays} Tage</dd>
-                  </div>
-                  <div>
-                    <dt className="uppercase text-slate-500">Abfahrten</dt>
-                    <dd className="font-bold text-white">{needRuns} / Tag</dd>
-                  </div>
-                  <div>
-                    <dt className="uppercase text-slate-500">Erlös / Lauf</dt>
-                    <dd className="font-bold text-emerald-400">{formatEuro(obl?.tripYield ?? Math.round(payable / Math.max(1, c.dailyDepartures)))}</dd>
-                  </div>
-                </dl>
-                <p className="mt-2 text-[10px] text-slate-500">
-                  Trasse/Energie {formatEuro(obl?.tripOpex ?? Math.round(op / Math.max(1, c.dailyDepartures)))} / Lauf
-                  {c.requiredWagonType ? ` · ${c.requiredWagonCount}× ${c.requiredWagonType}` : ''}
-                  {companyLevel < 6 ? ' · Vollpreis steigt mit EVU-Level' : ''}
-                </p>
-                {netBlock && (
-                  <p className="mt-2 text-[11px] font-bold text-rose-400">
-                    {netBlock}{' '}
-                    {onOpenNetworkDealer && (
-                      <button type="button" className="underline" onClick={onOpenNetworkDealer}>
-                        Händler
-                      </button>
-                    )}
-                  </p>
-                )}
-                {activeC && obl && (
-                  <div
-                    className={`mt-3 rounded-sm border p-2 text-[11px] ${
-                      obl.covered
-                        ? 'border-emerald-600 bg-emerald-950/30 text-emerald-200'
-                        : 'border-rose-500 bg-rose-950/30 text-rose-100'
-                    }`}
-                  >
-                    <div className="font-bold uppercase">
-                      {obl.covered ? 'Erfüllt' : 'Unterdeckt'} · {obl.fulfilled}/{obl.required} Läufe
-                    </div>
-                    <p className="mt-0.5">
-                      {obl.nextDueLabel}
-                      {!obl.covered ? ` · Vertragsstrafe ${formatEuro(obl.missPenalty)} je Fehlfahrt` : ''}
-                    </p>
-                    {!wagonCheck.sufficient && (
-                      <div className="mt-2">
-                        <WagonShortageBanner
-                          check={wagonCheck}
-                          onQuickAcquire={onQuickAcquireWagons}
-                          onOpenDealer={onBuyMissingWagons}
-                          onOpenBuildings={onOpenBuildings}
-                          freeBerths={freeBerths}
-                        />
-                      </div>
-                    )}
-                    {onDispatchContract && (
-                      <Button className="mt-2" disabled={!!netBlock} onClick={() => onDispatchContract(c.id)}>
-                        Disponieren
-                      </Button>
-                    )}
-                  </div>
-                )}
-                {!activeC && (
-                  <div className="mt-3 space-y-2">
-                    {!wagonCheck.sufficient && (
-                      <WagonShortageBanner
-                        check={wagonCheck}
-                        onQuickAcquire={onQuickAcquireWagons}
-                        onOpenDealer={onBuyMissingWagons}
-                        onOpenBuildings={onOpenBuildings}
-                        freeBerths={freeBerths}
-                      />
-                    )}
-                    <div className="flex gap-2">
-                      <Button disabled={lockedOffer || !wagonCheck.sufficient || !!netBlock} onClick={() => onAcceptIndustrial(c.id)}>
-                        Annehmen
-                      </Button>
-                      <Button variant="secondary" onClick={() => onDeclineIndustrial?.(c.id)}>
-                        Ablehnen
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {archive.length > 0 && (
-        <p className="text-[11px] text-slate-500">
-          Archiv: {archive.map((c) => `${c.title} (${c.status})`).join(' · ')}
-        </p>
+        <FrameworkContractsPanel
+          industrial={industrial}
+          wagons={wagons}
+          bekanntheit={bekanntheit}
+          companyLevel={companyLevel}
+          onAcceptIndustrial={onAcceptIndustrial}
+          onDeclineIndustrial={onDeclineIndustrial}
+          onBuyMissingWagons={onBuyMissingWagons}
+          onQuickAcquireWagons={onQuickAcquireWagons}
+          onOpenBuildings={onOpenBuildings}
+          freeBerths={freeBerths}
+          assignments={assignments}
+          companyTick={companyTick}
+          onDispatchContract={onDispatchContract}
+          networkAccess={networkAccess}
+          locomotives={locomotives}
+          onOpenNetworkDealer={onOpenNetworkDealer}
+          depot={depot}
+        />
       )}
 
       <ContractSection title={`Laufend (${active.length})`} empty="Keine laufenden Verträge">
