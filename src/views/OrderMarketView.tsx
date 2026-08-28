@@ -678,24 +678,35 @@ export const OrderMarketView = memo(function OrderMarketView({
 
       {detailOrder && (
         <div
-      className="modal-scrim fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="order-detail-scrim modal-scrim fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
           onClick={() => setDetailOrder(null)}
         >
-          <div className="fi-card max-w-xl w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="fi-card-header flex items-center justify-between">
-              <span className="flex items-center gap-2">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="order-detail-title"
+            className="order-detail-dialog relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-800 p-4">
+              <span id="order-detail-title" className="flex min-w-0 items-center gap-2 font-mono text-sm font-bold text-white">
                 {detailOrder.type === 'baugleis' ? (
-                  <HardHat className="h-3.5 w-3.5 text-amber-500" />
+                  <HardHat className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                 ) : (
-                  <Package className="h-3.5 w-3.5 text-amber-500" />
+                  <Package className="h-3.5 w-3.5 shrink-0 text-amber-500" />
                 )}
-                {detailOrder.order_number}
+                <span className="truncate">{detailOrder.order_number}</span>
               </span>
-              <button onClick={() => setDetailOrder(null)} className="text-slate-500 hover:text-white">
+              <button
+                type="button"
+                onClick={() => setDetailOrder(null)}
+                className="inline-flex h-12 w-12 shrink-0 items-center justify-center text-lg text-slate-500 hover:text-white"
+                aria-label="Schließen"
+              >
                 ✕
               </button>
             </div>
-            <div className="space-y-3 p-4">
+            <div className="custom-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto p-6">
               <div className="text-sm font-bold text-white">{detailOrder.title}</div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailRow label="Streckenprofil" value={`${detailOrder.origin} → ${detailOrder.destination} · ${detailOrder.distance_km} km · ${corridorCountryHint(detailOrder)}`} />
@@ -814,24 +825,6 @@ export const OrderMarketView = memo(function OrderMarketView({
                 freeBerths={freeBerths}
               />
 
-              {detailOrder.status === 'offen' && (
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button variant="secondary" onClick={() => setDetailOrder(null)}>
-                    Schließen
-                  </Button>
-                  <Button
-                    disabled={!checkWagonAvailability(detailOrder, wagons).sufficient || !!orderGate(detailOrder)}
-                    onClick={() => {
-                      if (!checkWagonAvailability(detailOrder, wagons).sufficient || orderGate(detailOrder)) return;
-                      setDetailOrder(null);
-                      onDisponieren?.(detailOrder);
-                    }}
-                  >
-                    Zur Disposition
-                  </Button>
-                </div>
-              )}
-
               {detailOrder.type === 'baugleis' && detailOrder.sperrpause_start && detailOrder.sperrpause_end && (
                 <SperrpauseBanner
                   start={detailOrder.sperrpause_start}
@@ -845,6 +838,23 @@ export const OrderMarketView = memo(function OrderMarketView({
                 <div className="rounded-sm border border-slate-700 bg-slate-800/50 p-2 text-xs text-slate-400">
                   {detailOrder.notes}
                 </div>
+              )}
+            </div>
+            <div className="flex shrink-0 justify-end gap-3 border-t border-slate-800 bg-slate-900/90 p-4">
+              <Button variant="secondary" onClick={() => setDetailOrder(null)}>
+                Schließen
+              </Button>
+              {detailOrder.status === 'offen' && (
+                <Button
+                  disabled={!checkWagonAvailability(detailOrder, wagons).sufficient || !!orderGate(detailOrder)}
+                  onClick={() => {
+                    if (!checkWagonAvailability(detailOrder, wagons).sufficient || orderGate(detailOrder)) return;
+                    setDetailOrder(null);
+                    onDisponieren?.(detailOrder);
+                  }}
+                >
+                  Zur Disposition
+                </Button>
               )}
             </div>
           </div>

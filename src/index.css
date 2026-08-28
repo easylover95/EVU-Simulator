@@ -727,6 +727,33 @@ body,
   background: rgba(22, 25, 30, 0.78);
 }
 
+.order-detail-scrim.modal-scrim {
+  z-index: 80;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.order-detail-scrim.modal-scrim > [role='dialog'] {
+  max-height: 85vh;
+  overflow: hidden;
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 0.5rem;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.45);
+}
+
 .help-handbook {
   display: flex;
   flex-direction: column;
@@ -2281,12 +2308,25 @@ body,
   .modal-scrim.modal-scrim > form,
   .modal-scrim.modal-scrim > .fi-card,
   .modal-scrim.modal-scrim > .app-glass:not(.help-handbook):not(.achievements-gallery),
-  .modal-scrim.modal-scrim > [role='dialog']:not(.help-handbook):not(.achievements-gallery) {
+  .modal-scrim.modal-scrim > [role='dialog']:not(.help-handbook):not(.achievements-gallery):not(.order-detail-dialog) {
     width: 100%;
     max-height: calc(100dvh - 3rem - env(safe-area-inset-bottom));
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .order-detail-scrim.modal-scrim {
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    overflow: hidden;
+  }
+
+  .order-detail-scrim.modal-scrim > [role='dialog'] {
+    width: min(100%, 42rem);
+    max-height: 85vh;
+    overflow: hidden;
   }
 }
 
@@ -2891,15 +2931,15 @@ body,
     color: #fde68a;
   }
 
-  .modal-scrim:not(.help-handbook):not(.achievements-gallery) {
+  .modal-scrim:not(.help-handbook):not(.achievements-gallery):not(.order-detail-scrim) {
     align-items: flex-end;
     padding: 0;
   }
 
-  .modal-scrim:not(.help-handbook):not(.achievements-gallery) > form,
-  .modal-scrim:not(.help-handbook):not(.achievements-gallery) > .fi-card,
-  .modal-scrim:not(.help-handbook):not(.achievements-gallery) > .app-glass,
-  .modal-scrim:not(.help-handbook):not(.achievements-gallery) > [role='dialog'] {
+  .modal-scrim:not(.help-handbook):not(.achievements-gallery):not(.order-detail-scrim) > form,
+  .modal-scrim:not(.help-handbook):not(.achievements-gallery):not(.order-detail-scrim) > .fi-card,
+  .modal-scrim:not(.help-handbook):not(.achievements-gallery):not(.order-detail-scrim) > .app-glass,
+  .modal-scrim:not(.help-handbook):not(.achievements-gallery):not(.order-detail-scrim) > [role='dialog'] {
     width: 100%;
     max-width: none;
     max-height: min(89dvh, 48rem);
@@ -2916,10 +2956,10 @@ body,
 
 @media (prefers-reduced-motion: reduce) {
   .app-mobile-menu-sheet,
-  .modal-scrim:not(.help-handbook):not(.achievements-gallery) > form,
-  .modal-scrim:not(.help-handbook):not(.achievements-gallery) > .fi-card,
-  .modal-scrim:not(.help-handbook):not(.achievements-gallery) > .app-glass,
-  .modal-scrim:not(.help-handbook):not(.achievements-gallery) > [role='dialog'] {
+  .modal-scrim:not(.help-handbook):not(.achievements-gallery):not(.order-detail-scrim) > form,
+  .modal-scrim:not(.help-handbook):not(.achievements-gallery):not(.order-detail-scrim) > .fi-card,
+  .modal-scrim:not(.help-handbook):not(.achievements-gallery):not(.order-detail-scrim) > .app-glass,
+  .modal-scrim:not(.help-handbook):not(.achievements-gallery):not(.order-detail-scrim) > [role='dialog'] {
     animation: none;
   }
 }
