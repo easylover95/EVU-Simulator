@@ -121,6 +121,12 @@ export interface Order {
   required_drivers?: number | null;
   eur_per_tkm?: number | null;
   tkm_revenue?: number | null;
+  /** False = no overhead wire (Anschluss, Baugleis, Nebenbahn). Default true for mainline freight. */
+  electrified?: boolean | null;
+  /** High-margin special listing tailored to the player's fleet. */
+  special?: boolean | null;
+  /** Reputation-gated exclusive block train. */
+  exclusive?: boolean | null;
 }
 
 export interface Assignment {
