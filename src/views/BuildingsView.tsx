@@ -2,6 +2,7 @@ import { Building2 } from 'lucide-react';
 import { Card } from '@/components/ui';
 import { SectionShell } from '@/components/SectionShell';
 import { DepotUpgradePanel } from '@/components/DepotUpgradePanel';
+import { NetworkSitesPanel } from '@/components/NetworkSitesPanel';
 import {
   BASE_LOCO_BERTHS,
   BASE_WAGON_BERTHS,
@@ -10,7 +11,7 @@ import {
   workshopSlotCap,
   type DepotState,
 } from '@/lib/depot';
-import type { Wagon } from '@/lib/supabase';
+import type { Locomotive, Wagon } from '@/lib/supabase';
 
 interface BuildingsViewProps {
   hqLocation?: string;
@@ -22,6 +23,9 @@ interface BuildingsViewProps {
   wagons: Wagon[];
   workshopUsed: number;
   onBuyExpansion: (expansionId: string) => boolean;
+  locomotives: Locomotive[];
+  onBuyNetworkSite: (siteId: string) => boolean;
+  onRelocateLoco: (locoId: string, siteId: string) => boolean;
 }
 
 export function BuildingsView({
@@ -34,6 +38,9 @@ export function BuildingsView({
   wagons,
   workshopUsed,
   onBuyExpansion,
+  locomotives,
+  onBuyNetworkSite,
+  onRelocateLoco,
 }: BuildingsViewProps) {
   const standort = hqLocation?.trim() || 'Duisburg';
   const workshopCap = workshopSlotCap(depot);
@@ -49,9 +56,10 @@ export function BuildingsView({
           <div>
             <h3 className="text-lg font-bold text-white">Gebäude — Zentrale {standort}</h3>
             <p className="mt-1 text-sm text-slate-400">
-              {companyName ?? 'AixRail GmbH'} startet mit {BASE_LOCO_BERTHS} Lok-Stellplätzen,{' '}
-              {BASE_WAGON_BERTHS} Wagen-Plätzen und {BASE_WORKSHOP_SLOTS} Werkstatt-Slots. Weitere Gleise und
-              Werkstattkapazität kaufst du hier stufenweise, sobald das Firmen-Level reicht.
+              {companyName ?? 'AixRail GmbH'} startet in Duisburg mit {BASE_LOCO_BERTHS} Lok-Stellplätzen,{' '}
+              {BASE_WAGON_BERTHS} Wagen-Plätzen und {BASE_WORKSHOP_SLOTS} Werkstatt-Slots. Weitere Knoten (Hamburg Hafen,
+              Maschen Rbf, München Ost und weitere) kaufst du als eigene Betriebsstellen — Kapazität in Fuhrpark, Händler
+              und Personal wächst mit.
             </p>
             <p className="mt-2 text-sm font-bold text-amber-100">
               Werkstatt aktuell {workshopUsed} / {workshopCap} belegt · {workshopFree} frei
@@ -73,6 +81,15 @@ export function BuildingsView({
         wagons={wagons}
         workshopUsed={workshopUsed}
         onBuy={onBuyExpansion}
+      />
+
+      <NetworkSitesPanel
+        depot={depot}
+        companyLevel={companyLevel}
+        balance={balance}
+        locomotives={locomotives}
+        onBuySite={onBuyNetworkSite}
+        onRelocate={onRelocateLoco}
       />
     </SectionShell>
   );

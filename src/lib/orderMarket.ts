@@ -10,6 +10,8 @@ import {
   TRASSE_EUR_PER_TRAIN_KM,
   TRASSE_WEIGHT_EUR_PER_100T_KM,
 } from '@/lib/operatingRates';
+import { ownedNetworkSites, type DepotRegion } from '@/lib/networkSites';
+import { EXCLUSIVE_YIELD_FACTOR, exclusiveJobsUnlocked } from '@/lib/reputation';
 
 export const ORDER_MARKET_KEY = 'evu-order-market';
 export const MARKET_REFRESH_DAY_KEY = 'evu-market-refresh-day';
@@ -171,6 +173,7 @@ export interface FreightCustomer {
   cargoLabels: string[];
   minLevel?: number;
   minReputation?: number;
+  exclusive?: boolean;
 }
 
 export const FREIGHT_CUSTOMERS: FreightCustomer[] = [
@@ -356,11 +359,24 @@ export const FREIGHT_CUSTOMERS: FreightCustomer[] = [
     cargoLabels: ['Papier', 'Rollenpapier'],
   },
   {
-    id: 'palette-express',
-    name: 'Palette Express',
+    id: 'nordsee-erz',
+    name: 'Nordsee Erz AG',
+    category: 'stahl',
+    wagonTypes: ['Eanos'],
+    cargoLabels: ['Eisenerz-Ganzzug', 'Pellets Erz'],
+    minLevel: 4,
+    minReputation: 70,
+    exclusive: true,
+  },
+  {
+    id: 'alpen-nord',
+    name: 'Alpen-Nord Intermodal',
     category: 'intermodal',
-    wagonTypes: ['Hbbillns'],
-    cargoLabels: ['Palettenware', 'Stückgut'],
+    wagonTypes: ['Sggrss'],
+    cargoLabels: ['Premium-Container', 'Ganzzug-Boxen'],
+    minLevel: 5,
+    minReputation: 85,
+    exclusive: true,
   },
 ];
 
@@ -375,6 +391,7 @@ interface RouteTemplate {
   requiresEtcs?: boolean;
   /** Default true (Hauptbahn mit Fahrdraht). False = Anschluss / Bau / Nebenbahn. */
   electrified?: boolean;
+  region?: DepotRegion;
 }
 
 const ROUTES: Record<FreightCustomerCategory, RouteTemplate[]> = {
@@ -643,6 +660,8 @@ export interface MarketGenerationContext {
   wagonBerthCapacity?: number;
   /** Player locomotives — the generator guarantees matching traction, wire and weight. */
   locomotives?: Locomotive[];
+  /** Owned EVU operating sites unlock matching regional corridors. */
+  ownedSiteIds?: string[];
 }
 
 export interface MarketSizingPolicy {
@@ -788,13 +807,13 @@ export function applyFreightPricing(order: Order, standing?: CommercialStanding 
   const requiresEtcs =
     order.requires_etcs === true || originCountry === 'CH' || destCountry === 'CH' || originCountry !== destCountry;
   const special = order.special === true;
+  const exclusive = order.exclusive === true;
+  const yieldFactor = exclusive ? EXCLUSIVE_YIELD_FACTOR : special ? SPECIAL_ORDER_YIELD_FACTOR : 1;
   const yieldAmt =
     deployment && daily != null
       ? daily * (order.deployment_days ?? 0)
-      : special
-        ? Math.round(priced.yield * SPECIAL_ORDER_YIELD_FACTOR)
-        : priced.yield;
-  const tkmRevenue = special ? Math.round(priced.tkmRevenue * SPECIAL_ORDER_YIELD_FACTOR) : priced.tkmRevenue;
+      : Math.round(priced.yield * yieldFactor);
+  const tkmRevenue = Math.round(priced.tkmRevenue * yieldFactor);
   const electrified = isOrderElectrified(order);
   return {
     ...order,
@@ -810,6 +829,7 @@ export function applyFreightPricing(order: Order, standing?: CommercialStanding 
     penalty_per_min: penaltyPerMin > 0 ? scaleLegacyAmount(penaltyPerMin) : 0,
     electrified,
     special,
+    exclusive,
   };
 }
 
@@ -829,10 +849,23 @@ function routeIsElectrified(route: RouteTemplate): boolean {
   return route.electrified !== false;
 }
 
+function inferRouteRegion(route: Pick<RouteTemplate, 'origin' | 'destination' | 'region'>): DepotRegion {
+  if (route.region) return route.region;
+  const blob = `${route.origin} ${route.destination}`.toLowerCase();
+  if (/duisburg|dortmund|thyssen/.test(blob)) return 'ruhr';
+  if (/hamburg|maschen|bremerhaven|emden/.test(blob)) return 'nord';
+  if (/münchen|muenchen|augsburg|passau|ingolstadt|innsbruck|verona/.test(blob)) return 'sued';
+  if (/leipzig|dresden|halle|berlin|pozna/.test(blob)) return 'ost';
+  if (/ludwigshafen|mannheim|karlsruhe|stuttgart|frankfurt/.test(blob)) return 'mitte';
+  if (/köln|koeln|venlo/.test(blob)) return 'west';
+  return 'ruhr';
+}
+
 function pickRoute(
   category: FreightCustomerCategory,
   standing?: CommercialStanding | null,
   electrified?: boolean,
+  preferredRegions?: ReadonlySet<DepotRegion> | null,
 ): RouteTemplate {
   const cap = maxSpotDistanceKm(Math.max(1, Number(standing?.level) || 1));
   const wantWire = electrified !== false;
@@ -840,8 +873,13 @@ function pickRoute(
   const byWire = all.filter((r) => routeIsElectrified(r) === wantWire);
   const source = byWire.length > 0 ? byWire : wantWire ? all.filter(routeIsElectrified) : all.filter((r) => !routeIsElectrified(r));
   const poolSource = source.length > 0 ? source : all;
-  const local = poolSource.filter((r) => r.distanceKm <= cap);
-  const pool = local.length > 0 ? local : [...poolSource].sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 2);
+  const regional =
+    preferredRegions && preferredRegions.size > 0
+      ? poolSource.filter((r) => preferredRegions.has(inferRouteRegion(r)))
+      : poolSource;
+  const scoped = regional.length > 0 ? regional : poolSource;
+  const local = scoped.filter((r) => r.distanceKm <= cap);
+  const pool = local.length > 0 ? local : [...scoped].sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 2);
   return pick(pool);
 }
 
@@ -859,8 +897,13 @@ function eligibleCustomers(
 ): FreightCustomer[] {
   const level = Math.max(1, Number(standing?.level) || 1);
   const rep = Math.max(0, Number(standing?.reputation) || 0);
-  const next = list.filter((c) => (c.minLevel ?? 1) <= level && (c.minReputation ?? 0) <= rep);
-  return next.length > 0 ? next : list.filter((c) => (c.minLevel ?? 1) <= 1);
+  const next = list.filter(
+    (c) =>
+      (c.minLevel ?? 1) <= level &&
+      (c.minReputation ?? 0) <= rep &&
+      (!c.exclusive || exclusiveJobsUnlocked(rep)),
+  );
+  return next.length > 0 ? next : list.filter((c) => (c.minLevel ?? 1) <= 1 && !c.exclusive);
 }
 
 interface SpotBuildOptions {
@@ -869,6 +912,10 @@ interface SpotBuildOptions {
   electrified?: boolean;
   maxWeightT?: number;
   special?: boolean;
+  exclusive?: boolean;
+  routeOverride?: RouteTemplate;
+  regionNote?: string;
+  preferredRegions?: ReadonlySet<DepotRegion> | null;
 }
 
 function buildSpotOrder(
@@ -882,7 +929,8 @@ function buildSpotOrder(
   const asConstructionSpot = options.asConstructionSpot;
   const loadClass = options.loadClass ?? 'mittel';
   const wantWire = options.electrified !== false && !asConstructionSpot && customer.category !== 'gleisbau';
-  const route = pickRoute(customer.category, standing, wantWire);
+  const route =
+    options.routeOverride ?? pickRoute(customer.category, standing, wantWire, options.preferredRegions);
   const electrified = asConstructionSpot || customer.category === 'gleisbau' ? false : routeIsElectrified(route);
   const net = routeCountries(route);
   const cargo = pick(customer.cargoLabels);
@@ -891,20 +939,27 @@ function buildSpotOrder(
   const need = wagonNeed(wagonType, loadClass, options.maxWeightT);
   const type: OrderType = customer.category === 'gleisbau' || asConstructionSpot ? 'baugleis' : 'gueterverkehr';
   const priced = computeSpotYield(type, route.distanceKm, need.weight, customer.category, standing);
-  const yieldAmt = options.special ? Math.round(priced.yield * SPECIAL_ORDER_YIELD_FACTOR) : priced.yield;
-  const tkmRevenue = options.special ? Math.round(priced.tkmRevenue * SPECIAL_ORDER_YIELD_FACTOR) : priced.tkmRevenue;
+  const exclusive = options.exclusive === true;
+  const special = options.special === true || exclusive;
+  const yieldFactor = exclusive ? EXCLUSIVE_YIELD_FACTOR : special ? SPECIAL_ORDER_YIELD_FACTOR : 1;
+  const yieldAmt = Math.round(priced.yield * yieldFactor);
+  const tkmRevenue = Math.round(priced.tkmRevenue * yieldFactor);
   const eurPerTkm = priced.tkm > 0 ? yieldAmt / priced.tkm : priced.eurPerTkm;
   const sperre = type === 'baugleis' ? pick(SPERRPAUSEN) : null;
   const hours = type === 'baugleis' ? randInt(18, 36) : randInt(36, 96);
   const deadline = new Date(gameDate.getTime() + hours * 60 * 60 * 1000).toISOString();
   const wireNote = electrified ? 'elektrifiziert (E-Lok / Dual / Diesel)' : 'ohne Oberleitung (Diesel / Dual, Anschluss oder Baustelle)';
-  const specialNote = options.special
-    ? `Spezialauftrag · hochrentabel (+${Math.round((SPECIAL_ORDER_YIELD_FACTOR - 1) * 100)} %) · `
-    : '';
+  const specialNote = exclusive
+    ? `Exklusiv-Ganzzug · Reputation ${Math.round((EXCLUSIVE_YIELD_FACTOR - 1) * 100)} % Aufschlag · `
+    : special
+      ? `Spezialauftrag · hochrentabel (+${Math.round((SPECIAL_ORDER_YIELD_FACTOR - 1) * 100)} %) · `
+      : '';
+  const regionNote = options.regionNote ? `${options.regionNote} · ` : '';
+  const titlePrefix = exclusive ? 'Exklusiv · ' : special ? 'Spezial · ' : '';
   const title =
     type === 'baugleis'
-      ? `${options.special ? 'Spezial · ' : ''}${cargo} ${customer.name} · ${route.destination}`
-      : `${options.special ? 'Spezial · ' : ''}${cargo} ${route.origin}–${route.destination}`;
+      ? `${titlePrefix}${cargo} ${customer.name} · ${route.destination}`
+      : `${titlePrefix}${cargo} ${route.origin}–${route.destination}`;
 
   return {
     id: newNotificationId(),
@@ -919,7 +974,7 @@ function buildSpotOrder(
     penalty: type === 'baugleis' ? scaleLegacyAmount(randInt(2800, 5200)) : scaleLegacyAmount(randInt(180, 800)),
     deadline,
     status: 'offen',
-    notes: `${specialNote}${customer.name} · ${wireNote} · ${need.classLabel}: ${need.count}× ${wagonType} · Ø ${need.payloadPerWagon} t/Wagen · ${priced.tkm.toLocaleString('de-DE')} tkm · ${eurPerTkm.toFixed(3).replace('.', ',')} €/tkm (Sockel ${priced.baseRevenue.toLocaleString('de-DE')} € + ${tkmRevenue.toLocaleString('de-DE')} € tkm-Anteil)`,
+    notes: `${specialNote}${regionNote}${customer.name} · ${wireNote} · ${need.classLabel}: ${need.count}× ${wagonType} · Ø ${need.payloadPerWagon} t/Wagen · ${priced.tkm.toLocaleString('de-DE')} tkm · ${eurPerTkm.toFixed(3).replace('.', ',')} €/tkm (Sockel ${priced.baseRevenue.toLocaleString('de-DE')} € + ${tkmRevenue.toLocaleString('de-DE')} € tkm-Anteil)`,
     min_brh: clampOrderMinBrh(type, type === 'baugleis' ? randInt(50, 65) : randInt(60, 75)),
     required_wagon_type: wagonType,
     required_wagon_count: need.count,
@@ -939,7 +994,8 @@ function buildSpotOrder(
     eur_per_tkm: eurPerTkm,
     tkm_revenue: tkmRevenue,
     electrified,
-    special: options.special === true,
+    special,
+    exclusive,
   };
 }
 
@@ -1016,9 +1072,15 @@ export function generateMarketOrders(
     standing,
   );
   const freight = eligibleCustomers(
-    FREIGHT_CUSTOMERS.filter((c) => c.category !== 'gleisbau'),
+    FREIGHT_CUSTOMERS.filter((c) => c.category !== 'gleisbau' && !c.exclusive),
     standing,
   );
+  const exclusiveCustomers = eligibleCustomers(
+    FREIGHT_CUSTOMERS.filter((c) => c.exclusive),
+    standing,
+  );
+  const sites = ownedNetworkSites(context?.ownedSiteIds);
+  const preferredRegions = new Set(sites.map((site) => site.region));
   const orders: Order[] = [];
 
   const lightCap = Math.min(fleet.minTrailingT * 0.92, fleet.maxOhleTrailingT);
@@ -1033,6 +1095,7 @@ export function generateMarketOrders(
         loadClass: 'leicht',
         electrified: true,
         maxWeightT: lightCap,
+        preferredRegions,
       }),
     );
   }
@@ -1046,6 +1109,7 @@ export function generateMarketOrders(
         loadClass: loadClassForHook(fleet.maxOhleTrailingT, sizing.allowedClasses, prefer),
         electrified: true,
         maxWeightT: prefer === 'light' ? lightCap : heavyCap,
+        preferredRegions,
       }),
     );
   }
@@ -1119,6 +1183,65 @@ export function generateMarketOrders(
   if (level >= 6 && !orders.some((o) => o.deployment_days === 180)) {
     if (Math.random() < 0.35) {
       orders.push(buildEinsatzOrder(pick(gleisbau), 180, gameDate, tick, used, standing, dieselCap));
+    }
+  }
+
+  for (const site of sites) {
+    const pool = eligibleCustomers(
+      FREIGHT_CUSTOMERS.filter((c) => site.categories.includes(c.category) && !c.exclusive),
+      standing,
+    );
+    if (pool.length === 0 || site.routes.length === 0) continue;
+    const siteRoute = pick(site.routes);
+    const routeOverride: RouteTemplate = {
+      origin: siteRoute.origin,
+      destination: siteRoute.destination,
+      distanceKm: siteRoute.distanceKm,
+      electrified: siteRoute.electrified,
+      region: site.region,
+    };
+    orders.push(
+      buildSpotOrder(pick(pool), gameDate, tick, used, standing, {
+        asConstructionSpot: !siteRoute.electrified,
+        loadClass: loadClassForHook(
+          siteRoute.electrified ? fleet.maxOhleTrailingT : fleet.maxUnelectrifiedTrailingT,
+          sizing.allowedClasses,
+          'mix',
+        ),
+        electrified: siteRoute.electrified,
+        maxWeightT: siteRoute.electrified ? heavyCap : dieselCap,
+        routeOverride,
+        regionNote: `${site.name}: ${site.flavor}`,
+      }),
+    );
+  }
+
+  if (exclusiveJobsUnlocked(standing?.reputation)) {
+    const exclusivePool = exclusiveCustomers.length > 0 ? exclusiveCustomers : freight;
+    const exclusiveCount = standing && (standing.reputation ?? 0) >= 85 ? 2 : 1;
+    for (let i = 0; i < exclusiveCount; i += 1) {
+      const site = sites[i % Math.max(1, sites.length)];
+      const siteRoute = site?.routes.find((r) => r.electrified) ?? site?.routes[0];
+      const routeOverride: RouteTemplate | undefined = siteRoute
+        ? {
+            origin: siteRoute.origin,
+            destination: siteRoute.destination,
+            distanceKm: Math.max(siteRoute.distanceKm, 280),
+            electrified: siteRoute.electrified,
+            region: site?.region,
+          }
+        : undefined;
+      orders.push(
+        buildSpotOrder(pick(exclusivePool), gameDate, tick, used, standing, {
+          asConstructionSpot: false,
+          loadClass: loadClassForHook(fleet.maxOhleTrailingT, sizing.allowedClasses, 'heavy'),
+          electrified: true,
+          maxWeightT: heavyCap,
+          exclusive: true,
+          routeOverride,
+          regionNote: 'Exklusivauftrag für Premium-Reputation',
+        }),
+      );
     }
   }
 

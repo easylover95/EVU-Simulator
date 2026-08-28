@@ -31,6 +31,7 @@ export const RAIL_STATIONS: Record<string, StationCoord> = {
   mannheim: { lat: 49.48, lng: 8.47, label: 'Mannheim' },
   karlsruhe: { lat: 48.994, lng: 8.401, label: 'Karlsruhe' },
   basel: { lat: 47.547, lng: 7.59, label: 'Basel' },
+  maschen: { lat: 53.4, lng: 10.11, label: 'Maschen Rbf' },
 };
 
 const GERMANY_CENTER: StationCoord = { lat: 51.16, lng: 10.45, label: 'Mitteleuropa' };
@@ -84,9 +85,17 @@ const ALIASES: Record<string, keyof typeof RAIL_STATIONS> = {
   dresden: 'dresden',
   dortmund: 'dortmund',
   duisburg: 'duisburg',
+  'duisburg hafen': 'duisburg',
   mannheim: 'mannheim',
+  'mannheim rbf': 'mannheim',
   karlsruhe: 'karlsruhe',
   basel: 'basel',
+  maschen: 'maschen',
+  'maschen rbf': 'maschen',
+  'hamburg hafen': 'hamburg',
+  'muenchen ost': 'muenchen',
+  'koeln gremberg': 'koeln',
+  'leipzig engelsdorf': 'leipzig',
 };
 
 export const TRUNK_CORRIDORS: Array<[keyof typeof RAIL_STATIONS, keyof typeof RAIL_STATIONS]> = [
@@ -114,6 +123,8 @@ export const TRUNK_CORRIDORS: Array<[keyof typeof RAIL_STATIONS, keyof typeof RA
   ['frankfurt', 'koeln'],
   ['koeln', 'duisburg'],
   ['duisburg', 'dortmund'],
+  ['hamburg', 'maschen'],
+  ['maschen', 'hannover'],
   ['passau', 'augsburg'],
 ];
 

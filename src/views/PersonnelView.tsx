@@ -48,6 +48,7 @@ interface PersonnelViewProps {
   onStartTraining?: (driverId: string, seriesId: string) => boolean;
   balance?: number;
   overdraftLimit?: number;
+  staffCap?: number;
 }
 
 export function PersonnelView({
@@ -62,6 +63,7 @@ export function PersonnelView({
   onStartTraining,
   balance = 0,
   overdraftLimit = 0,
+  staffCap,
 }: PersonnelViewProps) {
   const { gameNow, tick } = useGameClock();
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -112,7 +114,7 @@ export function PersonnelView({
   return (
     <SectionShell
       title="Personal"
-      subtitle={`${drivers.length} Mitarbeiter im Dienstplan · Ruhezeit 8 h · 48-h-Fenster`}
+      subtitle={`${drivers.length}${staffCap != null ? ` / ${staffCap}` : ''} Mitarbeiter im Dienstplan · Kapazität wächst mit Depots`}
       tutorialId="tutorial-personal"
     >
       {onRecruit && (
@@ -143,8 +145,9 @@ export function PersonnelView({
               const hasFleetFitContext = isTf && fleetIds.length > 0;
               const quickPayFee = hireNachschulungFee(missing.length);
               const quickPayTotal = listing.hiringCost + quickPayFee;
-              const canHire = canSpend(balance, listing.hiringCost, overdraftLimit);
-              const canQuickPay = canSpend(balance, quickPayTotal, overdraftLimit);
+              const housingFull = staffCap != null && drivers.length >= staffCap;
+              const canHire = !housingFull && canSpend(balance, listing.hiringCost, overdraftLimit);
+              const canQuickPay = !housingFull && canSpend(balance, quickPayTotal, overdraftLimit);
 
               return (
                 <article key={listing.id} className="personnel-candidate">
@@ -205,7 +208,11 @@ export function PersonnelView({
                     <strong>{formatEuro(listing.salary)}</strong>
                   </div>
 
-                  {locked ? (
+                  {housingFull ? (
+                    <div className="mt-3 text-[11px] font-semibold text-amber-400">
+                      Personal-Kapazität voll — weitere Betriebsstelle oder Lok-Ausbau nötig.
+                    </div>
+                  ) : locked ? (
                     <div className="mt-3 text-[11px] font-semibold text-amber-400">Ab Bekanntheit {listing.minBekanntheit}</div>
                   ) : (
                     <button

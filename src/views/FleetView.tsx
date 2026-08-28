@@ -28,11 +28,17 @@ import {
 import { useGameClock } from '@/lib/GameClockContext';
 import { SectionShell } from '@/components/SectionShell';
 import { DepotUpgradePanel } from '@/components/DepotUpgradePanel';
+import { NetworkSitesPanel } from '@/components/NetworkSitesPanel';
 import { VehicleCard } from '@/components/VehicleCard';
 import { WagonRentModal } from '@/components/WagonRentModal';
 import { Button } from '@/components/ui';
 import { activeWagonRental, type RentalState, type RentalTermMonths } from '@/lib/rental';
-import { locoBerthCap, workshopSlotCap, type DepotState } from '@/lib/depot';
+import {
+  locoBerthCap,
+  staffHousingCap,
+  workshopSlotCap,
+  type DepotState,
+} from '@/lib/depot';
 import { canSpend } from '@/lib/bank';
 import { activeLivery, liveryCssClass } from '@/lib/achievements';
 import type { AchievementState } from '@/lib/achievements';
@@ -51,6 +57,8 @@ interface FleetViewProps {
   onOpenWagenpark?: () => void;
   onRentWagons: (wagonId: string, months: RentalTermMonths) => boolean;
   onBuyDepotExpansion: (expansionId: string) => boolean;
+  onBuyNetworkSite?: (siteId: string) => boolean;
+  onRelocateLoco?: (locoId: string, siteId: string) => boolean;
   onStartWorkshopJob?: (locoId: string, kind: WorkshopJobKind, channel?: WorkshopChannel) => boolean;
   workshopDiscountPct?: number;
   achievements?: AchievementState | null;
@@ -76,6 +84,8 @@ export function FleetView({
   onOpenWagenpark,
   onRentWagons,
   onBuyDepotExpansion,
+  onBuyNetworkSite,
+  onRelocateLoco,
   onStartWorkshopJob,
   workshopDiscountPct = 0,
   achievements = null,
@@ -150,7 +160,7 @@ export function FleetView({
   return (
     <SectionShell
       title="Fuhrpark"
-      subtitle={`${locomotives.length} / ${locoCap} Triebfahrzeuge · Werkstatt ${slotsUsed}/${workshopCap} Slots`}
+      subtitle={`${locomotives.length} / ${locoCap} Triebfahrzeuge · Werkstatt ${slotsUsed}/${workshopCap} Slots · Personalplätze ${staffHousingCap(depot)}`}
       actions={fleetActions}
       tutorialId="tutorial-fuhrpark"
     >
@@ -164,6 +174,16 @@ export function FleetView({
         workshopUsed={slotsUsed}
         onBuy={onBuyDepotExpansion}
       />
+      {onBuyNetworkSite && onRelocateLoco && (
+        <NetworkSitesPanel
+          depot={depot}
+          companyLevel={companyLevel}
+          balance={balance}
+          locomotives={locomotives}
+          onBuySite={onBuyNetworkSite}
+          onRelocate={onRelocateLoco}
+        />
+      )}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {filtered.map((raw) => {
           const loco = ensureMaintenance(raw);

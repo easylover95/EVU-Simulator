@@ -125,6 +125,8 @@ export interface Order {
   electrified?: boolean | null;
   /** High-margin special listing tailored to the player's fleet. */
   special?: boolean | null;
+  /** Reputation-gated exclusive block train. */
+  exclusive?: boolean | null;
 }
 
 export interface Assignment {

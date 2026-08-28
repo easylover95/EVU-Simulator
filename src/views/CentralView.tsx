@@ -29,6 +29,7 @@ import {
   type CorporateMilestoneState,
 } from '@/lib/corporateMilestones';
 import { CORE_LEVEL_CAP, CORPORATE_MILESTONE_XP_STEP } from '@/lib/progression';
+import { reputationBarClass, reputationTextClass, reputationTier } from '@/lib/reputation';
 
 interface CentralViewProps {
   company: Company | null;
@@ -77,10 +78,10 @@ export function CentralView({
     .filter((o) => o.status === 'abgeschlossen' || o.status === 'zugewiesen')
     .reduce((sum, o) => sum + o.distance_km * o.weight_t, 0);
   const xpPct = company && company.xp_next > 0 ? Math.min(100, (company.xp / company.xp_next) * 100) : 0;
-  const repColor =
-    (company?.reputation ?? 0) >= 70 ? 'text-emerald-400' : (company?.reputation ?? 0) >= 40 ? 'text-amber-400' : 'text-rose-400';
-  const repBarColor =
-    (company?.reputation ?? 0) >= 70 ? 'bg-emerald-500' : (company?.reputation ?? 0) >= 40 ? 'bg-amber-500' : 'bg-rose-500';
+  const rep = company?.reputation ?? 0;
+  const repColor = reputationTextClass(rep);
+  const repBarColor = reputationBarClass(rep);
+  const repTier = reputationTier(rep);
   const coreLevel = Math.min(CORE_LEVEL_CAP, Math.max(1, company?.level ?? 1));
   const corporateRank = corporateRankForProgress(coreLevel, corporateMilestones.totalXp);
   const nextRank = nextCorporateRank(coreLevel, corporateMilestones.totalXp);
@@ -136,9 +137,10 @@ export function CentralView({
             <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Reputation</span>
             <Star className={`h-4 w-4 ${repColor}`} />
           </div>
-          <div className={`mt-1 text-lg font-bold ${repColor}`}>{company?.reputation ?? 0}/100</div>
+          <div className={`mt-1 text-lg font-bold ${repColor}`}>{rep}/100</div>
+          <p className="text-[10px] text-slate-500">{repTier.label}</p>
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-slate-700">
-            <div className={`h-full rounded-full ${repBarColor}`} style={{ width: `${company?.reputation ?? 0}%` }} />
+            <div className={`h-full rounded-full ${repBarColor}`} style={{ width: `${rep}%` }} />
           </div>
         </div>
       </div>

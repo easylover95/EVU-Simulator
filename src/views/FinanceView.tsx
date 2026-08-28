@@ -17,6 +17,7 @@ import {
 } from '@/lib/bank';
 import { computeFinanceSnapshot, type BalanceSheet } from '@/lib/financialStatements';
 import type { DealerState } from '@/lib/dealer';
+import { reputationBarClass, reputationTextClass, reputationTier } from '@/lib/reputation';
 
 interface FinanceViewProps {
   company: Company | null;
@@ -51,8 +52,10 @@ export function FinanceView({ company, orders, dailyFixed, bank, locomotives = [
     [company, bank, locomotives, wagons, dealer],
   );
   const xpPct = company && company.xp_next > 0 ? Math.min(100, (company.xp / company.xp_next) * 100) : 0;
-  const repColor = (company?.reputation ?? 0) >= 70 ? 'text-emerald-400' : (company?.reputation ?? 0) >= 40 ? 'text-amber-400' : 'text-rose-400';
-  const repBarColor = (company?.reputation ?? 0) >= 70 ? 'bg-emerald-500' : (company?.reputation ?? 0) >= 40 ? 'bg-amber-500' : 'bg-rose-500';
+  const rep = company?.reputation ?? 0;
+  const repColor = reputationTextClass(rep);
+  const repBarColor = reputationBarClass(rep);
+  const repTier = reputationTier(rep);
 
   return (
     <SectionShell
@@ -109,7 +112,8 @@ export function FinanceView({ company, orders, dailyFixed, bank, locomotives = [
             <Star className="h-3.5 w-3.5 text-sky-400" /> Bekanntheit
           </div>
           <div className="p-4">
-            <div className={`text-2xl font-bold ${repColor}`}>{company?.reputation ?? 0}/100</div>
+            <div className={`text-2xl font-bold ${repColor}`}>{rep}/100</div>
+            <p className="mt-1 text-[11px] text-slate-400">{repTier.label} · {repTier.hint}</p>
             <div className="mt-2 h-2 w-full overflow-hidden rounded-sm border border-slate-700 bg-slate-800">
               <div className={`h-full ${repBarColor} transition-all duration-500`} style={{ width: `${company?.reputation ?? 0}%` }} />
             </div>

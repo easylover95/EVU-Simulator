@@ -84,7 +84,7 @@ export const NAV_CATEGORIES: NavCategoryDef[] = [
       { id: 'posteingang', label: 'Posteingang' },
       { id: 'werbung', label: 'Werbeagentur' },
       { id: 'vertraege', label: 'Frachtverträge' },
-      { id: 'gebaeude', label: 'Gebäude' },
+      { id: 'gebaeude', label: 'Depots' },
     ],
   },
 ];

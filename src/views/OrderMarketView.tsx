@@ -32,6 +32,8 @@ import { Button } from '@/components/ui';
 import type { Acquisition } from '@/lib/dealer';
 import { corridorCountryHint, networkAcceptBlock, type NetworkAccessState } from '@/lib/networkAccess';
 import { closureBlockMessage, orderBlockedByClosure, type WorldEventState } from '@/lib/events';
+import { FrameworkContractsPanel, type FrameworkContractsPanelProps } from '@/components/FrameworkContractsPanel';
+import { exclusiveJobsUnlocked, reputationTier } from '@/lib/reputation';
 
 interface OrderMarketViewProps {
   orders: Order[];
@@ -51,6 +53,8 @@ interface OrderMarketViewProps {
   locomotives?: Locomotive[];
   worldEvents?: WorldEventState;
   onOpenNetworkDealer?: () => void;
+  framework?: FrameworkContractsPanelProps;
+  bekanntheit?: number;
 }
 
 function sperrpauseCountdown(
@@ -183,9 +187,11 @@ export const OrderMarketView = memo(function OrderMarketView({
   locomotives = [],
   worldEvents,
   onOpenNetworkDealer,
+  framework,
+  bekanntheit = 0,
 }: OrderMarketViewProps) {
   const { gameNow, tick } = useGameClock();
-  const [filter, setFilter] = useState<'all' | OrderType | 'einsatz'>('all');
+  const [filter, setFilter] = useState<'all' | OrderType | 'einsatz' | 'rahmen' | 'exklusiv'>('all');
   const [search, setSearch] = useState('');
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [sortKey, setSortKey] = useState<MarketSortKey | null>(null);
@@ -237,6 +243,8 @@ export const OrderMarketView = memo(function OrderMarketView({
   const filtered = useMemo(() => {
     let result = marketOrders;
     if (filter === 'einsatz') result = result.filter((o) => isBaugleisEinsatz(o));
+    else if (filter === 'exklusiv') result = result.filter((o) => o.exclusive === true);
+    else if (filter === 'rahmen') result = result;
     else if (filter !== 'all') result = result.filter((o) => o.type === filter && !isBaugleisEinsatz(o));
     if (search) {
       const s = search.toLowerCase();
@@ -319,7 +327,7 @@ export const OrderMarketView = memo(function OrderMarketView({
   return (
     <SectionShell
       title="Frachtbörse"
-      subtitle={`${marketOrders.length} Aufträge · Generator berücksichtigt Fuhrpark (E-/Diesel, Hakenlast) · Frühspiel: mindestens 3 Leichtaufträge mit 4–6 Wagen · Schwere Züge ab Level 3 + 36 Wagen-Stellplätzen · Brh Güter ${MIN_BRH_RANGE.gueterverkehr.min}–${MIN_BRH_RANGE.gueterverkehr.max} · Bau ${MIN_BRH_RANGE.baugleis.min}–${MIN_BRH_RANGE.baugleis.max}`}
+      subtitle={`${marketOrders.length} Aufträge · Reputation ${reputationTier(bekanntheit).label} ${bekanntheit}/100${exclusiveJobsUnlocked(bekanntheit) ? ' · Exklusiv-Ganzzüge frei' : ' · Exklusiv ab 70 Reputation'} · Generator: Fuhrpark + Depot-Regionen · Frühspiel: mindestens 3 Leichtaufträge`}
       actions={marketActions}
       tutorialId="tutorial-frachtboerse"
     >
@@ -331,6 +339,8 @@ export const OrderMarketView = memo(function OrderMarketView({
             ['gueterverkehr', 'Güterverkehr'],
             ['baugleis', 'Baustelle'],
             ['einsatz', 'Baugleis-Einsatz'],
+            ['rahmen', 'Rahmenverträge'],
+            ['exklusiv', 'Exklusiv'],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -345,6 +355,9 @@ export const OrderMarketView = memo(function OrderMarketView({
         ))}
       </div>
 
+      {filter === 'rahmen' && framework ? (
+        <FrameworkContractsPanel {...framework} />
+      ) : (
       <div className="fi-card overflow-x-auto">
         <table className="fi-table fi-mobile-card-table">
           <thead>
@@ -418,6 +431,7 @@ export const OrderMarketView = memo(function OrderMarketView({
                     <div className="mt-0.5 text-[10px] font-semibold text-sky-300/90">
                       {isOrderElectrified(order) ? 'Fahrdraht / E-Lok möglich' : 'Ohne Oberleitung · Diesel/Dual'}
                       {order.special ? ' · Spezialauftrag' : ''}
+                      {order.exclusive ? ' · Exklusiv-Ganzzug' : ''}
                     </div>
                     {gate && <div className="mt-0.5 text-[10px] font-bold text-rose-400">{gate}</div>}
                   </td>
@@ -475,6 +489,7 @@ export const OrderMarketView = memo(function OrderMarketView({
           </tbody>
         </table>
       </div>
+      )}
 
       {detailOrder && (
         <div
