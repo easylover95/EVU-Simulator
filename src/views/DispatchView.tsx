@@ -5,20 +5,11 @@ import {
   User,
   Check,
   X,
-  Clock,
-  Package,
-  HardHat,
-  Gauge,
-  Boxes,
-  AlertTriangle,
-  CheckCircle2,
-  Info,
   MapPin,
   Pause,
   Wrench,
   RefreshCw,
   Monitor,
-  UserCog,
 } from 'lucide-react';
 import type {
   Locomotive,
@@ -32,8 +23,6 @@ import { getSupabaseClient } from '@/lib/supabaseClient';
 import {
   formatEuro,
   timeRemaining,
-  clampOrderMinBrh,
-  getOrderTypeConfig,
   getAssignmentStatusConfig,
   getAssignmentPillClass,
   getLocoPillClass,
@@ -41,7 +30,6 @@ import {
 } from '@/lib/status';
 import { calculateTrainBrh, checkWagonAvailability, wagonShortageLabel } from '@/lib/brh';
 import type { Acquisition } from '@/lib/dealer';
-import { WagonShortageBanner } from '@/components/WagonShortageBanner';
 import { getLocoDisplayName } from '@/lib/locoPhotos';
 import { useGameClock } from '@/lib/GameClockContext';
 import { assignmentProgress, etaFromProgress, locoMarkerId } from '@/lib/tracking';
@@ -49,28 +37,21 @@ import { SectionShell } from '@/components/SectionShell';
 import {
   BAUGLEIS_MIN_DRIVERS,
   isBaugleisEinsatz,
-  isConstructionLoco,
   isExpiredOpenOffer,
-  requiredDriversFor,
 } from '@/lib/orderMarket';
-import { evaluateAssignmentFit, isOrderElectrified, trailingLoadT } from '@/lib/traction';
-import { ensureMaintenance, isLocoDeployable } from '@/lib/workshop';
+import { evaluateAssignmentFit } from '@/lib/traction';
 import type { BaugleisDeployment } from '@/lib/baugleisDeployments';
 import { canStartBaugleisEinsatz, deploymentDailyOperating } from '@/lib/baugleisDeployments';
-import { OrderCostBreakdown } from '@/components/OrderCostBreakdown';
-import { availableAzfStaff, isBaugleisOrder, pdlAzfChargeForOrder } from '@/lib/pdl';
-import { driverRestStatus, restStatusHint, REST_WARNING } from '@/lib/restRules';
-import {
-  corridorCountryHint,
-  networkDispatchBlock,
-} from '@/lib/networkAccess';
-import { closureBlockMessage, orderBlockedByClosure, type WorldEventState } from '@/lib/events';
-import { seriesDispatchBlock, seriesIdForLoco, seriesLabel } from '@/lib/personal';
+import { availableAzfStaff, isBaugleisOrder } from '@/lib/pdl';
+import { networkDispatchBlock } from '@/lib/networkAccess';
+import { orderBlockedByClosure, type WorldEventState } from '@/lib/events';
+import { seriesDispatchBlock } from '@/lib/personal';
 import type { StaffMeta } from '@/lib/jobcenter';
 import { TrackingMapSurface } from '@/components/TrackingMapSurface';
 import type { NetworkStatus } from '@/lib/networkStatus';
-import { ContextHelpTooltip } from '@/components/ContextHelpTooltip';
 import type { HandbookOpenTo } from '@/lib/handbook';
+import { DispatchStepper } from '@/components/DispatchStepper';
+import type { AzfMode, DispatchStep } from '@/lib/dispatchPlan';
 
 interface DispatchViewProps {
   orders: Order[];
@@ -105,7 +86,6 @@ interface DispatchViewProps {
   onOpenHandbook?: (target?: HandbookOpenTo) => void;
 }
 
-type AzfMode = 'none' | 'eigen' | 'pdl';
 type FleetFilter = 'alle' | 'fahrend' | 'stehend' | 'wartung';
 
 type FleetEntry =
@@ -168,6 +148,7 @@ export function DispatchView({
   const [selectedDriver2, setSelectedDriver2] = useState<string>('');
   const [azfMode, setAzfMode] = useState<AzfMode>('none');
   const [selectedAzfId, setSelectedAzfId] = useState<string>('');
+  const [dispatchStep, setDispatchStep] = useState<DispatchStep>(1);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fleetFilter, setFleetFilter] = useState<FleetFilter>('alle');
@@ -185,6 +166,7 @@ export function DispatchView({
       setSelectedDriver2('');
       setAzfMode('none');
       setSelectedAzfId('');
+      setDispatchStep(2);
     }
   }, [preselectOrder]);
 
@@ -195,6 +177,7 @@ export function DispatchView({
     setSelectedDriver2('');
     setAzfMode('none');
     setSelectedAzfId('');
+    setDispatchStep(2);
   }, [preselectLocoId]);
 
   const openOrders = useMemo(
@@ -203,19 +186,6 @@ export function DispatchView({
   );
   const einsatzOrder = isBaugleisEinsatz(selectedOrder);
   const baugleisOrder = isBaugleisOrder(selectedOrder);
-  const availableLocos = useMemo(() => {
-    const free = locomotives.filter((l) => isLocoDeployable(ensureMaintenance(l)));
-    const pool = einsatzOrder ? free.filter(isConstructionLoco) : free;
-    if (!selectedOrder) return pool;
-    return pool.filter((loco) => evaluateAssignmentFit(selectedOrder, loco)?.ok !== false);
-  }, [locomotives, einsatzOrder, selectedOrder]);
-  const availableDrivers = useMemo(
-    () =>
-      drivers.filter(
-        (d) => d.status === 'verfuegbar' && (d.qualifications ?? []).some((q) => q.toLowerCase() === 'tf'),
-      ),
-    [drivers],
-  );
   const availableAzf = useMemo(() => {
     const skip = [selectedDriver, selectedDriver2].filter(Boolean);
     return availableAzfStaff(drivers, skip);
@@ -232,10 +202,6 @@ export function DispatchView({
     const ids = availableAzfIds.split('|');
     if (!ids.includes(selectedAzfId)) setSelectedAzfId(ids[0] ?? '');
   }, [azfMode, availableAzfIds, selectedAzfId]);
-  const availableDrivers2 = useMemo(
-    () => availableDrivers.filter((d) => d.id !== selectedDriver),
-    [availableDrivers, selectedDriver],
-  );
   const activeAssignments = useMemo(
     () => assignments.filter((a) => a.status === 'geplant' || a.status === 'aktiv'),
     [assignments],
@@ -306,17 +272,6 @@ export function DispatchView({
   const einsatzBlock = selectedOrder
     ? canStartBaugleisEinsatz(selectedOrder, selectedLocoObj ?? undefined, selectedDriverObj ?? undefined, selectedDriver2Obj ?? undefined)
     : null;
-  const pdlQuote = useMemo(
-    () => (selectedOrder && baugleisOrder ? pdlAzfChargeForOrder(selectedOrder, 'pdl') : null),
-    [selectedOrder, baugleisOrder],
-  );
-  const restWarn = useMemo(() => {
-    const rows = [selectedDriverObj, selectedDriver2Obj].filter(Boolean) as Driver[];
-    const hits = rows
-      .map((d) => ({ driver: d, status: driverRestStatus(d, gameNow) }))
-      .filter((row) => row.status.violated);
-    return hits;
-  }, [selectedDriverObj, selectedDriver2Obj, gameNow]);
   const locoNetBlock = selectedOrder && selectedLocoObj ? networkDispatchBlock(selectedOrder, selectedLocoObj) : null;
   const seriesBlock = selectedLocoObj
     ? seriesDispatchBlock(selectedLocoObj, selectedDriver ? staffMeta[selectedDriver]?.seriesIds : [])
@@ -353,6 +308,16 @@ export function DispatchView({
 
   async function handleAssign() {
     if (!selectedOrder || !selectedLoco || !selectedDriver) return;
+    if (!canAssign) {
+      setError(
+        einsatzBlock ??
+          seriesBlock2 ??
+          seriesBlock ??
+          locoNetBlock ??
+          (tractionFit && !tractionFit.ok ? tractionFit.message : 'Zuweisung blockiert — Fahrbereit-Schritt prüfen'),
+      );
+      return;
+    }
     if (einsatzOrder && !selectedDriver2) {
       setError(`Baugleis-Einsatz: ${BAUGLEIS_MIN_DRIVERS} Tf im Schichtwechsel erforderlich`);
       return;
@@ -389,6 +354,7 @@ export function DispatchView({
         setSelectedDriver2('');
         setAzfMode('none');
         setSelectedAzfId('');
+        setDispatchStep(1);
         return;
       }
       const client = await getSupabaseClient();
@@ -422,6 +388,7 @@ export function DispatchView({
       setSelectedDriver2('');
       setAzfMode('none');
       setSelectedAzfId('');
+      setDispatchStep(1);
       onDataChange();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
@@ -679,461 +646,49 @@ export function DispatchView({
         </aside>
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-2">
-        <div className="fi-card">
-          <div className="fi-card-header flex items-center gap-2">
-            <ClipboardList className="h-3.5 w-3.5 text-amber-500" />
-            Offene Aufträge ({openOrders.length})
-          </div>
-          <div className="max-h-[420px] space-y-1 overflow-y-auto p-2">
-            {openOrders.length === 0 && (
-              <div className="py-8 text-center text-xs text-slate-500">Keine offenen Aufträge</div>
-            )}
-            {openOrders.map((order) => {
-              const typeCfg = getOrderTypeConfig(order.type);
-              const time = order.deadline
-                ? timeRemaining(order.deadline, gameNow, { accepted: false })
-                : null;
-              const isSelected = selectedOrder?.id === order.id;
-              const minBrh = clampOrderMinBrh(order.type, order.min_brh);
-              return (
-                <button
-                  key={order.id}
-                  onClick={() => {
-                    setSelectedOrder(order);
-                    setSelectedLoco('');
-                    setSelectedDriver('');
-                    setSelectedDriver2('');
-                    setAzfMode('none');
-                    setSelectedAzfId('');
-                    setError(null);
-                  }}
-                  className={`w-full rounded-sm border p-2 text-left transition-all ${
-                    isSelected ? 'border-amber-500 bg-amber-900/20' : 'border-slate-700 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-700/30'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase ${typeCfg.text}`}>
-                      {order.type === 'baugleis' ? <HardHat className="h-3 w-3" /> : <Package className="h-3 w-3" />}
-                      {isBaugleisEinsatz(order) && order.deployment_days
-                        ? `Einsatz ${order.deployment_days}d`
-                        : typeCfg.label}
-                    </span>
-                    <span className="font-mono text-[10px] text-slate-500">{order.order_number}</span>
-                  </div>
-                  <div className="mt-1 text-xs font-medium text-white">{order.title}</div>
-                  <div className="mt-0.5 text-[10px] text-slate-500">{order.origin} → {order.destination}</div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px]">
-                    <span className="font-bold text-emerald-400">
-                      {isBaugleisEinsatz(order) && order.daily_rate
-                        ? `${formatEuro(order.daily_rate)}/Tag`
-                        : formatEuro(Number(order.yield))}
-                    </span>
-                    <span className="flex items-center gap-0.5 text-slate-500"><Gauge className="h-2.5 w-2.5" />Brh {minBrh}</span>
-                    {order.required_wagon_type && (
-                      <span className="flex items-center gap-0.5 text-orange-300"><Boxes className="h-2.5 w-2.5" />{order.required_wagon_count}× {order.required_wagon_type}</span>
-                    )}
-                    {time && (
-                      <span className={`ml-auto font-bold ${time.critical ? 'text-rose-400' : time.urgent ? 'text-amber-400' : 'text-slate-400'}`}>
-                        <Clock className="mr-0.5 inline h-2.5 w-2.5" />{time.text}
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="fi-card">
-          <div className="fi-card-header flex items-center gap-2">
-            <Train className="h-3.5 w-3.5 text-amber-500" /> Zuweisung erstellen
-          </div>
-          <div className="p-3 space-y-3">
-            {!selectedOrder ? (
-              <div className="py-10 text-center text-xs text-slate-500">
-                Wählen Sie einen offenen Auftrag aus, um eine Zuweisung zu erstellen.
-              </div>
-            ) : (
-              <>
-                <div className="rounded-sm border border-amber-600/40 bg-amber-900/15 p-2">
-                  <div className="text-[10px] font-bold uppercase text-slate-500">Ausgewählter Auftrag</div>
-                  <div className="mt-0.5 text-xs font-bold text-white">{selectedOrder.title}</div>
-                  <div className="text-[10px] text-slate-500">{selectedOrder.order_number} · {selectedOrder.origin} → {selectedOrder.destination}</div>
-                  {einsatzOrder && (
-                    <div className="mt-1 text-[10px] text-amber-300">
-                      Bindet 1 Diesellok + {requiredDriversFor(selectedOrder)} Tf + AZF/RB für {selectedOrder.deployment_days} Tage
-                      {selectedOrder.daily_rate ? ` · ${formatEuro(selectedOrder.daily_rate)}/Tag` : ''}
-                    </div>
-                  )}
-                </div>
-
-                <div className="relative">
-                  <OrderCostBreakdown
-                    order={selectedOrder}
-                    fuelType={selectedLocoObj?.fuel_type}
-                    compact
-                    azfSource={azfMode === 'eigen' ? 'eigen' : 'pdl'}
-                    azfUnresolved={baugleisOrder && azfMode === 'none'}
-                  />
-                  <div className="absolute right-0 top-0">
-                    <ContextHelpTooltip topicId="deckungsbeitrag" onOpenManual={onOpenHandbook} />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400">
-                    <Train className="h-3 w-3" /> Triebfahrzeug
-                    {einsatzOrder && <span className="font-normal normal-case text-amber-400/80">· Diesel / Dual (BR 218, V 90 / BR 290)</span>}
-                    {selectedOrder && !einsatzOrder && (
-                      <span className="font-normal normal-case text-slate-500">
-                        · {isOrderElectrified(selectedOrder) ? 'Oberleitung' : 'ohne Fahrdraht'} · Hakenlast
-                      </span>
-                    )}
-                    <ContextHelpTooltip topicId="traktion" onOpenManual={onOpenHandbook} />
-                    <ContextHelpTooltip topicId="hakenlast" onOpenManual={onOpenHandbook} />
-                    <ContextHelpTooltip topicId="nutzlaenge" onOpenManual={onOpenHandbook} />
-                  </label>
-                  <select
-                    value={selectedLoco}
-                    onChange={(e) => setSelectedLoco(e.target.value)}
-                    className="w-full rounded-sm border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500"
-                  >
-                    <option value="">— Bitte wählen —</option>
-                    {availableLocos.map((loco) => (
-                      <option key={loco.id} value={loco.id}>
-                        {getLocoDisplayName(loco.designation)} · {loco.fuel_type === 'elektrik' ? 'E-Lok' : loco.fuel_type === 'dual' ? 'Dual' : 'Diesel'} · Hakenlast {trailingLoadT(loco).toLocaleString('de-DE')} t · Brh {loco.brake_pct}%
-                      </option>
-                    ))}
-                  </select>
-                  {availableLocos.length === 0 && (
-                    <p className="mt-1 text-[10px] text-rose-400">
-                      {einsatzOrder
-                        ? 'Keine freie Diesel-/Dual-Lok für den Baugleis-Einsatz'
-                        : selectedOrder && !isOrderElectrified(selectedOrder)
-                          ? 'Keine passende Lok: ohne Oberleitung nur Diesel/Dual, Hakenlast muss die Fracht tragen'
-                          : 'Keine einsatzbereiten Triebfahrzeuge (HU ungültig / stillgelegt / belegt / Hakenlast)'}
-                    </p>
-                  )}
-                </div>
-
-                {tractionFit && (
-                  <div
-                    className={`rounded-sm border px-2.5 py-2 text-[11px] ${
-                      tractionFit.ok
-                        ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-100'
-                        : 'border-rose-500/40 bg-rose-950/30 text-rose-100'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-1">
-                      <div className="font-bold uppercase tracking-wide text-[10px] opacity-80">Zuweisungs-Check</div>
-                      <ContextHelpTooltip
-                        topicId={tractionFit.code === 'ohle_missing' ? 'oberleitung' : tractionFit.code === 'trailing_load' ? 'hakenlast' : 'traktion'}
-                        onOpenManual={onOpenHandbook}
-                      />
-                    </div>
-                    <p className="mt-0.5 leading-relaxed">{tractionFit.message}</p>
-                  </div>
-                )}
-
-                <div>
-                  <label className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400">
-                    <User className="h-3 w-3" /> {einsatzOrder ? 'Tf 1 (Schicht A)' : 'Triebfahrzeugführer'}
-                  </label>
-                  <select
-                    value={selectedDriver}
-                    onChange={(e) => {
-                      setSelectedDriver(e.target.value);
-                      if (e.target.value === selectedDriver2) setSelectedDriver2('');
-                    }}
-                    className="w-full rounded-sm border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500"
-                  >
-                    <option value="">— Bitte wählen —</option>
-                    {availableDrivers.map((driver) => {
-                      const rest = driverRestStatus(driver, gameNow);
-                      return (
-                      <option key={driver.id} value={driver.id}>
-                        {driver.name} · {driver.qualifications.join(', ')} · {driver.hours_worked}/{driver.max_hours}h
-                        {seriesIdForLoco(selectedLocoObj) &&
-                        !staffMeta[driver.id]?.seriesIds?.includes(seriesIdForLoco(selectedLocoObj) ?? '')
-                          ? ` · keine ${seriesLabel(seriesIdForLoco(selectedLocoObj))}`
-                          : ''}
-                        {rest.violated ? ' · Ruhezeit!' : ''}
-                      </option>
-                      );
-                    })}
-                  </select>
-                  {availableDrivers.length === 0 && <p className="mt-1 text-[10px] text-rose-400">Keine verfügbaren Tf verfügbar</p>}
-                </div>
-
-                {einsatzOrder && (
-                  <div>
-                    <label className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400">
-                      <User className="h-3 w-3" /> Tf 2 (Schicht B / Ruhe)
-                    </label>
-                    <select
-                      value={selectedDriver2}
-                      onChange={(e) => setSelectedDriver2(e.target.value)}
-                      className="w-full rounded-sm border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs text-white outline-none focus:border-amber-500"
-                    >
-                      <option value="">— Zweiten Tf wählen —</option>
-                      {availableDrivers2.map((driver) => {
-                        const rest = driverRestStatus(driver, gameNow);
-                        return (
-                        <option key={driver.id} value={driver.id}>
-                          {driver.name} · {driver.qualifications.join(', ')} · {driver.hours_worked}/{driver.max_hours}h
-                          {seriesIdForLoco(selectedLocoObj) &&
-                          !staffMeta[driver.id]?.seriesIds?.includes(seriesIdForLoco(selectedLocoObj) ?? '')
-                            ? ` · keine ${seriesLabel(seriesIdForLoco(selectedLocoObj))}`
-                            : ''}
-                          {rest.violated ? ' · Ruhezeit!' : ''}
-                        </option>
-                        );
-                      })}
-                    </select>
-                    {availableDrivers.length < BAUGLEIS_MIN_DRIVERS && (
-                      <p className="mt-1 text-[10px] text-rose-400">
-                        Zuweisung blockiert — mindestens {BAUGLEIS_MIN_DRIVERS} verfügbare Tf für den Schichtwechsel
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {baugleisOrder && selectedOrder && (
-                  <div data-tutorial="tutorial-pdl" className="rounded-sm border border-orange-400/70 bg-orange-950/30 p-2.5 shadow-[inset_0_0_0_1px_rgba(251,146,60,0.15)]">
-                    <div className="flex items-start gap-2">
-                      <HardHat className="mt-0.5 h-4 w-4 shrink-0 text-orange-300" />
-                      <div>
-                        <div className="text-[11px] font-bold uppercase tracking-wide text-orange-200">
-                          Zusatzpersonal erforderlich
-                        </div>
-                        <div className="mt-0.5 text-xs font-semibold text-white">
-                          Arbeitszugführer / Rangierbegleiter (AZF/RB)
-                        </div>
-                        <p className="mt-1 text-[10px] leading-relaxed text-orange-100/70">
-                          Baugleis-Regel: ohne AZF/RB darf der Zug nicht abfahren. Eigenes Personal oder
-                          Personaldienstleister (PDL) wählen.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-2.5 grid gap-2">
-                      <label
-                        className={`flex cursor-pointer items-start gap-2 rounded-sm border px-2.5 py-2 transition-colors ${
-                          azfMode === 'eigen'
-                            ? 'border-orange-400 bg-orange-900/40'
-                            : availableAzf.length === 0
-                              ? 'cursor-not-allowed border-slate-700 bg-slate-900/40 opacity-50'
-                              : 'border-slate-600 bg-slate-900/50 hover:border-orange-400/50'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="azf-source"
-                          className="mt-0.5 accent-orange-400"
-                          checked={azfMode === 'eigen'}
-                          disabled={availableAzf.length === 0}
-                          onChange={() => {
-                            setAzfMode('eigen');
-                            setSelectedAzfId(availableAzf[0]?.id ?? '');
-                          }}
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="flex items-center gap-1 text-[11px] font-bold text-white">
-                            <UserCog className="h-3 w-3 text-orange-300" />
-                            Eigenes Personal (AZF/RB)
-                          </span>
-                          <span className="mt-0.5 block text-[10px] text-slate-400">
-                            {availableAzf.length === 0
-                              ? 'Kein freier AZF/RB im Personalstamm — Option gesperrt'
-                              : `${availableAzf.length} verfügbar · keine PDL-Tagessätze`}
-                          </span>
-                          {azfMode === 'eigen' && availableAzf.length > 0 && (
-                            <select
-                              value={selectedAzfId}
-                              onChange={(e) => setSelectedAzfId(e.target.value)}
-                              className="mt-1.5 w-full rounded-sm border border-orange-400/40 bg-slate-950 px-2 py-1 text-[11px] text-white outline-none focus:border-orange-400"
-                            >
-                              {availableAzf.map((person) => (
-                                <option key={person.id} value={person.id}>
-                                  {person.name} · {(person.qualifications ?? []).join(', ')}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </span>
-                      </label>
-
-                      <label
-                        className={`flex cursor-pointer items-start gap-2 rounded-sm border px-2.5 py-2 transition-colors ${
-                          azfMode === 'pdl'
-                            ? 'border-orange-400 bg-orange-900/40'
-                            : 'border-slate-600 bg-slate-900/50 hover:border-orange-400/50'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="azf-source"
-                          className="mt-0.5 accent-orange-400"
-                          checked={azfMode === 'pdl'}
-                          onChange={() => {
-                            setAzfMode('pdl');
-                            setSelectedAzfId('');
-                          }}
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="flex items-center justify-between gap-2 text-[11px] font-bold text-white">
-                            <span>Personaldienstleister (PDL) buchen</span>
-                            {pdlQuote && (
-                              <span className="tabular-nums text-orange-300">{formatEuro(pdlQuote.daily)} / Schicht</span>
-                            )}
-                          </span>
-                          <span className="mt-0.5 block text-[10px] text-slate-400">
-                            Tagessatz 650–850 €
-                            {pdlQuote && pdlQuote.shifts > 1
-                              ? ` · ${pdlQuote.shifts} Schichten = ${formatEuro(pdlQuote.total)}`
-                              : einsatzOrder
-                                ? ' · täglich während des Einsatzes'
-                                : ' · einmalig mit der Fahrt'}
-                          </span>
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                )}
-
-                {selectedOrder && (
-                  <p className="text-[10px] text-slate-500">
-                    Netz {corridorCountryHint(selectedOrder)}
-                  </p>
-                )}
-
-                {restWarn.length > 0 && (
-                  <div className="flex items-start gap-2 rounded-sm border border-rose-500 bg-rose-950/40 p-2 text-[11px] text-rose-200">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" />
-                    <div>
-                      <div className="font-bold uppercase tracking-wide text-rose-300">{REST_WARNING}</div>
-                      <p className="mt-0.5">
-                        Zuweisung bleibt möglich. {restWarn.map((row) => restStatusHint(row.status)).filter(Boolean).join(' · ')}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {lineClosure && (
-                  <div className="flex items-start gap-2 rounded-sm border border-rose-600 bg-rose-950/50 p-2 text-[11px] text-rose-200">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span className="font-bold">{closureBlockMessage(lineClosure, tick)}</span>
-                  </div>
-                )}
-
-                {(seriesBlock || seriesBlock2) && (
-                  <div className="flex items-start gap-2 rounded-sm border border-amber-500 bg-amber-950/40 p-2 text-[11px] text-amber-100">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span className="font-bold">{seriesBlock2 ?? seriesBlock}</span>
-                  </div>
-                )}
-
-                {locoNetBlock && (
-                  <div className="flex items-start gap-2 rounded-sm border border-amber-500 bg-amber-950/40 p-2 text-[11px] text-amber-100">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <div>
-                      <div className="font-bold">{locoNetBlock}</div>
-                      {onOpenNetworkDealer && (
-                        <button
-                          type="button"
-                          className="mt-1 text-[10px] font-bold uppercase text-amber-300 underline"
-                          onClick={() => onOpenNetworkDealer()}
-                        >
-                          Zum Händler / Netzzugang
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {wagonCheck && selectedOrder.required_wagon_type && (
-                  <div className={`flex items-start gap-2 rounded-sm border p-2 text-[11px] ${wagonCheck.sufficient ? 'border-emerald-600 bg-emerald-900/20 text-emerald-300' : 'border-rose-600 bg-rose-900/20 text-rose-300'}`}>
-                    {wagonCheck.sufficient ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
-                    <div className="min-w-0 flex-1">
-                      <span className="font-bold">Wagenkomposition</span>
-                      <div className="mt-0.5">{selectedOrder.required_wagon_count}× {selectedOrder.required_wagon_type} erforderlich · {wagonCheck.available} verfügbar</div>
-                      {!wagonCheck.sufficient && (
-                        <>
-                          <div className="mt-0.5 font-bold">{wagonShortageLabel(wagonCheck) ?? 'Nicht genügend Wagen verfügbar — Zuweisung blockiert!'}</div>
-                          <div className="mt-2">
-                            <WagonShortageBanner
-                              check={wagonCheck}
-                              onQuickAcquire={onQuickAcquireWagons}
-                              onOpenDealer={onBuyMissingWagons}
-                              onOpenBuildings={onOpenBuildings}
-                              freeBerths={freeBerths}
-                            />
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {brhCheck && (
-                  <div className={`rounded-sm border p-2.5 text-[11px] ${brhCheck.passed ? 'border-emerald-600 bg-emerald-900/20 text-emerald-300' : 'border-rose-600 bg-rose-900/20 text-rose-300'}`}>
-                    <div className="flex items-start gap-2">
-                      {brhCheck.passed ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />}
-                      <div className="flex-1">
-                        <span className="inline-flex items-center gap-1 font-bold">
-                          Bremshundertstel-Prüfung (Brh)
-                          <ContextHelpTooltip topicId="brh" onOpenManual={onOpenHandbook} />
-                        </span>
-                        <div className="mt-0.5">{brhCheck.message}</div>
-                      </div>
-                    </div>
-                    <div className="mt-2 border-t border-slate-700/50 pt-2">
-                      <div className="font-bold text-slate-400">Zug gesamt: <span className={brhCheck.passed ? 'text-emerald-300' : 'text-rose-300'}>{brhCheck.availableBrh} Brh</span></div>
-                      <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-slate-400">
-                        <div>Lok: <span className="font-medium text-slate-300">{brhCheck.breakdown.locoWeight}t</span> / Bremsmasse <span className="font-medium text-slate-300">{brhCheck.breakdown.locoBrakeWeight}t</span></div>
-                        {brhCheck.breakdown.wagonCount > 0 && brhCheck.breakdown.wagonType ? (
-                          <div>{brhCheck.breakdown.wagonCount}× {brhCheck.breakdown.wagonType} (Stlg {brhCheck.breakdown.brakePosition}): <span className="font-medium text-slate-300">{brhCheck.breakdown.wagonWeight}t</span> / Bremsmasse <span className="font-medium text-slate-300">{brhCheck.breakdown.wagonBrakeWeight}t</span></div>
-                        ) : (
-                          <div>Wagen: <span className="text-slate-500">keine benötigt</span></div>
-                        )}
-                      </div>
-                      <div className="mt-1 text-slate-400">
-                        Formel: ({brhCheck.breakdown.locoBrakeWeight}t + {brhCheck.breakdown.wagonBrakeWeight}t) / {brhCheck.breakdown.totalWeight}t × 100 = <span className={brhCheck.passed ? 'font-bold text-emerald-300' : 'font-bold text-rose-300'}>{brhCheck.availableBrh}</span>
-                        <span className="ml-2 text-slate-500">| Mindest-Brh: <span className="font-bold text-slate-300">{brhCheck.requiredBrh}</span></span>
-                      </div>
-                    </div>
-                    {!brhCheck.passed && (
-                      <div className="mt-2 flex items-center gap-1 font-bold text-rose-300">
-                        <Info className="h-3 w-3" />Zuweisung blockiert — Bremsleistung unzureichend
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <button
-                  onClick={handleAssign}
-                  disabled={!canAssign || submitting}
-                  className="btn-gold w-full disabled:cursor-not-allowed disabled:opacity-30"
-                >
-                  {submitting ? 'Wird zugewiesen…' : 'Zug abfahren / Bestätigen'}
-                </button>
-                {einsatzBlock && selectedLoco && (
-                  <p className="text-center text-[10px] text-rose-400">{einsatzBlock}</p>
-                )}
-                {baugleisOrder && !azfReady && (
-                  <p className="text-center text-[10px] text-orange-300">
-                    Zuweisung blockiert — AZF/RB (eigenes Personal) oder PDL auswählen
-                  </p>
-                )}
-                {!canAssign && selectedLoco && selectedDriver && !einsatzBlock && azfReady && (
-                  <p className="text-center text-[10px] text-rose-400">Zuweisung blockiert — Prüfungen oben beachten</p>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+      <DispatchStepper
+        step={dispatchStep}
+        onStep={setDispatchStep}
+        orders={openOrders}
+        locomotives={locomotives}
+        drivers={drivers}
+        wagons={wagons}
+        selectedOrder={selectedOrder}
+        selectedLoco={selectedLoco}
+        selectedDriver={selectedDriver}
+        selectedDriver2={selectedDriver2}
+        azfMode={azfMode}
+        selectedAzfId={selectedAzfId}
+        onSelectOrder={(order) => {
+          setSelectedOrder(order);
+          setSelectedLoco('');
+          setSelectedDriver('');
+          setSelectedDriver2('');
+          setAzfMode('none');
+          setSelectedAzfId('');
+          setError(null);
+        }}
+        onSelectLoco={setSelectedLoco}
+        onSelectDriver={(id) => {
+          setSelectedDriver(id);
+          if (id === selectedDriver2) setSelectedDriver2('');
+        }}
+        onSelectDriver2={setSelectedDriver2}
+        onAzfMode={setAzfMode}
+        onSelectAzf={setSelectedAzfId}
+        staffMeta={staffMeta}
+        gameNow={gameNow}
+        tick={tick}
+        submitting={submitting}
+        worldEvents={worldEvents}
+        onAssign={handleAssign}
+        onOpenHandbook={onOpenHandbook}
+        onOpenNetworkDealer={onOpenNetworkDealer}
+        onBuyMissingWagons={onBuyMissingWagons}
+        onQuickAcquireWagons={onQuickAcquireWagons}
+        onOpenBuildings={onOpenBuildings}
+        freeBerths={freeBerths}
+      />
 
       <div className="fi-card">
         <div className="fi-card-header flex items-center gap-2">

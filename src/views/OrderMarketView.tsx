@@ -17,7 +17,6 @@ import {
   timeRemaining,
   clampOrderMinBrh,
   getOrderStatusConfig,
-  getOrderTypeConfig,
   getOrderPillClass,
   MIN_BRH_RANGE,
 } from '@/lib/status';
@@ -36,6 +35,7 @@ import { FrameworkContractsPanel, type FrameworkContractsPanelProps } from '@/co
 import { exclusiveJobsUnlocked, reputationTier } from '@/lib/reputation';
 import { ContextHelpTooltip } from '@/components/ContextHelpTooltip';
 import type { HandbookOpenTo } from '@/lib/handbook';
+import { buildOrderContractCard, locoHasEtcsFleet } from '@/lib/contractCard';
 
 interface OrderMarketViewProps {
   orders: Order[];
@@ -57,6 +57,7 @@ interface OrderMarketViewProps {
   onOpenNetworkDealer?: () => void;
   framework?: FrameworkContractsPanelProps;
   bekanntheit?: number;
+  companyLevel?: number;
   onOpenHandbook?: (target?: HandbookOpenTo) => void;
 }
 
@@ -197,6 +198,7 @@ export const OrderMarketView = memo(function OrderMarketView({
   onOpenNetworkDealer,
   framework,
   bekanntheit = 0,
+  companyLevel = 1,
   onOpenHandbook,
 }: OrderMarketViewProps) {
   const { gameNow, tick } = useGameClock();
@@ -205,6 +207,7 @@ export const OrderMarketView = memo(function OrderMarketView({
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [sortKey, setSortKey] = useState<MarketSortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [certFilter, setCertFilter] = useState<'all' | 'etcs' | 'length'>('all');
 
   const toggleSort = (column: MarketSortKey) => {
     if (sortKey === column) {
@@ -265,8 +268,12 @@ export const OrderMarketView = memo(function OrderMarketView({
           (o.customer ?? '').toLowerCase().includes(s),
       );
     }
+    if (certFilter === 'etcs') result = result.filter((o) => Boolean(o.requires_etcs));
+    if (certFilter === 'length') {
+      result = result.filter((o) => (o.required_wagon_count ?? 0) > 0);
+    }
     return result;
-  }, [marketOrders, filter, search]);
+  }, [marketOrders, filter, search, certFilter]);
 
   const sorted = useMemo(() => {
     if (!sortKey) return filtered;
@@ -362,6 +369,20 @@ export const OrderMarketView = memo(function OrderMarketView({
           </button>
         ))}
       </div>
+      <div className="fi-filter-bar">
+        <button type="button" className={`fi-filter min-h-12 ${certFilter === 'all' ? 'fi-filter-active' : ''}`} onClick={() => setCertFilter('all')}>
+          Alle Freigaben
+        </button>
+        <button type="button" className={`fi-filter min-h-12 ${certFilter === 'etcs' ? 'fi-filter-active' : ''}`} onClick={() => setCertFilter('etcs')}>
+          ETCS-Zertifikat
+        </button>
+        <button type="button" className={`fi-filter min-h-12 ${certFilter === 'length' ? 'fi-filter-active' : ''}`} onClick={() => setCertFilter('length')}>
+          Mit Nutzlänge
+        </button>
+        <span className="self-center px-2 text-[10px] text-slate-500">
+          Reputation {bekanntheit}/100 · Level {companyLevel}
+        </span>
+      </div>
 
       {filter === 'rahmen' && framework ? (
         <FrameworkContractsPanel {...framework} />
@@ -428,7 +449,6 @@ export const OrderMarketView = memo(function OrderMarketView({
               </tr>
             )}
             {sorted.map((order) => {
-              const typeCfg = getOrderTypeConfig(order.type);
               const statusCfg = getOrderStatusConfig(order.status);
               const time = order.deadline
                 ? timeRemaining(order.deadline, gameNow, { accepted: order.status !== 'offen' })
@@ -440,14 +460,19 @@ export const OrderMarketView = memo(function OrderMarketView({
               const wagonCheck = checkWagonAvailability(order, wagons);
               const shortage = wagonShortageLabel(wagonCheck);
               const gate = orderGate(order);
+              const card = buildOrderContractCard(order, wagons, {
+                level: companyLevel,
+                reputation: bekanntheit,
+                hasEtcs: locoHasEtcsFleet(locomotives),
+              });
               return (
                 <tr key={order.id} className="fi-deferred-list-row cursor-pointer" onClick={() => openOrder(order)}>
                   <td data-label="Auftrag" className="fi-mobile-card-title font-mono text-[11px] font-bold text-white">{order.order_number}</td>
                   <td data-label="Typ">
                     <div className="flex flex-col items-start gap-1">
-                      <span className={`inline-flex items-center gap-1 ${isConstruction ? 'fi-pill fi-pill-orange' : 'fi-pill fi-pill-blue'}`}>
+                      <span className={`inline-flex items-center gap-1 ${card.kind === 'baugleis' ? 'fi-pill fi-pill-orange' : card.kind === 'rahmen' ? 'fi-pill fi-pill-gold' : 'fi-pill fi-pill-blue'}`}>
                         {isConstruction ? <HardHat className="h-3 w-3" /> : <Package className="h-3 w-3" />}
-                        {einsatz ? 'Baugleis-Einsatz' : typeCfg.label}
+                        {einsatz ? 'Baugleis-Einsatz' : card.kindLabel}
                       </span>
                       {badge && <span className={badge.className}>{badge.label}</span>}
                     </div>
@@ -455,6 +480,18 @@ export const OrderMarketView = memo(function OrderMarketView({
                   <td data-label="Fracht" className="fi-mobile-card-summary max-w-[240px] font-medium text-white">
                     <div>{order.title}</div>
                     {order.customer && <div className="text-[10px] font-normal text-slate-500">{order.customer}</div>}
+                    <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] font-normal text-slate-400">
+                      <span>Nutzlänge {card.usableLengthM != null ? `${card.usableLengthM.toLocaleString('de-DE')} m` : '—'}</span>
+                      <span>Tonnage {card.tonnageT.toLocaleString('de-DE')} t</span>
+                      <span>{card.tractionLabel}</span>
+                      <span className="text-emerald-400">DB {formatEuro(card.contribution)}</span>
+                      <span className="text-rose-300">Pönale {card.penaltyLabel}</span>
+                      {card.clearances.map((row) => (
+                        <span key={row.id} className={row.met ? 'text-emerald-300' : 'text-amber-300'}>
+                          {row.label}: {row.detail}
+                        </span>
+                      ))}
+                    </div>
                     {shortage && <div className="mt-0.5 text-[10px] font-bold text-rose-400">{shortage}</div>}
                     {fleetFits.get(order.id)?.ok && (
                       <div className="mt-0.5 text-[10px] font-semibold text-emerald-400">

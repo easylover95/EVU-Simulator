@@ -53,7 +53,7 @@ import {
 import { GameClockProvider } from '@/lib/GameClockContext';
 import { atmosphereForView, type AppView } from '@/lib/navigation';
 import { applyPerformanceSettings, loadPerformanceSettings, savePerformanceSettings, type PerformanceSettings } from '@/lib/performanceSettings';
-import { playSoundEffect, type SoundEffect } from '@/lib/webAudio';
+import { playSoundEffect, syncAudioWithDocumentVisibility, type SoundEffect } from '@/lib/webAudio';
 import { startWebVitalsMonitoring } from '@/lib/webVitals';
 import { useNetworkStatus } from '@/lib/networkStatus';
 import { NetworkStatusNotice } from '@/components/NetworkStatusNotice';
@@ -92,6 +92,7 @@ import {
   pushBooking,
   sanierungSnapshot,
   saveBankState,
+  summarizePnl,
   syncSanierung,
   type BankBookingKind,
   type BankState,
@@ -254,7 +255,9 @@ import {
   listingToStaffMeta,
   loadExtraDrivers,
   loadStaffMeta,
+  nextRankTraining,
   processPayrollTick,
+  rankQuickPayCost,
   removeJobListing,
   saveExtraDrivers,
   saveStaffMeta,
@@ -266,6 +269,7 @@ import {
   hireNachschulungFee,
   missingFleetSeries,
   seriesDispatchBlock,
+  seriesQuickPayQuote,
   seriesTrainingQuote,
 } from '@/lib/personal';
 import { applyEconomy, loadCompanyEconomy, saveCompanyEconomy } from '@/lib/economy';
@@ -303,6 +307,11 @@ import {
 import { hasSeenTutorial, markTutorialSeen } from '@/lib/tutorial';
 import { clearLocalGameState } from '@/lib/gameReset';
 import { archiveCurrentRun, recordCompletedRun, startStatisticsRun } from '@/lib/statisticsArchive';
+import {
+  loadPerformanceLedger,
+  recordPerformanceDay,
+  savePerformanceLedger,
+} from '@/lib/performanceLedger';
 import { isSessionActive, setSessionActive } from '@/lib/session';
 import { driverRestStatus, resolveRestTripRisk, REST_WARNING } from '@/lib/restRules';
 import {
@@ -441,6 +450,7 @@ function App() {
   const [depot, setDepot] = useState<DepotState>(() => loadDepotState());
   const [maintenanceFund, setMaintenanceFund] = useState<MaintenanceFundState>(() => loadMaintenanceFund());
   const [corporateMilestones, setCorporateMilestones] = useState<CorporateMilestoneState>(() => loadCorporateMilestones());
+  const [performanceLedger, setPerformanceLedger] = useState(() => loadPerformanceLedger());
   const [insolvencyDismissed, setInsolvencyDismissed] = useState(false);
   const [networkAccess, setNetworkAccess] = useState<NetworkAccessState>(() => loadNetworkAccess());
   const [worldEvents, setWorldEvents] = useState<WorldEventState>(() =>
@@ -1256,6 +1266,21 @@ function App() {
     if (loansPaid > 0) {
       persistAchievements(noteLoansPaidOff(achievementsRef.current, loansPaid));
     }
+    if (isNewGameDay(prevCompany.tick, nextTick)) {
+      const pnl = summarizePnl(bankTick.state.bookings, nextTick - 24, nextTick);
+      const tripsToday = assignmentsRef.current.filter((a) => a.status === 'abgeschlossen' && a.order).length;
+      const tonneKmToday = assignmentsRef.current
+        .filter((a) => a.status === 'abgeschlossen' && a.order)
+        .reduce((sum, a) => sum + (a.order?.distance_km ?? 0) * (a.order?.weight_t ?? 0), 0);
+      const nextLedger = recordPerformanceDay(loadPerformanceLedger(), nextTick, {
+        revenue: Math.max(0, pnl.revenue),
+        operatingCost: Math.max(0, -pnl.totalCosts),
+        trips: tripsToday,
+        tonneKm: tonneKmToday,
+      });
+      savePerformanceLedger(nextLedger);
+      setPerformanceLedger(nextLedger);
+    }
 
     const adTick = processAdvertisingTick(adsRef.current, nextCompany, nextTick);
     adsRef.current = adTick.state;
@@ -1519,6 +1544,7 @@ function App() {
     const updateVisibility = () => {
       const visible = document.visibilityState !== 'hidden';
       document.documentElement.dataset.appVisibility = visible ? 'visible' : 'hidden';
+      syncAudioWithDocumentVisibility();
       if (visible) {
         visibleClockSecondsRef.current = 0;
         setClockMinutes(clockMinutesRef.current);
@@ -2817,13 +2843,31 @@ function App() {
     return true;
   }
 
-  function handleStartTraining(driverId: string, seriesId: string): boolean {
+  function handleStartTraining(driverId: string, seriesId: string, instant = false): boolean {
     const meta = staffMetaRef.current[driverId];
     const driver = driversRef.current.find((d) => d.id === driverId);
     const current = companyRef.current;
     if (!meta || !driver || !current || meta.role !== 'tf') return false;
     if (meta.trainingUntilTick != null) return false;
     if ((meta.seriesIds ?? []).includes(seriesId)) return false;
+    if (instant) {
+      const quote = seriesQuickPayQuote(seriesId);
+      if (!trySpend(quote.cost, `Quick-Pay Schulung ${driver.name}`, 'gehalt')) return false;
+      const nextMeta = {
+        ...staffMetaRef.current,
+        [driverId]: {
+          ...meta,
+          seriesIds: [...new Set([...(meta.seriesIds ?? []), seriesId])],
+          trainingUntilTick: null,
+          trainingKind: null,
+          trainingSeriesId: null,
+        },
+      };
+      staffMetaRef.current = nextMeta;
+      setStaffMeta(nextMeta);
+      saveStaffMeta(nextMeta);
+      return true;
+    }
     const quote = seriesTrainingQuote(seriesId);
     if (!trySpend(quote.cost, `Schulung ${driver.name}`, 'gehalt')) return false;
     const until = current.tick + quote.durationTicks;
@@ -2834,6 +2878,53 @@ function App() {
         trainingUntilTick: until,
         trainingKind: 'series' as const,
         trainingSeriesId: seriesId,
+      },
+    };
+    staffMetaRef.current = nextMeta;
+    setStaffMeta(nextMeta);
+    saveStaffMeta(nextMeta);
+    const nextDrivers = driversRef.current.map((d) =>
+      d.id === driverId ? { ...d, status: 'pause' as const, recovery_hours_left: quote.durationTicks } : d,
+    );
+    driversRef.current = nextDrivers;
+    setDrivers(nextDrivers);
+    return true;
+  }
+
+  function handleStartRankTraining(driverId: string, instant = false): boolean {
+    const meta = staffMetaRef.current[driverId];
+    const driver = driversRef.current.find((d) => d.id === driverId);
+    const current = companyRef.current;
+    if (!meta || !driver || !current) return false;
+    if (meta.trainingUntilTick != null) return false;
+    const quote = nextRankTraining(meta.rank);
+    if (!quote) return false;
+    if (instant) {
+      const cost = rankQuickPayCost(meta.rank);
+      if (cost == null || !trySpend(cost, `Quick-Pay Qualifikation ${driver.name}`, 'gehalt')) return false;
+      const trained = completeDueTraining(
+        driversRef.current,
+        {
+          ...staffMetaRef.current,
+          [driverId]: { ...meta, trainingUntilTick: current.tick, trainingKind: 'rank', trainingSeriesId: null },
+        },
+        current.tick,
+      );
+      driversRef.current = trained.drivers;
+      setDrivers(trained.drivers);
+      staffMetaRef.current = trained.meta;
+      setStaffMeta(trained.meta);
+      saveStaffMeta(trained.meta);
+      return true;
+    }
+    if (!trySpend(quote.cost, `Qualifikation ${driver.name}`, 'gehalt')) return false;
+    const nextMeta = {
+      ...staffMetaRef.current,
+      [driverId]: {
+        ...meta,
+        trainingUntilTick: current.tick + quote.durationTicks,
+        trainingKind: 'rank' as const,
+        trainingSeriesId: null,
       },
     };
     staffMetaRef.current = nextMeta;
@@ -3121,6 +3212,9 @@ function App() {
                   corporateMilestones={corporateMilestones}
                   onEditCompany={openCompanyEditor}
                   onOpenArchive={() => setView('statistikarchiv')}
+                  achievements={achievements}
+                  networkAccess={networkAccess}
+                  performanceLedger={performanceLedger}
                 />
               )}
               {view === 'statistikarchiv' && <StatisticsArchiveView onBack={() => setView('auswertungen')} />}
@@ -3159,6 +3253,7 @@ function App() {
                     setView('haendler');
                   }}
                   bekanntheit={company?.reputation ?? 0}
+                  companyLevel={company?.level ?? 1}
                   onOpenHandbook={handleHelp}
                   framework={{
                     industrial,
@@ -3334,6 +3429,7 @@ function App() {
                   bekanntheit={company?.reputation ?? 0}
                   onRecruit={handleRecruit}
                   onStartTraining={handleStartTraining}
+                  onStartRankTraining={handleStartRankTraining}
                   balance={company?.balance ?? 0}
                   overdraftLimit={bank.overdraftLimit}
                   staffCap={staffHousingCap(depot)}

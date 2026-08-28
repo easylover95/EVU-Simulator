@@ -6,7 +6,6 @@ import { Button, Card } from '@/components/ui';
 import {
   canAcceptIndustrial,
   contractObligation,
-  industrialDailyOperatingCost,
   industrialPayableDaily,
   industrialWagonNeed,
   requiredDeparturesFor,
@@ -21,6 +20,7 @@ import { networkSiteById } from '@/lib/networkSites';
 import type { DepotState } from '@/lib/depot';
 import { isNetworkSiteOwned } from '@/lib/depot';
 import { exclusiveJobsUnlocked, reputationTier } from '@/lib/reputation';
+import { buildFrameworkContractCard, locoHasEtcsFleet } from '@/lib/contractCard';
 
 export interface FrameworkContractsPanelProps {
   industrial: IndustrialContract[];
@@ -81,7 +81,6 @@ export const FrameworkContractsPanel = memo(function FrameworkContractsPanel({
       <div className="grid gap-3 md:grid-cols-2">
         {offers.map((c) => {
           const payable = industrialPayableDaily(c, standing);
-          const op = industrialDailyOperatingCost(c);
           const activeC = c.status === 'active';
           const siteMissing = Boolean(c.requiredSiteId && depot && !isNetworkSiteOwned(depot, c.requiredSiteId));
           const lockedOffer = c.status === 'available' && (!canAcceptIndustrial(c, standing, depot) || siteMissing);
@@ -109,6 +108,11 @@ export const FrameworkContractsPanel = memo(function FrameworkContractsPanel({
                 ? `Betriebsstelle ${site?.name ?? c.requiredSiteId} erforderlich`
                 : `Ab Reputation ${c.minBekanntheit}`
             : null;
+          const card = buildFrameworkContractCard(c, wagons, {
+            level: companyLevel,
+            reputation: bekanntheit,
+            hasEtcs: locoHasEtcsFleet(locomotives),
+          });
           return (
             <Card key={c.id} className="p-4">
               <div className="flex items-start justify-between gap-2">
@@ -116,10 +120,11 @@ export const FrameworkContractsPanel = memo(function FrameworkContractsPanel({
                   <Factory className="h-4 w-4" />
                   <h3 className="text-sm font-bold text-white">{c.title}</h3>
                 </div>
-                <span className="text-[10px] font-bold uppercase text-amber-300">
-                  {activeC ? 'Aktiv' : lockHint ? lockHint : 'Angebot'}
-                </span>
+                <span className="fi-pill fi-pill-gold">Rahmen</span>
               </div>
+              <span className="mt-1 inline-block text-[10px] font-bold uppercase text-amber-300">
+                {activeC ? 'Aktiv' : lockHint ? lockHint : 'Angebot'}
+              </span>
               <p className="mt-1 text-xs text-slate-400">
                 {c.partner} · {c.corridor}
                 {c.exclusive ? ' · Exklusiv-Ganzzug' : ''}
@@ -141,11 +146,18 @@ export const FrameworkContractsPanel = memo(function FrameworkContractsPanel({
                 </div>
               </dl>
               <p className="mt-2 text-[10px] text-slate-500">
-                Trasse/Energie {formatEuro(obl?.tripOpex ?? Math.round(op / Math.max(1, c.dailyDepartures)))} / Lauf
+                Nutzlänge {card.usableLengthM != null ? `${card.usableLengthM.toLocaleString('de-DE')} m` : '—'} · {card.tonnageT.toLocaleString('de-DE')} t · {card.tractionLabel}
+                · DB {formatEuro(card.contribution)} / Tag
                 {c.requiredWagonType ? ` · ${c.requiredWagonCount}× ${c.requiredWagonType}` : ''}
-                {c.electrified === false ? ' · ohne Oberleitung (Diesel/Dual)' : ' · elektrifiziert (E-Lok/Dual/Diesel)'}
                 {site ? ` · Knoten ${site.nodeLabel}` : ''}
               </p>
+              <div className="mt-1 flex flex-wrap gap-1 text-[10px]">
+                {card.clearances.map((row) => (
+                  <span key={row.id} className={row.met ? 'text-emerald-300' : 'text-amber-300'}>
+                    {row.label}
+                  </span>
+                ))}
+              </div>
               {traction && (
                 <p className={`mt-2 text-[11px] ${traction.ok ? 'text-emerald-300' : 'text-rose-400'}`}>{traction.message}</p>
               )}
