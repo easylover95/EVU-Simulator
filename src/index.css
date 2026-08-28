@@ -128,13 +128,16 @@
 
   /* Filter chips */
   .fi-filter-bar {
-    @apply flex overflow-hidden rounded-md border border-[#1e293b];
+    @apply flex flex-wrap overflow-x-auto rounded-md border border-[#1e293b];
   }
   .fi-filter {
-    @apply flex items-center gap-1.5 border-r border-[#1e293b] bg-slate-900/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400 last:border-0 transition-colors hover:bg-slate-800 hover:text-slate-200;
+    @apply flex min-h-11 shrink-0 items-center gap-1.5 border-r border-[#1e293b] bg-slate-900/60 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide text-slate-400 last:border-0 transition-colors hover:bg-slate-800 hover:text-slate-200;
   }
   .fi-filter-active {
     @apply bg-slate-900 text-amber-400 shadow-[inset_0_-2px_0_#fbbf24];
+  }
+  .fi-filter-meta {
+    @apply flex min-h-11 items-center px-3 text-[10px] text-slate-500;
   }
 
   /* Gold money / cyan tick */
@@ -215,6 +218,7 @@
   left: 0;
   right: 0;
   z-index: 50;
+  isolation: isolate;
   background: transparent;
   border-bottom: none;
   box-shadow: none;
@@ -437,6 +441,15 @@
   color: #fcd34d;
 }
 
+.app-topbar-nav-chrome {
+  position: relative;
+  z-index: 2;
+  background: rgba(12, 14, 18, 0.94);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255, 193, 7, 0.12);
+}
+
 .app-topbar-tabs-row {
   display: flex;
   justify-content: center;
@@ -534,6 +547,44 @@
   padding-left: 1.5rem;
   padding-right: 1.5rem;
   padding-bottom: 3rem;
+}
+
+.fi-market-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.fi-market-spec {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+  max-width: 12.5rem;
+}
+
+.fi-market-spec-value {
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.fi-market-spec-hint {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #94a3b8;
+  overflow-wrap: anywhere;
+}
+
+.fi-market-title-cell {
+  max-width: 16rem;
+  min-width: 0;
+}
+
+.fi-market-title-cell .fi-market-title {
+  overflow-wrap: anywhere;
+  line-height: 1.3;
 }
 
 @media (min-width: 640px) {
@@ -750,7 +801,7 @@ body,
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(10, 12, 16, 0.42) 0%, rgba(12, 14, 18, 0.62) 100%);
+    linear-gradient(180deg, rgba(8, 10, 14, 0.94) 0%, rgba(12, 14, 18, 0.72) 18%, rgba(12, 14, 18, 0.58) 100%);
 }
 
 .app-shell.has-submenu-atmosphere {
@@ -1236,8 +1287,23 @@ body,
     min-width: 3rem;
     touch-action: manipulation;
   }
+  .fi-filter-bar {
+    gap: 0.35rem;
+    overflow: visible;
+    border: 0;
+    background: transparent;
+  }
   .fi-filter {
     min-height: 3rem;
+    flex: 1 1 auto;
+    justify-content: center;
+    border: 1px solid #1e293b;
+    border-radius: 0.5rem;
+  }
+  .fi-filter-meta {
+    min-height: 2.75rem;
+    width: 100%;
+    justify-content: flex-start;
   }
   .app-mobile-clock {
     position: fixed;
@@ -2224,7 +2290,8 @@ body,
 
   .app-topbar-status,
   .app-topbar-tabs-row,
-  .app-topbar-sub {
+  .app-topbar-sub,
+  .app-topbar-nav-chrome {
     display: none;
   }
 
@@ -2505,10 +2572,29 @@ body,
   }
 
   .fi-mobile-card-table tbody td.fi-mobile-card-actions .btn-action {
-    min-height: 2.75rem;
+    min-height: 3rem;
     flex: 1 1 8rem;
     justify-content: center;
     touch-action: manipulation;
+  }
+
+  .fi-market-spec {
+    align-items: flex-end;
+    max-width: none;
+    text-align: right;
+  }
+
+  .fi-mobile-card-table tbody td.fi-mobile-card-summary .fi-market-spec {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .fi-market-table-wrap {
+    overflow: visible;
+  }
+
+  .fi-market-title-cell {
+    max-width: none;
   }
 
   .app-main-content {

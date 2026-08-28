@@ -21,7 +21,7 @@ import {
   MIN_BRH_RANGE,
 } from '@/lib/status';
 import { isBaugleisEinsatz, isOpenUnexpiredMarketOrder } from '@/lib/orderMarket';
-import { bestFleetFit, isOrderElectrified } from '@/lib/traction';
+import { bestFleetFit, isOrderElectrified, type AssignmentFit } from '@/lib/traction';
 import { useGameClock } from '@/lib/GameClockContext';
 import { SectionShell } from '@/components/SectionShell';
 import { OrderCostBreakdown } from '@/components/OrderCostBreakdown';
@@ -35,7 +35,7 @@ import { FrameworkContractsPanel, type FrameworkContractsPanelProps } from '@/co
 import { exclusiveJobsUnlocked, reputationTier } from '@/lib/reputation';
 import { ContextHelpTooltip } from '@/components/ContextHelpTooltip';
 import type { HandbookOpenTo } from '@/lib/handbook';
-import { buildOrderContractCard, locoHasEtcsFleet } from '@/lib/contractCard';
+import { buildOrderContractCard, derivedUsableLengthM, locoHasEtcsFleet } from '@/lib/contractCard';
 
 interface OrderMarketViewProps {
   orders: Order[];
@@ -360,6 +360,7 @@ export const OrderMarketView = memo(function OrderMarketView({
         ).map(([key, label]) => (
           <button
             key={key}
+            type="button"
             onClick={() => setFilter(key)}
             className={`fi-filter ${filter === key ? 'fi-filter-active' : ''}`}
           >
@@ -379,7 +380,7 @@ export const OrderMarketView = memo(function OrderMarketView({
         <button type="button" className={`fi-filter min-h-12 ${certFilter === 'length' ? 'fi-filter-active' : ''}`} onClick={() => setCertFilter('length')}>
           Mit Nutzlänge
         </button>
-        <span className="self-center px-2 text-[10px] text-slate-500">
+        <span className="fi-filter-meta">
           Reputation {bekanntheit}/100 · Level {companyLevel}
         </span>
       </div>
@@ -387,7 +388,7 @@ export const OrderMarketView = memo(function OrderMarketView({
       {filter === 'rahmen' && framework ? (
         <FrameworkContractsPanel {...framework} />
       ) : (
-      <div className="fi-card overflow-x-auto">
+      <div className="fi-card fi-market-table-wrap">
         <table className="fi-table fi-mobile-card-table">
           <thead>
             <tr>
@@ -401,18 +402,20 @@ export const OrderMarketView = memo(function OrderMarketView({
                 </span>
               </th>
               <SortHeader
-                label="Last (t)"
+                label="Tonnage"
                 column="weight"
                 active={sortKey === 'weight'}
                 dir={sortDir}
                 onSort={toggleSort}
-                extra={
-                  <>
-                    <ContextHelpTooltip topicId="hakenlast" onOpenManual={onOpenHandbook} />
-                    <ContextHelpTooltip topicId="nutzlaenge" onOpenManual={onOpenHandbook} />
-                  </>
-                }
+                extra={<ContextHelpTooltip topicId="hakenlast" onOpenManual={onOpenHandbook} />}
               />
+              <th className="whitespace-nowrap">
+                <span className="inline-flex items-center">
+                  Nutzlänge
+                  <ContextHelpTooltip topicId="nutzlaenge" onOpenManual={onOpenHandbook} />
+                </span>
+              </th>
+              <th>Wagen</th>
               <th className="whitespace-nowrap">
                 <span className="inline-flex items-center">
                   Mindest-Brh
@@ -443,7 +446,7 @@ export const OrderMarketView = memo(function OrderMarketView({
           <tbody>
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={11} className="fi-mobile-empty-state py-8 text-center text-slate-500">
+                <td colSpan={13} className="fi-mobile-empty-state py-8 text-center text-slate-500">
                   Keine Aufträge in dieser Ansicht
                 </td>
               </tr>
@@ -475,46 +478,55 @@ export const OrderMarketView = memo(function OrderMarketView({
                         {einsatz ? 'Baugleis-Einsatz' : card.kindLabel}
                       </span>
                       {badge && <span className={badge.className}>{badge.label}</span>}
+                      {card.clearances
+                        .filter((row) => row.id === 'etcs' || row.id === 'exclusive')
+                        .map((row) => (
+                          <span key={row.id} className={row.met ? 'fi-pill fi-pill-green' : 'fi-pill fi-pill-orange'}>
+                            {row.label}
+                          </span>
+                        ))}
                     </div>
                   </td>
-                  <td data-label="Fracht" className="fi-mobile-card-summary max-w-[240px] font-medium text-white">
-                    <div>{order.title}</div>
+                  <td data-label="Kunde / Titel" className="fi-mobile-card-summary fi-market-title-cell font-medium text-white">
+                    <div className="fi-market-title">{order.title}</div>
                     {order.customer && <div className="text-[10px] font-normal text-slate-500">{order.customer}</div>}
-                    <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px] font-normal text-slate-400">
-                      <span>Nutzlänge {card.usableLengthM != null ? `${card.usableLengthM.toLocaleString('de-DE')} m` : '—'}</span>
-                      <span>Tonnage {card.tonnageT.toLocaleString('de-DE')} t</span>
-                      <span>{card.tractionLabel}</span>
-                      <span className="text-emerald-400">DB {formatEuro(card.contribution)}</span>
-                      <span className="text-rose-300">Pönale {card.penaltyLabel}</span>
-                      {card.clearances.map((row) => (
-                        <span key={row.id} className={row.met ? 'text-emerald-300' : 'text-amber-300'}>
-                          {row.label}: {row.detail}
-                        </span>
-                      ))}
-                    </div>
-                    {shortage && <div className="mt-0.5 text-[10px] font-bold text-rose-400">{shortage}</div>}
-                    {fleetFits.get(order.id)?.ok && (
-                      <div className="mt-0.5 text-[10px] font-semibold text-emerald-400">
-                        Fuhrpark passt · {fleetFits.get(order.id)?.message}
-                      </div>
-                    )}
-                    {fleetFits.get(order.id) && !fleetFits.get(order.id)?.ok && locomotives.length > 0 && (
-                      <div className="mt-0.5 text-[10px] font-semibold text-amber-300">
-                        {fleetFits.get(order.id)?.message}
-                      </div>
-                    )}
                   </td>
-                  <td data-label="Strecke" className="fi-mobile-card-summary whitespace-nowrap text-[11px] text-slate-400">
-                    {order.origin} → {order.destination}
-                    <span className="ml-1 text-slate-600">({order.distance_km} km · {corridorCountryHint(order)})</span>
-                    <div className="mt-0.5 text-[10px] font-semibold text-sky-300/90">
-                      {isOrderElectrified(order) ? 'Fahrdraht / E-Lok möglich' : 'Ohne Oberleitung · Diesel/Dual'}
-                      {order.special ? ' · Spezialauftrag' : ''}
-                      {order.exclusive ? ' · Exklusiv-Ganzzug' : ''}
-                    </div>
+                  <td data-label="Strecke" className="fi-mobile-card-summary whitespace-normal text-[11px] text-slate-400">
+                    <MarketSpec
+                      value={`${order.origin} → ${order.destination}`}
+                      hint={`${order.distance_km} km · ${corridorCountryHint(order)} · ${
+                        isOrderElectrified(order) ? 'Fahrdraht / E-Lok möglich' : 'Ohne Oberleitung · Diesel/Dual'
+                      }${order.special ? ' · Spezialauftrag' : ''}${order.exclusive ? ' · Exklusiv-Ganzzug' : ''}`}
+                    />
                     {gate && <div className="mt-0.5 text-[10px] font-bold text-rose-400">{gate}</div>}
                   </td>
-                  <td data-label="Last" className="tabular-nums">{Number(order.weight_t || 0).toLocaleString('de-DE')} t</td>
+                  <td data-label="Tonnage / Hakenlast">
+                    <MarketSpec
+                      value={`${Number(order.weight_t || 0).toLocaleString('de-DE')} t`}
+                      hint={hakenlastHint(fleetFits.get(order.id))}
+                      hintClass={
+                        fleetFits.get(order.id)?.ok
+                          ? 'text-emerald-400'
+                          : fleetFits.get(order.id)
+                            ? 'text-amber-300'
+                            : undefined
+                      }
+                    />
+                  </td>
+                  <td data-label="Nutzlänge" className="tabular-nums">
+                    {card.usableLengthM != null ? `${card.usableLengthM.toLocaleString('de-DE')} m` : '—'}
+                  </td>
+                  <td data-label="Wagen">
+                    <MarketSpec
+                      value={
+                        card.requiredWagonType
+                          ? `${card.requiredWagonCount ?? 0}× ${card.requiredWagonType}`
+                          : 'Keine gebundene Gattung'
+                      }
+                      hint={shortage}
+                      hintClass={shortage ? 'font-bold text-rose-400' : undefined}
+                    />
+                  </td>
                   <td data-label="Mindest-Brh" className="font-bold tabular-nums text-amber-300">{minBrh}</td>
                   <td data-label="Ertrag" className="font-bold tabular-nums text-emerald-400">
                     {einsatz && order.daily_rate
@@ -548,16 +560,16 @@ export const OrderMarketView = memo(function OrderMarketView({
                     <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
                       {order.status === 'offen' && (
                         <>
-                          <button onClick={() => acceptOrder(order)} className="btn-action btn-action-dispo">
+                          <button type="button" onClick={() => acceptOrder(order)} className="btn-action btn-action-dispo">
                             <ClipboardList className="h-3 w-3" />{' '}
                             {gate ? 'Netzzugang fehlt' : wagonCheck.sufficient ? 'Zur Disposition' : 'Wagen fehlen'}
                           </button>
-                          <button onClick={() => onReject?.(order)} className="btn-action btn-action-reject">
+                          <button type="button" onClick={() => onReject?.(order)} className="btn-action btn-action-reject">
                             <Ban className="h-3 w-3" /> Ablehnen
                           </button>
                         </>
                       )}
-                      <button onClick={() => openOrder(order)} className="btn-action btn-action-detail">
+                      <button type="button" onClick={() => openOrder(order)} className="btn-action btn-action-detail">
                         <Info className="h-3 w-3" /> Details
                       </button>
                     </div>
@@ -610,6 +622,18 @@ export const OrderMarketView = memo(function OrderMarketView({
                   value={bestFleetFit(detailOrder, locomotives)?.message ?? 'Kein Triebfahrzeug im Bestand'}
                 />
                 <DetailRow
+                  label="Tonnage"
+                  value={`${Number(detailOrder.weight_t || 0).toLocaleString('de-DE')} t`}
+                />
+                <DetailRow
+                  label="Hakenlast"
+                  value={hakenlastHint(bestFleetFit(detailOrder, locomotives))}
+                />
+                <DetailRow
+                  label="Nutzlänge"
+                  value={usableLengthLabel(detailOrder, wagons)}
+                />
+                <DetailRow
                   label="Mindest-Brh"
                   value={`${clampOrderMinBrh(detailOrder.type, detailOrder.min_brh)} (${(MIN_BRH_RANGE[detailOrder.type] ?? MIN_BRH_RANGE.gueterverkehr).min}–${(MIN_BRH_RANGE[detailOrder.type] ?? MIN_BRH_RANGE.gueterverkehr).max})`}
                 />
@@ -656,6 +680,18 @@ export const OrderMarketView = memo(function OrderMarketView({
                   label="Status"
                   value={detailOrder.status === 'offen' ? 'Gültig' : getOrderStatusConfig(detailOrder.status).label}
                 />
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {buildOrderContractCard(detailOrder, wagons, {
+                  level: companyLevel,
+                  reputation: bekanntheit,
+                  hasEtcs: locoHasEtcsFleet(locomotives),
+                }).clearances.map((row) => (
+                  <span key={row.id} className={row.met ? 'fi-pill fi-pill-green' : 'fi-pill fi-pill-orange'}>
+                    {row.label}: {row.detail}
+                  </span>
+                ))}
               </div>
 
               {orderGate(detailOrder) && (
@@ -762,4 +798,31 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       <div className="text-sm font-medium text-white">{value}</div>
     </div>
   );
+}
+
+function MarketSpec({
+  value,
+  hint,
+  hintClass,
+}: {
+  value: string;
+  hint?: string | null;
+  hintClass?: string;
+}) {
+  return (
+    <div className="fi-market-spec">
+      <span className="fi-market-spec-value">{value}</span>
+      {hint ? <span className={`fi-market-spec-hint ${hintClass ?? ''}`}>{hint}</span> : null}
+    </div>
+  );
+}
+
+function usableLengthLabel(order: Order, wagons: Wagon[]): string {
+  const meters = derivedUsableLengthM(order, wagons);
+  return meters != null ? `${meters.toLocaleString('de-DE')} m` : '—';
+}
+
+function hakenlastHint(fit: AssignmentFit | null | undefined): string {
+  if (!fit) return 'Hakenlast im Detail prüfen';
+  return `Hakenlast ${fit.trailingLoadT.toLocaleString('de-DE')} t ${fit.ok ? 'trägt die Last' : 'zu gering'}`;
 }
