@@ -109,6 +109,33 @@ export const RECRUIT_OFFERS: RecruitOffer[] = [
     minBekanntheit: 30,
     qualifications: ['AZF', 'RB'],
   },
+  {
+    role: 'wagenpruefer',
+    rank: 1,
+    name: 'Wagenprüfer Rang 1',
+    hiringCost: 2800,
+    salary: salaryFor('wagenpruefer', 1),
+    minBekanntheit: 0,
+    qualifications: ['Wagenprüfer', 'Stufe 1'],
+  },
+  {
+    role: 'wagenpruefer',
+    rank: 2,
+    name: 'Wagenprüfer Rang 2',
+    hiringCost: 4100,
+    salary: salaryFor('wagenpruefer', 2),
+    minBekanntheit: 18,
+    qualifications: ['Wagenprüfer', 'Stufe 2'],
+  },
+  {
+    role: 'wagenpruefer',
+    rank: 3,
+    name: 'Wagenprüfer Rang 3',
+    hiringCost: 5600,
+    salary: salaryFor('wagenpruefer', 3),
+    minBekanntheit: 35,
+    qualifications: ['Wagenprüfer', 'Stufe 3'],
+  },
 ];
 
 export interface JobListing {
@@ -250,7 +277,7 @@ function hashDayKey(day: string | number): number {
 export function generateJobBoard(dayKey: number | string, existingNames: string[]): JobListing[] {
   const rng = mulberry32(hashDayKey(dayKey) ^ 0x9e3779b9);
   const used = new Set(existingNames);
-  const slots: StaffRole[] = ['tf', 'tf', 'tf', 'tf', 'azf', 'azf', 'azf'];
+  const slots: StaffRole[] = ['tf', 'tf', 'tf', 'azf', 'azf', 'wagenpruefer', 'wagenpruefer'];
   const listings: JobListing[] = [];
   for (let i = 0; i < slots.length; i++) {
     const role = slots[i];
@@ -353,6 +380,24 @@ export function listingToStaffMeta(
 
 export const TRAINING_COST: Record<StaffRank, number> = { 1: 0, 2: 2200, 3: 3800 };
 export const TRAINING_TICKS = 24;
+export const RANK_QUICK_PAY_FACTOR = 1.4;
+
+export function nextRankTraining(rank: StaffRank): { nextRank: StaffRank; cost: number; durationTicks: number; durationDays: number } | null {
+  if (rank >= 3) return null;
+  const nextRank = (rank + 1) as StaffRank;
+  return {
+    nextRank,
+    cost: TRAINING_COST[nextRank],
+    durationTicks: TRAINING_TICKS,
+    durationDays: Math.max(1, Math.round(TRAINING_TICKS / 24)),
+  };
+}
+
+export function rankQuickPayCost(rank: StaffRank): number | null {
+  const quote = nextRankTraining(rank);
+  if (!quote) return null;
+  return Math.round(quote.cost * RANK_QUICK_PAY_FACTOR);
+}
 
 const FIRST_NAMES = ['Lena', 'Jonas', 'Mara', 'Tim', 'Nina', 'Felix', 'Sara', 'Omar', 'Greta', 'Paul', 'Lea', 'Ben'];
 const LAST_NAMES = ['Krüger', 'Schmitt', 'Neumann', 'Wolf', 'Schäfer', 'Koch', 'Bauer', 'Krause', 'Lorenz', 'Vogel'];
@@ -402,10 +447,11 @@ export function inferStaffMeta(driver: Driver): StaffMeta {
     /\brb\b/.test(quals) ||
     quals.includes('arbeitszug');
   const hasTf = quals.includes('tf');
+  const hasWp = quals.includes('wagenprüfer') || quals.includes('wagenpruefer');
   let rank: StaffRank = 1;
   if (quals.includes('stufe 3')) rank = 3;
   else if (quals.includes('stufe 2')) rank = 2;
-  const role: StaffRole = hasAzf && !hasTf ? 'azf' : hasTf ? 'tf' : 'tf';
+  const role: StaffRole = hasWp && !hasTf && !hasAzf ? 'wagenpruefer' : hasAzf && !hasTf ? 'azf' : 'tf';
   return {
     driverId: driver.id,
     role,

@@ -53,7 +53,7 @@ import {
 import { GameClockProvider } from '@/lib/GameClockContext';
 import { atmosphereForView, type AppView } from '@/lib/navigation';
 import { applyPerformanceSettings, loadPerformanceSettings, savePerformanceSettings, type PerformanceSettings } from '@/lib/performanceSettings';
-import { playSoundEffect, type SoundEffect } from '@/lib/webAudio';
+import { playSoundEffect, syncAudioWithDocumentVisibility, type SoundEffect } from '@/lib/webAudio';
 import { startWebVitalsMonitoring } from '@/lib/webVitals';
 import { useNetworkStatus } from '@/lib/networkStatus';
 import { NetworkStatusNotice } from '@/components/NetworkStatusNotice';
@@ -92,6 +92,7 @@ import {
   pushBooking,
   sanierungSnapshot,
   saveBankState,
+  summarizePnl,
   syncSanierung,
   type BankBookingKind,
   type BankState,
@@ -136,6 +137,9 @@ import {
   standingFromCompany,
   isMarketRefreshAvailable,
 } from '@/lib/orderMarket';
+import { networkSiteById, RELOCATION_COST } from '@/lib/networkSites';
+import { evaluateAssignmentFit } from '@/lib/traction';
+import type { HandbookOpenTo } from '@/lib/handbook';
 import {
   cancelBaugleisDeployment,
   hydrateDeploymentAssignments,
@@ -201,12 +205,19 @@ import {
 } from '@/lib/workshop';
 import {
   canBuyDepotExpansion,
+  canBuyNetworkSite,
+  canRelocateLoco,
+  defaultStationForNewLoco,
   DEPOT_EXPANSIONS,
+  dropStationing,
   ensureDepotFits,
   loadDepotState,
   locoBerthCap,
   purchaseDepotExpansion,
+  purchaseNetworkSite,
+  relocateLoco,
   saveDepotState,
+  staffHousingCap,
   wagonBerthCap,
   wagonUnitCount,
   freeWagonBerths,
@@ -244,7 +255,9 @@ import {
   listingToStaffMeta,
   loadExtraDrivers,
   loadStaffMeta,
+  nextRankTraining,
   processPayrollTick,
+  rankQuickPayCost,
   removeJobListing,
   saveExtraDrivers,
   saveStaffMeta,
@@ -256,6 +269,7 @@ import {
   hireNachschulungFee,
   missingFleetSeries,
   seriesDispatchBlock,
+  seriesQuickPayQuote,
   seriesTrainingQuote,
 } from '@/lib/personal';
 import { applyEconomy, loadCompanyEconomy, saveCompanyEconomy } from '@/lib/economy';
@@ -293,6 +307,11 @@ import {
 import { hasSeenTutorial, markTutorialSeen } from '@/lib/tutorial';
 import { clearLocalGameState } from '@/lib/gameReset';
 import { archiveCurrentRun, recordCompletedRun, startStatisticsRun } from '@/lib/statisticsArchive';
+import {
+  loadPerformanceLedger,
+  recordPerformanceDay,
+  savePerformanceLedger,
+} from '@/lib/performanceLedger';
 import { isSessionActive, setSessionActive } from '@/lib/session';
 import { driverRestStatus, resolveRestTripRisk, REST_WARNING } from '@/lib/restRules';
 import {
@@ -366,7 +385,7 @@ const PlayerMarketView = lazy(() => import('@/views/PlayerMarketView').then(({ P
 const TourPlannerView = lazy(() => import('@/views/TourPlannerView').then(({ TourPlannerView }) => ({ default: TourPlannerView })));
 const TourOverviewView = lazy(() => import('@/views/TourPlannerView').then(({ TourOverviewView }) => ({ default: TourOverviewView })));
 const BuildingsView = lazy(() => import('@/views/BuildingsView').then(({ BuildingsView }) => ({ default: BuildingsView })));
-const HelpHandbookModal = lazy(() => import('@/components/HelpHandbookModal').then(({ HelpHandbookModal }) => ({ default: HelpHandbookModal })));
+const ManualModal = lazy(() => import('@/components/ManualModal').then(({ ManualModal }) => ({ default: ManualModal })));
 const AchievementsGalleryModal = lazy(() => import('@/components/AchievementsGalleryModal').then(({ AchievementsGalleryModal }) => ({ default: AchievementsGalleryModal })));
 const LogoutConfirmModal = lazy(() => import('@/components/LogoutConfirmModal').then(({ LogoutConfirmModal }) => ({ default: LogoutConfirmModal })));
 
@@ -404,6 +423,7 @@ function App() {
   const [tutorialOpen, setTutorialOpen] = useState(false);
   const [tutorialEpoch, setTutorialEpoch] = useState(0);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [helpTarget, setHelpTarget] = useState<HandbookOpenTo | null>(null);
   const [logoutOpen, setLogoutOpen] = useState(false);
   const [resetGameOpen, setResetGameOpen] = useState(false);
   const [atMainMenu, setAtMainMenu] = useState(() => !isSessionActive());
@@ -430,6 +450,7 @@ function App() {
   const [depot, setDepot] = useState<DepotState>(() => loadDepotState());
   const [maintenanceFund, setMaintenanceFund] = useState<MaintenanceFundState>(() => loadMaintenanceFund());
   const [corporateMilestones, setCorporateMilestones] = useState<CorporateMilestoneState>(() => loadCorporateMilestones());
+  const [performanceLedger, setPerformanceLedger] = useState(() => loadPerformanceLedger());
   const [insolvencyDismissed, setInsolvencyDismissed] = useState(false);
   const [networkAccess, setNetworkAccess] = useState<NetworkAccessState>(() => loadNetworkAccess());
   const [worldEvents, setWorldEvents] = useState<WorldEventState>(() =>
@@ -840,6 +861,11 @@ function App() {
         ? persisted
         : refreshMarketOrders(SEED_ORDERS, nextCompany.tick, standingFromCompany(nextCompany), {
             wagonBerthCapacity: wagonBerthCap(depotRef.current),
+            locomotives: applyLocoMaintPatches(
+              mergeFleet(SEED_LOCOMOTIVES, extra.locomotives, sold.locomotives),
+              locoMaintRef.current,
+            ),
+            ownedSiteIds: depotRef.current.ownedSiteIds,
           });
     const market = purgeExpiredOpenOrders(marketRaw, gameNowAtLoad);
     const hydrated = hydrateDeploymentAssignments(
@@ -1240,6 +1266,21 @@ function App() {
     if (loansPaid > 0) {
       persistAchievements(noteLoansPaidOff(achievementsRef.current, loansPaid));
     }
+    if (isNewGameDay(prevCompany.tick, nextTick)) {
+      const pnl = summarizePnl(bankTick.state.bookings, nextTick - 24, nextTick);
+      const tripsToday = assignmentsRef.current.filter((a) => a.status === 'abgeschlossen' && a.order).length;
+      const tonneKmToday = assignmentsRef.current
+        .filter((a) => a.status === 'abgeschlossen' && a.order)
+        .reduce((sum, a) => sum + (a.order?.distance_km ?? 0) * (a.order?.weight_t ?? 0), 0);
+      const nextLedger = recordPerformanceDay(loadPerformanceLedger(), nextTick, {
+        revenue: Math.max(0, pnl.revenue),
+        operatingCost: Math.max(0, -pnl.totalCosts),
+        trips: tripsToday,
+        tonneKm: tonneKmToday,
+      });
+      savePerformanceLedger(nextLedger);
+      setPerformanceLedger(nextLedger);
+    }
 
     const adTick = processAdvertisingTick(adsRef.current, nextCompany, nextTick);
     adsRef.current = adTick.state;
@@ -1503,6 +1544,7 @@ function App() {
     const updateVisibility = () => {
       const visible = document.visibilityState !== 'hidden';
       document.documentElement.dataset.appVisibility = visible ? 'visible' : 'hidden';
+      syncAudioWithDocumentVisibility();
       if (visible) {
         visibleClockSecondsRef.current = 0;
         setClockMinutes(clockMinutesRef.current);
@@ -1626,13 +1668,20 @@ function App() {
     saveAchievementState(achievementsRef.current);
   }, [persistBank, persistCompany, persistDepot, persistMaintenanceFund, persistRentals]);
 
-  function handleHelp() {
+  const handleHelp = useCallback((target?: HandbookOpenTo) => {
     setLogoutOpen(false);
+    setHelpTarget(target ?? null);
     setHelpOpen(true);
-  }
+  }, []);
+
+  const closeHelp = useCallback(() => {
+    setHelpOpen(false);
+    setHelpTarget(null);
+  }, []);
 
   function handleReplayTutorial() {
     setHelpOpen(false);
+    setHelpTarget(null);
     setFoundingOpen(false);
     setView('zentrale');
     setTutorialEpoch((n) => n + 1);
@@ -1717,6 +1766,8 @@ function App() {
     setOrders((prev) =>
       refreshMarketOrders(prev, t, standingFromCompany(current), {
         wagonBerthCapacity: wagonBerthCap(depotRef.current),
+        locomotives: locomotivesRef.current,
+        ownedSiteIds: depotRef.current.ownedSiteIds,
       }),
     );
   }
@@ -1747,6 +1798,12 @@ function App() {
     const dispatchBlock = networkDispatchBlock(order, loco);
     if (dispatchBlock) {
       sendMessage('Warnung', 'Netzzugang / ETCS', dispatchBlock, tick);
+      playUiSound('warning');
+      return;
+    }
+    const tractionFit = evaluateAssignmentFit(order, loco);
+    if (tractionFit && !tractionFit.ok) {
+      sendMessage('Warnung', 'Zuweisung gesperrt', tractionFit.message, tick);
       playUiSound('warning');
       return;
     }
@@ -2396,6 +2453,7 @@ function App() {
     );
     extraFleetRef.current = { ...extraFleetRef.current, locomotives: [...extraFleetRef.current.locomotives, loco] };
     saveExtraFleet(extraFleetRef.current);
+    persistDepot(relocateLoco(depotRef.current, loco.id, defaultStationForNewLoco(depotRef.current, locomotivesRef.current)));
     persistLocoFleet([...locomotivesRef.current, loco]);
     if (how === 'kauf' && buyOpts.variant === 'used') {
       const restocked = refreshUsedStockForOffer(dealerRef.current, offer.id, current.tick);
@@ -2521,6 +2579,7 @@ function App() {
       locomotives: [...soldAssetsRef.current.locomotives, locoId],
     };
     saveSoldAssets(soldAssetsRef.current);
+    persistDepot(dropStationing(depotRef.current, locoId));
     dealerRef.current = { ...dealerRef.current, leases: dealerRef.current.leases.filter((l) => l.assetId !== locoId) };
     setDealer(dealerRef.current);
     saveDealerState(dealerRef.current);
@@ -2642,6 +2701,18 @@ function App() {
     const current = companyRef.current;
     if (!current) return false;
     if (current.reputation < listing.minBekanntheit) return false;
+    if (driversRef.current.length >= staffHousingCap(depotRef.current)) {
+      pushNotifications([
+        {
+          type: 'warning',
+          title: 'Personal-Kapazität',
+          message: `Alle ${staffHousingCap(depotRef.current)} Dienstplätze sind belegt. Kaufe eine Betriebsstelle oder baue Lok-Stellplätze aus.`,
+          read: false,
+          created_at: tickToIso(current.tick),
+        },
+      ]);
+      return false;
+    }
     const missing =
       listing.role === 'tf'
         ? missingFleetSeries(listing.seriesIds, locomotivesRef.current, listing.qualifications)
@@ -2707,13 +2778,96 @@ function App() {
     return true;
   }
 
-  function handleStartTraining(driverId: string, seriesId: string): boolean {
+  function handleBuyNetworkSite(siteId: string): boolean {
+    const current = companyRef.current;
+    const site = networkSiteById(siteId);
+    if (!current || !site) return false;
+    if (!canBuyNetworkSite(depotRef.current, site, current.level)) {
+      pushNotifications([
+        {
+          type: 'warning',
+          title: 'Betriebsstelle gesperrt',
+          message: `${site.name} ist noch nicht freigeschaltet (Level ${site.unlockLevel}) oder bereits im Bestand.`,
+          read: false,
+          created_at: tickToIso(current.tick),
+        },
+      ]);
+      return false;
+    }
+    if (!trySpend(site.cost, `Betriebsstelle ${site.name}`, 'investition')) return false;
+    persistDepot(purchaseNetworkSite(depotRef.current, site.id));
+    const live = companyRef.current;
+    if (live) persistCompany(grantAchievements(live));
+    pushNotifications([
+      {
+        type: 'success',
+        title: 'Betriebsstelle erworben',
+        message: `${site.name} (${site.flavor}). Kapazität: ${locoBerthCap(depotRef.current)} Loks, ${wagonBerthCap(depotRef.current)} Wagen, ${staffHousingCap(depotRef.current)} Tf, ${workshopSlotCap(depotRef.current)} Werkstatt-Slots. Regionale Aufträge erscheinen beim nächsten Markt-Refresh.`,
+        read: false,
+        created_at: tickToIso(current.tick),
+      },
+    ]);
+    return true;
+  }
+
+  function handleRelocateLoco(locoId: string, siteId: string): boolean {
+    const current = companyRef.current;
+    if (!current) return false;
+    const check = canRelocateLoco(depotRef.current, locomotivesRef.current, locoId, siteId);
+    if (!check.ok) {
+      pushNotifications([
+        {
+          type: 'warning',
+          title: 'Umstationierung nicht möglich',
+          message: check.message,
+          read: false,
+          created_at: tickToIso(current.tick),
+        },
+      ]);
+      return false;
+    }
+    if (!trySpend(check.cost || RELOCATION_COST, `Umstationierung ${networkSiteById(siteId)?.name ?? siteId}`, 'betrieb')) {
+      return false;
+    }
+    persistDepot(relocateLoco(depotRef.current, locoId, siteId));
+    const loco = locomotivesRef.current.find((row) => row.id === locoId);
+    pushNotifications([
+      {
+        type: 'success',
+        title: 'Umstationiert',
+        message: `${loco?.name ?? 'Lok'} steht jetzt in ${networkSiteById(siteId)?.name ?? siteId}.`,
+        read: false,
+        created_at: tickToIso(current.tick),
+      },
+    ]);
+    return true;
+  }
+
+  function handleStartTraining(driverId: string, seriesId: string, instant = false): boolean {
     const meta = staffMetaRef.current[driverId];
     const driver = driversRef.current.find((d) => d.id === driverId);
     const current = companyRef.current;
     if (!meta || !driver || !current || meta.role !== 'tf') return false;
     if (meta.trainingUntilTick != null) return false;
     if ((meta.seriesIds ?? []).includes(seriesId)) return false;
+    if (instant) {
+      const quote = seriesQuickPayQuote(seriesId);
+      if (!trySpend(quote.cost, `Quick-Pay Schulung ${driver.name}`, 'gehalt')) return false;
+      const nextMeta = {
+        ...staffMetaRef.current,
+        [driverId]: {
+          ...meta,
+          seriesIds: [...new Set([...(meta.seriesIds ?? []), seriesId])],
+          trainingUntilTick: null,
+          trainingKind: null,
+          trainingSeriesId: null,
+        },
+      };
+      staffMetaRef.current = nextMeta;
+      setStaffMeta(nextMeta);
+      saveStaffMeta(nextMeta);
+      return true;
+    }
     const quote = seriesTrainingQuote(seriesId);
     if (!trySpend(quote.cost, `Schulung ${driver.name}`, 'gehalt')) return false;
     const until = current.tick + quote.durationTicks;
@@ -2724,6 +2878,53 @@ function App() {
         trainingUntilTick: until,
         trainingKind: 'series' as const,
         trainingSeriesId: seriesId,
+      },
+    };
+    staffMetaRef.current = nextMeta;
+    setStaffMeta(nextMeta);
+    saveStaffMeta(nextMeta);
+    const nextDrivers = driversRef.current.map((d) =>
+      d.id === driverId ? { ...d, status: 'pause' as const, recovery_hours_left: quote.durationTicks } : d,
+    );
+    driversRef.current = nextDrivers;
+    setDrivers(nextDrivers);
+    return true;
+  }
+
+  function handleStartRankTraining(driverId: string, instant = false): boolean {
+    const meta = staffMetaRef.current[driverId];
+    const driver = driversRef.current.find((d) => d.id === driverId);
+    const current = companyRef.current;
+    if (!meta || !driver || !current) return false;
+    if (meta.trainingUntilTick != null) return false;
+    const quote = nextRankTraining(meta.rank);
+    if (!quote) return false;
+    if (instant) {
+      const cost = rankQuickPayCost(meta.rank);
+      if (cost == null || !trySpend(cost, `Quick-Pay Qualifikation ${driver.name}`, 'gehalt')) return false;
+      const trained = completeDueTraining(
+        driversRef.current,
+        {
+          ...staffMetaRef.current,
+          [driverId]: { ...meta, trainingUntilTick: current.tick, trainingKind: 'rank', trainingSeriesId: null },
+        },
+        current.tick,
+      );
+      driversRef.current = trained.drivers;
+      setDrivers(trained.drivers);
+      staffMetaRef.current = trained.meta;
+      setStaffMeta(trained.meta);
+      saveStaffMeta(trained.meta);
+      return true;
+    }
+    if (!trySpend(quote.cost, `Qualifikation ${driver.name}`, 'gehalt')) return false;
+    const nextMeta = {
+      ...staffMetaRef.current,
+      [driverId]: {
+        ...meta,
+        trainingUntilTick: current.tick + quote.durationTicks,
+        trainingKind: 'rank' as const,
+        trainingSeriesId: null,
       },
     };
     staffMetaRef.current = nextMeta;
@@ -2791,7 +2992,7 @@ function App() {
     const current = companyRef.current;
     if (!current) return;
     const offer = industrialRef.current.find((c) => c.id === id);
-    if (!offer || !canAcceptIndustrial(offer, current)) return;
+    if (!offer || !canAcceptIndustrial(offer, current, depotRef.current)) return false;
     const need = industrialWagonNeed(offer);
     if (!checkWagonAvailability(need, wagonsRef.current).sufficient) return;
     const stub = buildContractRunOrder(offer, current.tick, standingFromCompany(current));
@@ -3011,6 +3212,9 @@ function App() {
                   corporateMilestones={corporateMilestones}
                   onEditCompany={openCompanyEditor}
                   onOpenArchive={() => setView('statistikarchiv')}
+                  achievements={achievements}
+                  networkAccess={networkAccess}
+                  performanceLedger={performanceLedger}
                 />
               )}
               {view === 'statistikarchiv' && <StatisticsArchiveView onBack={() => setView('auswertungen')} />}
@@ -3048,6 +3252,31 @@ function App() {
                     setDealerNetworkHighlight(null);
                     setView('haendler');
                   }}
+                  bekanntheit={company?.reputation ?? 0}
+                  companyLevel={company?.level ?? 1}
+                  onOpenHandbook={handleHelp}
+                  framework={{
+                    industrial,
+                    wagons,
+                    bekanntheit: company?.reputation ?? 0,
+                    companyLevel: company?.level ?? 1,
+                    onAcceptIndustrial: handleAcceptIndustrial,
+                    onDeclineIndustrial: handleDeclineIndustrial,
+                    onBuyMissingWagons: handleBuyMissingWagons,
+                    onQuickAcquireWagons: handleQuickAcquireWagons,
+                    onOpenBuildings: handleOpenBuildings,
+                    freeBerths: freeWagonBerths(depot, wagonUnitCount(wagons)),
+                    assignments,
+                    companyTick: company?.tick ?? 0,
+                    onDispatchContract: handleDispatchContract,
+                    networkAccess,
+                    locomotives,
+                    onOpenNetworkDealer: () => {
+                      setDealerNetworkHighlight(null);
+                      setView('haendler');
+                    },
+                    depot,
+                  }}
                 />
               )}
               {view === 'spielerboerse' && <PlayerMarketView />}
@@ -3079,6 +3308,7 @@ function App() {
                     setView('haendler');
                   }}
                   networkStatus={networkStatus}
+                  onOpenHandbook={handleHelp}
                 />
               )}
               {view === 'tourenplaner' && (
@@ -3114,6 +3344,8 @@ function App() {
                   onOpenWagenpark={() => setView('wagenpark')}
                   onRentWagons={handleRentWagons}
                   onBuyDepotExpansion={handleBuyDepotExpansion}
+                  onBuyNetworkSite={handleBuyNetworkSite}
+                  onRelocateLoco={handleRelocateLoco}
                   onStartWorkshopJob={handleStartWorkshopJob}
                   workshopDiscountPct={wsDiscount}
                   achievements={achievements}
@@ -3197,8 +3429,10 @@ function App() {
                   bekanntheit={company?.reputation ?? 0}
                   onRecruit={handleRecruit}
                   onStartTraining={handleStartTraining}
+                  onStartRankTraining={handleStartRankTraining}
                   balance={company?.balance ?? 0}
                   overdraftLimit={bank.overdraftLimit}
+                  staffCap={staffHousingCap(depot)}
                 />
               )}
               {view === 'werbung' && (
@@ -3227,6 +3461,7 @@ function App() {
                     setDealerNetworkHighlight(null);
                     setView('haendler');
                   }}
+                  depot={depot}
                 />
               )}
               {view === 'gebaeude' && (
@@ -3240,6 +3475,9 @@ function App() {
                   wagons={wagons}
                   workshopUsed={usedWorkshopSlots(workshopJobs, tick)}
                   onBuyExpansion={handleBuyDepotExpansion}
+                  locomotives={locomotives}
+                  onBuyNetworkSite={handleBuyNetworkSite}
+                  onRelocateLoco={handleRelocateLoco}
                 />
               )}
               </SectionPulseProvider>
@@ -3283,7 +3521,7 @@ function App() {
           />
         )}
         {helpOpen && !tutorialOpen && (
-          <HelpHandbookModal onClose={() => setHelpOpen(false)} onReplayTutorial={handleReplayTutorial} />
+          <ManualModal onClose={closeHelp} onReplayTutorial={handleReplayTutorial} openTo={helpTarget} />
         )}
         {galleryOpen && company && (
           <AchievementsGalleryModal
