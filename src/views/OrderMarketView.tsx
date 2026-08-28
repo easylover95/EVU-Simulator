@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, memo, type ReactNode } from 'react';
 import {
   Package,
   HardHat,
-  Clock,
   Search,
   Info,
   ClipboardList,
@@ -139,6 +138,7 @@ function SortHeader({
   dir,
   onSort,
   extra,
+  className,
 }: {
   label: string;
   column: MarketSortKey;
@@ -146,14 +146,18 @@ function SortHeader({
   dir: SortDir;
   onSort: (column: MarketSortKey) => void;
   extra?: ReactNode;
+  className?: string;
 }) {
   return (
-    <th aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+    <th
+      aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      className={`text-xs uppercase tracking-wider ${className ?? ''}`}
+    >
       <span className="inline-flex items-center">
         <button
           type="button"
           onClick={() => onSort(column)}
-          className={`inline-flex cursor-pointer items-center gap-1 bg-transparent p-0 font-bold uppercase tracking-wide ${
+          className={`inline-flex cursor-pointer items-center gap-1 bg-transparent p-0 text-xs font-bold uppercase tracking-wider ${
             active ? 'text-amber-300' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
@@ -170,12 +174,6 @@ function SortHeader({
       </span>
     </th>
   );
-}
-
-function durationBadge(days: number): { label: string; className: string } {
-  if (days >= 180) return { label: `MEGA ${days} Tage`, className: 'fi-pill fi-pill-gold' };
-  if (days >= 90) return { label: `Langzeit ${days} Tage`, className: 'fi-pill fi-pill-orange' };
-  return { label: `${days} Tage`, className: 'fi-pill fi-pill-orange' };
 }
 
 export const OrderMarketView = memo(function OrderMarketView({
@@ -286,12 +284,6 @@ export const OrderMarketView = memo(function OrderMarketView({
     return copy;
   }, [filtered, sortKey, sortDir, gameNow]);
 
-  const fleetFits = useMemo(() => {
-    const next = new Map<string, ReturnType<typeof bestFleetFit>>();
-    for (const order of sorted) next.set(order.id, bestFleetFit(order, locomotives));
-    return next;
-  }, [sorted, locomotives]);
-
   const marketActions = (
     <div className="fi-market-actions flex flex-wrap items-center gap-2">
       {onOpenDisposition && (
@@ -388,46 +380,36 @@ export const OrderMarketView = memo(function OrderMarketView({
       {filter === 'rahmen' && framework ? (
         <FrameworkContractsPanel {...framework} />
       ) : (
-      <div className="fi-card fi-market-table-wrap">
-        <table className="fi-table fi-mobile-card-table">
+      <div className="fi-card overflow-x-auto fi-market-table-wrap">
+        <table className="fi-table fi-mobile-card-table w-full table-fixed border-collapse md:min-w-[1250px]">
           <thead>
-            <tr>
-              <th>Auftrags-Nr.</th>
-              <th>Typ</th>
-              <th>Kunde / Titel</th>
-              <th className="whitespace-nowrap">
+            <tr className="text-xs uppercase tracking-wider text-slate-400">
+              <th className="w-[110px] text-left font-mono text-xs uppercase tracking-wider text-slate-400">Auftrags-Nr.</th>
+              <th className="w-[80px] text-center text-xs uppercase tracking-wider text-slate-400">Typ</th>
+              <th className="w-[220px] truncate text-left text-xs uppercase tracking-wider text-slate-400">Kunde / Titel</th>
+              <th className="w-[200px] truncate text-left text-xs uppercase tracking-wider text-slate-400">
                 <span className="inline-flex items-center">
                   Strecke
                   <ContextHelpTooltip topicId="traktion" onOpenManual={onOpenHandbook} />
                 </span>
               </th>
               <SortHeader
-                label="Tonnage"
+                label="Tonnage / Last"
                 column="weight"
                 active={sortKey === 'weight'}
                 dir={sortDir}
                 onSort={toggleSort}
+                className="w-[100px] text-right font-mono text-slate-400"
                 extra={<ContextHelpTooltip topicId="hakenlast" onOpenManual={onOpenHandbook} />}
               />
-              <th className="whitespace-nowrap">
-                <span className="inline-flex items-center">
-                  Nutzlänge
-                  <ContextHelpTooltip topicId="nutzlaenge" onOpenManual={onOpenHandbook} />
-                </span>
-              </th>
-              <th>Wagen</th>
-              <th className="whitespace-nowrap">
-                <span className="inline-flex items-center">
-                  Mindest-Brh
-                  <ContextHelpTooltip topicId="brh" onOpenManual={onOpenHandbook} />
-                </span>
-              </th>
+              <th className="w-[140px] text-left text-xs uppercase tracking-wider text-slate-400">Wagenpark</th>
               <SortHeader
-                label="Ertrag (€)"
+                label="Ertrag"
                 column="yield"
                 active={sortKey === 'yield'}
                 dir={sortDir}
                 onSort={toggleSort}
+                className="w-[100px] text-right font-mono text-slate-400"
                 extra={<ContextHelpTooltip topicId="deckungsbeitrag" onOpenManual={onOpenHandbook} />}
               />
               <SortHeader
@@ -436,17 +418,24 @@ export const OrderMarketView = memo(function OrderMarketView({
                 active={sortKey === 'penalty'}
                 dir={sortDir}
                 onSort={toggleSort}
+                className="w-[90px] text-right font-mono text-slate-400"
                 extra={<ContextHelpTooltip topicId="poenale" onOpenManual={onOpenHandbook} />}
               />
-              <SortHeader label="Frist" column="frist" active={sortKey === 'frist'} dir={sortDir} onSort={toggleSort} />
-              <th>Status</th>
-              <th>Aktion</th>
+              <SortHeader
+                label="Frist"
+                column="frist"
+                active={sortKey === 'frist'}
+                dir={sortDir}
+                onSort={toggleSort}
+                className="w-[90px] text-center font-mono text-slate-400"
+              />
+              <th className="w-[120px] text-right text-xs uppercase tracking-wider text-slate-400">Status / Aktion</th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 && (
               <tr>
-                <td colSpan={13} className="fi-mobile-empty-state py-8 text-center text-slate-500">
+                <td colSpan={10} className="fi-mobile-empty-state py-8 text-center text-slate-500">
                   Keine Aufträge in dieser Ansicht
                 </td>
               </tr>
@@ -456,10 +445,8 @@ export const OrderMarketView = memo(function OrderMarketView({
               const time = order.deadline
                 ? timeRemaining(order.deadline, gameNow, { accepted: order.status !== 'offen' })
                 : null;
-              const minBrh = clampOrderMinBrh(order.type, order.min_brh);
               const isConstruction = order.type === 'baugleis';
               const einsatz = isBaugleisEinsatz(order);
-              const badge = einsatz && order.deployment_days ? durationBadge(order.deployment_days) : null;
               const wagonCheck = checkWagonAvailability(order, wagons);
               const shortage = wagonShortageLabel(wagonCheck);
               const gate = orderGate(order);
@@ -468,109 +455,97 @@ export const OrderMarketView = memo(function OrderMarketView({
                 reputation: bekanntheit,
                 hasEtcs: locoHasEtcsFleet(locomotives),
               });
+              const titleLine = order.customer ? `${order.customer} · ${order.title}` : order.title;
+              const wagonSummary = card.requiredWagonType
+                ? `${card.requiredWagonCount ?? 0}x ${card.requiredWagonType}`
+                : '—';
+              const typeLabel = einsatz ? 'Einsatz' : card.kindLabel;
               return (
-                <tr key={order.id} className="fi-deferred-list-row cursor-pointer" onClick={() => openOrder(order)}>
-                  <td data-label="Auftrag" className="fi-mobile-card-title font-mono text-[11px] font-bold text-white">{order.order_number}</td>
-                  <td data-label="Typ">
-                    <div className="flex flex-col items-start gap-1">
-                      <span className={`inline-flex items-center gap-1 ${card.kind === 'baugleis' ? 'fi-pill fi-pill-orange' : card.kind === 'rahmen' ? 'fi-pill fi-pill-gold' : 'fi-pill fi-pill-blue'}`}>
-                        {isConstruction ? <HardHat className="h-3 w-3" /> : <Package className="h-3 w-3" />}
-                        {einsatz ? 'Baugleis-Einsatz' : card.kindLabel}
-                      </span>
-                      {badge && <span className={badge.className}>{badge.label}</span>}
-                      {card.clearances
-                        .filter((row) => row.id === 'etcs' || row.id === 'exclusive')
-                        .map((row) => (
-                          <span key={row.id} className={row.met ? 'fi-pill fi-pill-green' : 'fi-pill fi-pill-orange'}>
-                            {row.label}
-                          </span>
-                        ))}
-                    </div>
+                <tr
+                  key={order.id}
+                  className="fi-deferred-list-row cursor-pointer align-middle hover:bg-slate-800/50 md:h-14"
+                  onClick={() => openOrder(order)}
+                >
+                  <td data-label="Auftrags-Nr." className="fi-mobile-card-title w-[110px] px-4 py-3 text-left align-middle font-mono text-[11px] font-bold text-white">
+                    {order.order_number}
                   </td>
-                  <td data-label="Kunde / Titel" className="fi-mobile-card-summary fi-market-title-cell font-medium text-white">
-                    <div className="fi-market-title">{order.title}</div>
-                    {order.customer && <div className="text-[10px] font-normal text-slate-500">{order.customer}</div>}
+                  <td data-label="Typ" className="w-[80px] px-4 py-3 text-center align-middle">
+                    <span
+                      className={`inline-flex max-w-full items-center justify-center gap-0.5 truncate ${card.kind === 'baugleis' ? 'fi-pill fi-pill-orange' : card.kind === 'rahmen' ? 'fi-pill fi-pill-gold' : 'fi-pill fi-pill-blue'}`}
+                      title={typeLabel}
+                    >
+                      {isConstruction ? <HardHat className="h-3 w-3 shrink-0" /> : <Package className="h-3 w-3 shrink-0" />}
+                      <span className="truncate">{typeLabel}</span>
+                    </span>
                   </td>
-                  <td data-label="Strecke" className="fi-mobile-card-summary whitespace-normal text-[11px] text-slate-400">
-                    <MarketSpec
-                      value={`${order.origin} → ${order.destination}`}
-                      hint={`${order.distance_km} km · ${corridorCountryHint(order)} · ${
-                        isOrderElectrified(order) ? 'Fahrdraht / E-Lok möglich' : 'Ohne Oberleitung · Diesel/Dual'
-                      }${order.special ? ' · Spezialauftrag' : ''}${order.exclusive ? ' · Exklusiv-Ganzzug' : ''}`}
-                    />
-                    {gate && <div className="mt-0.5 text-[10px] font-bold text-rose-400">{gate}</div>}
+                  <td
+                    data-label="Kunde / Titel"
+                    className="fi-mobile-card-summary fi-market-title-cell w-[220px] truncate whitespace-nowrap px-4 py-3 text-left align-middle font-medium text-white"
+                    title={titleLine}
+                  >
+                    <div className="fi-market-title truncate whitespace-nowrap">{titleLine}</div>
                   </td>
-                  <td data-label="Tonnage / Hakenlast">
-                    <MarketSpec
-                      value={`${Number(order.weight_t || 0).toLocaleString('de-DE')} t`}
-                      hint={hakenlastHint(fleetFits.get(order.id))}
-                      hintClass={
-                        fleetFits.get(order.id)?.ok
-                          ? 'text-emerald-400'
-                          : fleetFits.get(order.id)
-                            ? 'text-amber-300'
-                            : undefined
-                      }
-                    />
+                  <td
+                    data-label="Strecke"
+                    className="fi-mobile-card-summary w-[200px] truncate px-4 py-3 text-left align-middle text-[11px] text-slate-400"
+                    title={`${order.origin} → ${order.destination}${gate ? ` · ${gate}` : ''}`}
+                  >
+                    <span className={gate ? 'truncate font-bold text-rose-400' : 'truncate'}>
+                      {order.origin} → {order.destination}
+                    </span>
                   </td>
-                  <td data-label="Nutzlänge" className="tabular-nums">
-                    {card.usableLengthM != null ? `${card.usableLengthM.toLocaleString('de-DE')} m` : '—'}
+                  <td data-label="Tonnage / Last" className="w-[100px] px-4 py-3 text-right align-middle font-mono">
+                    {Number(order.weight_t || 0).toLocaleString('de-DE')} t
                   </td>
-                  <td data-label="Wagen">
-                    <MarketSpec
-                      value={
-                        card.requiredWagonType
-                          ? `${card.requiredWagonCount ?? 0}× ${card.requiredWagonType}`
-                          : 'Keine gebundene Gattung'
-                      }
-                      hint={shortage}
-                      hintClass={shortage ? 'font-bold text-rose-400' : undefined}
-                    />
+                  <td
+                    data-label="Wagenpark"
+                    className={`w-[140px] truncate px-4 py-3 text-left align-middle text-xs ${shortage ? 'text-rose-400' : 'text-slate-200'}`}
+                    title={shortage || wagonSummary}
+                  >
+                    {wagonSummary}
                   </td>
-                  <td data-label="Mindest-Brh" className="font-bold tabular-nums text-amber-300">{minBrh}</td>
-                  <td data-label="Ertrag" className="font-bold tabular-nums text-emerald-400">
+                  <td data-label="Ertrag" className="w-[100px] px-4 py-3 text-right align-middle font-mono font-semibold text-emerald-400">
                     {einsatz && order.daily_rate
                       ? `${formatEuro(order.daily_rate)}/Tag`
                       : formatEuro(Number(order.yield))}
-                    {einsatz && order.daily_rate && (
-                      <div className="text-[10px] font-normal text-slate-500">{formatEuro(Number(order.yield))} gesamt</div>
-                    )}
                   </td>
-                  <td data-label="Pönale" className="tabular-nums text-rose-300/90">{formatPenalty(order)}</td>
-                  <td data-label="Frist">
+                  <td data-label="Pönale" className="w-[90px] px-4 py-3 text-right align-middle font-mono text-rose-400">
+                    {formatPenalty(order)}
+                  </td>
+                  <td data-label="Frist" className="w-[90px] px-4 py-3 text-center align-middle font-mono">
                     {time ? (
                       <span
-                        className={`inline-flex items-center gap-1 font-bold tabular-nums ${time.critical ? 'text-rose-400' : time.urgent ? 'text-amber-400' : 'text-slate-400'}`}
+                        className={`tabular-nums ${time.critical ? 'font-bold text-rose-400' : time.urgent ? 'font-bold text-amber-400' : 'text-slate-400'}`}
                       >
-                        {time.critical && <span className="status-dot animate-pulse bg-rose-400" />}
-                        <Clock className="h-3 w-3" />
                         {time.text}
-                        <span className="font-normal text-slate-600">T{tick}</span>
                       </span>
                     ) : (
                       <span className="text-slate-500">—</span>
                     )}
                   </td>
-                  <td data-label="Status">
-                    <span className={order.status === 'offen' ? 'fi-pill fi-pill-green' : getOrderPillClass(order.status)}>
-                      {order.status === 'offen' ? 'Gültig' : statusCfg.label}
-                    </span>
-                  </td>
-                  <td data-label="Aktionen" className="fi-mobile-card-actions">
-                    <div className="flex flex-wrap gap-1" onClick={(e) => e.stopPropagation()}>
+                  <td data-label="Status / Aktion" className="fi-mobile-card-actions w-[120px] px-4 py-3 text-right align-middle">
+                    <div className="flex flex-wrap items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      <span className={order.status === 'offen' ? 'fi-pill fi-pill-green' : getOrderPillClass(order.status)}>
+                        {order.status === 'offen' ? 'Gültig' : statusCfg.label}
+                      </span>
                       {order.status === 'offen' && (
                         <>
-                          <button type="button" onClick={() => acceptOrder(order)} className="btn-action btn-action-dispo">
-                            <ClipboardList className="h-3 w-3" />{' '}
-                            {gate ? 'Netzzugang fehlt' : wagonCheck.sufficient ? 'Zur Disposition' : 'Wagen fehlen'}
+                          <button
+                            type="button"
+                            onClick={() => acceptOrder(order)}
+                            className="btn-action btn-action-dispo"
+                            title={gate ? 'Netzzugang fehlt' : wagonCheck.sufficient ? 'Zur Disposition' : 'Wagen fehlen'}
+                          >
+                            <ClipboardList className="h-3 w-3" />
+                            {gate ? 'Netz' : wagonCheck.sufficient ? 'Dispo' : 'Wagen'}
                           </button>
-                          <button type="button" onClick={() => onReject?.(order)} className="btn-action btn-action-reject">
-                            <Ban className="h-3 w-3" /> Ablehnen
+                          <button type="button" onClick={() => onReject?.(order)} className="btn-action btn-action-reject" title="Ablehnen">
+                            <Ban className="h-3 w-3" />
                           </button>
                         </>
                       )}
-                      <button type="button" onClick={() => openOrder(order)} className="btn-action btn-action-detail">
-                        <Info className="h-3 w-3" /> Details
+                      <button type="button" onClick={() => openOrder(order)} className="btn-action btn-action-detail" title="Details">
+                        <Info className="h-3 w-3" />
                       </button>
                     </div>
                   </td>
@@ -796,23 +771,6 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     <div className="border-b border-slate-800 pb-1">
       <div className="text-[10px] font-bold uppercase text-slate-500">{label}</div>
       <div className="text-sm font-medium text-white">{value}</div>
-    </div>
-  );
-}
-
-function MarketSpec({
-  value,
-  hint,
-  hintClass,
-}: {
-  value: string;
-  hint?: string | null;
-  hintClass?: string;
-}) {
-  return (
-    <div className="fi-market-spec">
-      <span className="fi-market-spec-value">{value}</span>
-      {hint ? <span className={`fi-market-spec-hint ${hintClass ?? ''}`}>{hint}</span> : null}
     </div>
   );
 }
