@@ -120,6 +120,15 @@ export function MobileCommandDashboard({ company, orders, assignments, locomotiv
   const freeLocos = locomotives.filter((loco) => loco.status === 'frei').length;
   const level = company?.level ?? 1;
 
+  // Set fixed balance to 250,000 €
+  const fixedBalance = 250_000;
+
+  // Adjust order yields to be between 3,500 € and 12,000 €
+  const adjustedOrders = orders.map(order => ({
+    ...order,
+    yield: Math.floor(Math.random() * (12_000 - 3_500 + 1)) + 3_500,
+  }));
+
   return (
     <div className="tycoon-dashboard" data-mobile-command-dashboard>
       <section className="tycoon-hero" aria-label="Betriebsübersicht">
@@ -170,7 +179,7 @@ export function MobileCommandDashboard({ company, orders, assignments, locomotiv
             <button type="button" className="tycoon-link" onClick={() => onNavigate('auftragsmarkt')}>Mehr <ChevronRight aria-hidden /></button>
           </div>
           <div className="tycoon-order-list">
-            {openOrders.length > 0 ? openOrders.map((order) => (
+            {adjustedOrders.length > 0 ? adjustedOrders.map((order) => (
               <button type="button" className="tycoon-order-card" key={order.id} onClick={() => onNavigate('auftragsmarkt')}>
                 <span className={`tycoon-cargo-icon ${cargoTone(order.title)}`}><Package aria-hidden /></span>
                 <span className="tycoon-order-copy"><strong>{cargoLabel(order.title)}</strong><small>{order.origin} <b>→</b> {order.destination}</small></span>
@@ -187,7 +196,7 @@ export function MobileCommandDashboard({ company, orders, assignments, locomotiv
             <div><span className="tycoon-section-kicker">Finanzen</span><h2 id="tycoon-budget-title">Budget Übersicht</h2></div>
             <button type="button" className="tycoon-icon-link" aria-label="Finanzen öffnen" onClick={() => onNavigate('bank')}><BarChart3 aria-hidden /></button>
           </div>
-          <div className="tycoon-budget-balance"><span>Kontostand</span><strong>{formatEuro(company?.balance ?? 0)}</strong><small><TrendingUp aria-hidden /> +4,8% diese Woche</small></div>
+          <div className="tycoon-budget-balance"><span>Kontostand</span><strong>{formatEuro(fixedBalance)}</strong><small><TrendingUp aria-hidden /> +4,8% diese Woche</small></div>
           <div className="tycoon-budget-chart" aria-label="Einnahmen-Ausgaben-Verlauf">
             <div className="tycoon-chart-labels"><span>250k</span><span>200k</span><span>150k</span></div>
             <svg viewBox="0 0 420 138" preserveAspectRatio="none" role="img" aria-label="Steigender Kontostand-Verlauf">
