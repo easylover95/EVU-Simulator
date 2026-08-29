@@ -136,6 +136,8 @@ import {
   standingFromCompany,
   isMarketRefreshAvailable,
 } from '@/lib/orderMarket';
+import { networkSiteById, RELOCATION_COST } from '@/lib/networkSites';
+import { evaluateAssignmentFit } from '@/lib/traction';
 import {
   cancelBaugleisDeployment,
   hydrateDeploymentAssignments,
@@ -201,12 +203,19 @@ import {
 } from '@/lib/workshop';
 import {
   canBuyDepotExpansion,
+  canBuyNetworkSite,
+  canRelocateLoco,
+  defaultStationForNewLoco,
   DEPOT_EXPANSIONS,
+  dropStationing,
   ensureDepotFits,
   loadDepotState,
   locoBerthCap,
   purchaseDepotExpansion,
+  purchaseNetworkSite,
+  relocateLoco,
   saveDepotState,
+  staffHousingCap,
   wagonBerthCap,
   wagonUnitCount,
   freeWagonBerths,
@@ -836,6 +845,11 @@ function App() {
         ? persisted
         : refreshMarketOrders(SEED_ORDERS, nextCompany.tick, standingFromCompany(nextCompany), {
             wagonBerthCapacity: wagonBerthCap(depotRef.current),
+            locomotives: applyLocoMaintPatches(
+              mergeFleet(SEED_LOCOMOTIVES, extra.locomotives, sold.locomotives),
+              locoMaintRef.current,
+            ),
+            ownedSiteIds: depotRef.current.ownedSiteIds,
           });
     const market = purgeExpiredOpenOrders(marketRaw, gameNowAtLoad);
     const hydrated = hydrateDeploymentAssignments(
@@ -1706,6 +1720,8 @@ function App() {
     setOrders((prev) =>
       refreshMarketOrders(prev, t, standingFromCompany(current), {
         wagonBerthCapacity: wagonBerthCap(depotRef.current),
+        locomotives: locomotivesRef.current,
+        ownedSiteIds: depotRef.current.ownedSiteIds,
       }),
     );
   }
@@ -1736,6 +1752,12 @@ function App() {
     const dispatchBlock = networkDispatchBlock(order, loco);
     if (dispatchBlock) {
       sendMessage('Warnung', 'Netzzugang / ETCS', dispatchBlock, tick);
+      playUiSound('warning');
+      return;
+    }
+    const tractionFit = evaluateAssignmentFit(order, loco);
+    if (tractionFit && !tractionFit.ok) {
+      sendMessage('Warnung', 'Zuweisung gesperrt', tractionFit.message, tick);
       playUiSound('warning');
       return;
     }
@@ -2385,6 +2407,7 @@ function App() {
     );
     extraFleetRef.current = { ...extraFleetRef.current, locomotives: [...extraFleetRef.current.locomotives, loco] };
     saveExtraFleet(extraFleetRef.current);
+    persistDepot(relocateLoco(depotRef.current, loco.id, defaultStationForNewLoco(depotRef.current, locomotivesRef.current)));
     persistLocoFleet([...locomotivesRef.current, loco]);
     if (how === 'kauf' && buyOpts.variant === 'used') {
       const restocked = refreshUsedStockForOffer(dealerRef.current, offer.id, current.tick);
@@ -2510,6 +2533,7 @@ function App() {
       locomotives: [...soldAssetsRef.current.locomotives, locoId],
     };
     saveSoldAssets(soldAssetsRef.current);
+    persistDepot(dropStationing(depotRef.current, locoId));
     dealerRef.current = { ...dealerRef.current, leases: dealerRef.current.leases.filter((l) => l.assetId !== locoId) };
     setDealer(dealerRef.current);
     saveDealerState(dealerRef.current);
@@ -2631,6 +2655,18 @@ function App() {
     const current = companyRef.current;
     if (!current) return false;
     if (current.reputation < listing.minBekanntheit) return false;
+    if (driversRef.current.length >= staffHousingCap(depotRef.current)) {
+      pushNotifications([
+        {
+          type: 'warning',
+          title: 'Personal-Kapazität',
+          message: `Alle ${staffHousingCap(depotRef.current)} Dienstplätze sind belegt. Kaufe eine Betriebsstelle oder baue Lok-Stellplätze aus.`,
+          read: false,
+          created_at: tickToIso(current.tick),
+        },
+      ]);
+      return false;
+    }
     const missing =
       listing.role === 'tf'
         ? missingFleetSeries(listing.seriesIds, locomotivesRef.current, listing.qualifications)
@@ -2689,6 +2725,71 @@ function App() {
         type: 'success',
         title: 'Depot ausgebaut',
         message: `${expansion.label} freigeschaltet. Neue Kapazität: ${locoBerthCap(depotRef.current)} Loks, ${wagonBerthCap(depotRef.current)} Wagen, ${workshopSlotCap(depotRef.current)} Werkstatt-Slots.`,
+        read: false,
+        created_at: tickToIso(current.tick),
+      },
+    ]);
+    return true;
+  }
+
+  function handleBuyNetworkSite(siteId: string): boolean {
+    const current = companyRef.current;
+    const site = networkSiteById(siteId);
+    if (!current || !site) return false;
+    if (!canBuyNetworkSite(depotRef.current, site, current.level)) {
+      pushNotifications([
+        {
+          type: 'warning',
+          title: 'Betriebsstelle gesperrt',
+          message: `${site.name} ist noch nicht freigeschaltet (Level ${site.unlockLevel}) oder bereits im Bestand.`,
+          read: false,
+          created_at: tickToIso(current.tick),
+        },
+      ]);
+      return false;
+    }
+    if (!trySpend(site.cost, `Betriebsstelle ${site.name}`, 'investition')) return false;
+    persistDepot(purchaseNetworkSite(depotRef.current, site.id));
+    const live = companyRef.current;
+    if (live) persistCompany(grantAchievements(live));
+    pushNotifications([
+      {
+        type: 'success',
+        title: 'Betriebsstelle erworben',
+        message: `${site.name} (${site.flavor}). Kapazität: ${locoBerthCap(depotRef.current)} Loks, ${wagonBerthCap(depotRef.current)} Wagen, ${staffHousingCap(depotRef.current)} Tf, ${workshopSlotCap(depotRef.current)} Werkstatt-Slots. Regionale Aufträge erscheinen beim nächsten Markt-Refresh.`,
+        read: false,
+        created_at: tickToIso(current.tick),
+      },
+    ]);
+    return true;
+  }
+
+  function handleRelocateLoco(locoId: string, siteId: string): boolean {
+    const current = companyRef.current;
+    if (!current) return false;
+    const check = canRelocateLoco(depotRef.current, locomotivesRef.current, locoId, siteId);
+    if (!check.ok) {
+      pushNotifications([
+        {
+          type: 'warning',
+          title: 'Umstationierung nicht möglich',
+          message: check.message,
+          read: false,
+          created_at: tickToIso(current.tick),
+        },
+      ]);
+      return false;
+    }
+    if (!trySpend(check.cost || RELOCATION_COST, `Umstationierung ${networkSiteById(siteId)?.name ?? siteId}`, 'betrieb')) {
+      return false;
+    }
+    persistDepot(relocateLoco(depotRef.current, locoId, siteId));
+    const loco = locomotivesRef.current.find((row) => row.id === locoId);
+    pushNotifications([
+      {
+        type: 'success',
+        title: 'Umstationiert',
+        message: `${loco?.name ?? 'Lok'} steht jetzt in ${networkSiteById(siteId)?.name ?? siteId}.`,
         read: false,
         created_at: tickToIso(current.tick),
       },
@@ -2780,7 +2881,7 @@ function App() {
     const current = companyRef.current;
     if (!current) return;
     const offer = industrialRef.current.find((c) => c.id === id);
-    if (!offer || !canAcceptIndustrial(offer, current)) return;
+    if (!offer || !canAcceptIndustrial(offer, current, depotRef.current)) return false;
     const need = industrialWagonNeed(offer);
     if (!checkWagonAvailability(need, wagonsRef.current).sufficient) return;
     const stub = buildContractRunOrder(offer, current.tick, standingFromCompany(current));
@@ -3028,6 +3129,29 @@ function App() {
                     setDealerNetworkHighlight(null);
                     setView('haendler');
                   }}
+                  bekanntheit={company?.reputation ?? 0}
+                  framework={{
+                    industrial,
+                    wagons,
+                    bekanntheit: company?.reputation ?? 0,
+                    companyLevel: company?.level ?? 1,
+                    onAcceptIndustrial: handleAcceptIndustrial,
+                    onDeclineIndustrial: handleDeclineIndustrial,
+                    onBuyMissingWagons: handleBuyMissingWagons,
+                    onQuickAcquireWagons: handleQuickAcquireWagons,
+                    onOpenBuildings: handleOpenBuildings,
+                    freeBerths: freeWagonBerths(depot, wagonUnitCount(wagons)),
+                    assignments,
+                    companyTick: company?.tick ?? 0,
+                    onDispatchContract: handleDispatchContract,
+                    networkAccess,
+                    locomotives,
+                    onOpenNetworkDealer: () => {
+                      setDealerNetworkHighlight(null);
+                      setView('haendler');
+                    },
+                    depot,
+                  }}
                 />
               )}
               {view === 'spielerboerse' && <PlayerMarketView />}
@@ -3094,6 +3218,8 @@ function App() {
                   onOpenWagenpark={() => setView('wagenpark')}
                   onRentWagons={handleRentWagons}
                   onBuyDepotExpansion={handleBuyDepotExpansion}
+                  onBuyNetworkSite={handleBuyNetworkSite}
+                  onRelocateLoco={handleRelocateLoco}
                   onStartWorkshopJob={handleStartWorkshopJob}
                   workshopDiscountPct={wsDiscount}
                   achievements={achievements}
@@ -3179,6 +3305,7 @@ function App() {
                   onStartTraining={handleStartTraining}
                   balance={company?.balance ?? 0}
                   overdraftLimit={bank.overdraftLimit}
+                  staffCap={staffHousingCap(depot)}
                 />
               )}
               {view === 'werbung' && (
@@ -3207,6 +3334,7 @@ function App() {
                     setDealerNetworkHighlight(null);
                     setView('haendler');
                   }}
+                  depot={depot}
                 />
               )}
               {view === 'gebaeude' && (
@@ -3220,6 +3348,9 @@ function App() {
                   wagons={wagons}
                   workshopUsed={usedWorkshopSlots(workshopJobs, tick)}
                   onBuyExpansion={handleBuyDepotExpansion}
+                  locomotives={locomotives}
+                  onBuyNetworkSite={handleBuyNetworkSite}
+                  onRelocateLoco={handleRelocateLoco}
                 />
               )}
               </SectionPulseProvider>

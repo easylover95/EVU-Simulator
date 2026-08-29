@@ -4,6 +4,14 @@ import { loadJson, saveJson } from '@/lib/storage';
 import { clampOrderMinBrh } from '@/lib/status';
 import { DEALER_WAGON_TYPES } from '@/lib/dealer';
 import { inferCountryFromLabel } from '@/lib/networkAccess';
+import { analyzeFleetForMarket, isOrderElectrified } from '@/lib/traction';
+import {
+  DIESEL_EUR_PER_KM,
+  TRASSE_EUR_PER_TRAIN_KM,
+  TRASSE_WEIGHT_EUR_PER_100T_KM,
+} from '@/lib/operatingRates';
+import { ownedNetworkSites, type DepotRegion } from '@/lib/networkSites';
+import { EXCLUSIVE_YIELD_FACTOR, exclusiveJobsUnlocked } from '@/lib/reputation';
 
 export const ORDER_MARKET_KEY = 'evu-order-market';
 export const MARKET_REFRESH_DAY_KEY = 'evu-market-refresh-day';
@@ -135,11 +143,12 @@ export const BAUGLEIS_SITE_MARGIN_EUR_PER_KM = 7;
 export const BAUGLEIS_SITE_MARGIN_EUR_PER_100T = 55;
 export const BAUGLEIS_RISK_BUFFER = 180;
 
-/** Mirrors the default operating-cost parameters without importing the higher layer and creating a circular dependency. */
-export const BAUGLEIS_BASE_PATH_EUR_PER_TRAIN_KM = 9.6 * 1.08;
-export const BAUGLEIS_BASE_PATH_EUR_PER_100T_KM = 0.36 * 1.08;
+/** Mirrors operatingRates without importing operatingCosts (circular with isBaugleisEinsatz). */
+export const BAUGLEIS_BASE_PATH_EUR_PER_TRAIN_KM = TRASSE_EUR_PER_TRAIN_KM;
+export const BAUGLEIS_BASE_PATH_EUR_PER_100T_KM = TRASSE_WEIGHT_EUR_PER_100T_KM;
 export const BAUGLEIS_PATH_FACTOR = 0.65;
-export const BAUGLEIS_DIESEL_EUR_PER_KM = 4.8 * 2.4 * 1.08;
+export const BAUGLEIS_DIESEL_EUR_PER_KM = DIESEL_EUR_PER_KM;
+export const SPECIAL_ORDER_YIELD_FACTOR = 1.28;
 export const BAUGLEIS_PDL_DAILY_MIN = 650;
 export const BAUGLEIS_PDL_DAILY_MAX = 850;
 
@@ -164,6 +173,7 @@ export interface FreightCustomer {
   cargoLabels: string[];
   minLevel?: number;
   minReputation?: number;
+  exclusive?: boolean;
 }
 
 export const FREIGHT_CUSTOMERS: FreightCustomer[] = [
@@ -349,11 +359,24 @@ export const FREIGHT_CUSTOMERS: FreightCustomer[] = [
     cargoLabels: ['Papier', 'Rollenpapier'],
   },
   {
-    id: 'palette-express',
-    name: 'Palette Express',
+    id: 'nordsee-erz',
+    name: 'Nordsee Erz AG',
+    category: 'stahl',
+    wagonTypes: ['Eanos'],
+    cargoLabels: ['Eisenerz-Ganzzug', 'Pellets Erz'],
+    minLevel: 4,
+    minReputation: 70,
+    exclusive: true,
+  },
+  {
+    id: 'alpen-nord',
+    name: 'Alpen-Nord Intermodal',
     category: 'intermodal',
-    wagonTypes: ['Hbbillns'],
-    cargoLabels: ['Palettenware', 'Stückgut'],
+    wagonTypes: ['Sggrss'],
+    cargoLabels: ['Premium-Container', 'Ganzzug-Boxen'],
+    minLevel: 5,
+    minReputation: 85,
+    exclusive: true,
   },
 ];
 
@@ -366,20 +389,23 @@ interface RouteTemplate {
   originCountry?: CountryPackage;
   destCountry?: CountryPackage;
   requiresEtcs?: boolean;
+  /** Default true (Hauptbahn mit Fahrdraht). False = Anschluss / Bau / Nebenbahn. */
+  electrified?: boolean;
+  region?: DepotRegion;
 }
 
 const ROUTES: Record<FreightCustomerCategory, RouteTemplate[]> = {
   gleisbau: [
-    { origin: 'Nürnberg Rbf', destination: 'Baugleis Ingolstadt', distanceKm: 95 },
-    { origin: 'Würzburg Hbf', destination: 'Baugleis Fulda', distanceKm: 110 },
-    { origin: 'Leipzig Hbf', destination: 'Baugleis Halle', distanceKm: 35 },
-    { origin: 'Köln', destination: 'Baugleis Duisburg', distanceKm: 65 },
-    { origin: 'Hannover', destination: 'Baugleis Fulda', distanceKm: 220 },
-    { origin: 'Stuttgart', destination: 'Baugleis Würzburg', distanceKm: 180 },
-    { origin: 'Dresden', destination: 'Baugleis Leipzig', distanceKm: 120 },
-    { origin: 'München-Riem', destination: 'Baugleis Ingolstadt', distanceKm: 85 },
-    { origin: 'Frankfurt', destination: 'Baugleis Köln', distanceKm: 190 },
-    { origin: 'Berlin', destination: 'Baugleis Hannover', distanceKm: 285 },
+    { origin: 'Nürnberg Rbf', destination: 'Baugleis Ingolstadt', distanceKm: 95, electrified: false },
+    { origin: 'Würzburg Hbf', destination: 'Baugleis Fulda', distanceKm: 110, electrified: false },
+    { origin: 'Leipzig Hbf', destination: 'Baugleis Halle', distanceKm: 35, electrified: false },
+    { origin: 'Köln', destination: 'Baugleis Duisburg', distanceKm: 65, electrified: false },
+    { origin: 'Hannover', destination: 'Baugleis Fulda', distanceKm: 220, electrified: false },
+    { origin: 'Stuttgart', destination: 'Baugleis Würzburg', distanceKm: 180, electrified: false },
+    { origin: 'Dresden', destination: 'Baugleis Leipzig', distanceKm: 120, electrified: false },
+    { origin: 'München-Riem', destination: 'Baugleis Ingolstadt', distanceKm: 85, electrified: false },
+    { origin: 'Frankfurt', destination: 'Baugleis Köln', distanceKm: 190, electrified: false },
+    { origin: 'Berlin', destination: 'Baugleis Hannover', distanceKm: 285, electrified: false },
   ],
   stahl: [
     { origin: 'Duisburg', destination: 'Salzgitter', distanceKm: 280 },
@@ -388,6 +414,8 @@ const ROUTES: Record<FreightCustomerCategory, RouteTemplate[]> = {
     { origin: 'Mannheim', destination: 'Karlsruhe', distanceKm: 70 },
     { origin: 'Salzgitter', destination: 'Hannover', distanceKm: 75 },
     { origin: 'Duisburg', destination: 'München-Riem', distanceKm: 620 },
+    { origin: 'Duisburg Hafen', destination: 'Anschlussgleis Thyssen', distanceKm: 22, electrified: false },
+    { origin: 'Salzgitter', destination: 'Anschlussgleis Walzwerk', distanceKm: 14, electrified: false },
   ],
   chemie: [
     { origin: 'Ludwigshafen Chemiepark', destination: 'Köln-Niehl', distanceKm: 280 },
@@ -396,6 +424,8 @@ const ROUTES: Record<FreightCustomerCategory, RouteTemplate[]> = {
     { origin: 'Frankfurt', destination: 'Köln', distanceKm: 190 },
     { origin: 'Mannheim', destination: 'Basel', distanceKm: 250, destCountry: 'CH', requiresEtcs: true },
     { origin: 'Ludwigshafen Chemiepark', destination: 'Stuttgart', distanceKm: 140 },
+    { origin: 'Ludwigshafen Chemiepark', destination: 'Anschlussgleis Werk Süd', distanceKm: 8, electrified: false },
+    { origin: 'Hamburg Billwerder', destination: 'Anschlussgleis Raffinerie', distanceKm: 28, electrified: false },
   ],
   energie: [
     { origin: 'Hamburg Billwerder', destination: 'Hannover', distanceKm: 180 },
@@ -405,6 +435,8 @@ const ROUTES: Record<FreightCustomerCategory, RouteTemplate[]> = {
     { origin: 'Passau', destination: 'Augsburg', distanceKm: 230 },
     { origin: 'Bayreuth', destination: 'Regensburg', distanceKm: 120 },
     { origin: 'Hamburg Billwerder', destination: 'Berlin', distanceKm: 290 },
+    { origin: 'Bayreuth', destination: 'Anschlussgleis Steinbruch', distanceKm: 18, electrified: false },
+    { origin: 'Passau', destination: 'Anschlussgleis Sägewerk', distanceKm: 24, electrified: false },
   ],
   intermodal: [
     { origin: 'Hamburg Billwerder', destination: 'München-Riem', distanceKm: 790 },
@@ -420,6 +452,8 @@ const ROUTES: Record<FreightCustomerCategory, RouteTemplate[]> = {
     { origin: 'Dresden', destination: 'Praha', distanceKm: 150, destCountry: 'CZ' },
     { origin: 'München-Riem', destination: 'Innsbruck', distanceKm: 175, destCountry: 'A' },
     { origin: 'München-Riem', destination: 'Verona', distanceKm: 430, destCountry: 'IT', requiresEtcs: true },
+    { origin: 'Bremerhaven', destination: 'Anschlussgleis Terminal Ost', distanceKm: 12, electrified: false },
+    { origin: 'Köln', destination: 'Anschlussgleis Autowerk', distanceKm: 16, electrified: false },
   ],
 };
 
@@ -624,6 +658,10 @@ export type FreightLoadClass = 'leicht' | 'mittel' | 'schwer';
 export interface MarketGenerationContext {
   /** Current wagon-berth capacity, not the free berth count. Defaults to the starter depot. */
   wagonBerthCapacity?: number;
+  /** Player locomotives — the generator guarantees matching traction, wire and weight. */
+  locomotives?: Locomotive[];
+  /** Owned EVU operating sites unlock matching regional corridors. */
+  ownedSiteIds?: string[];
 }
 
 export interface MarketSizingPolicy {
@@ -676,11 +714,22 @@ export interface WagonNeed {
   payloadPerWagon: number;
 }
 
-export function wagonNeed(type: string, loadClass: FreightLoadClass = 'mittel'): WagonNeed {
+export function wagonNeed(
+  type: string,
+  loadClass: FreightLoadClass = 'mittel',
+  maxWeightT?: number,
+): WagonNeed {
   const range = FREIGHT_LOAD_RANGES[loadClass];
-  const count = randInt(range.min, range.max);
+  let count = randInt(range.min, range.max);
   const payload = WAGON_PAYLOAD_T[type] ?? { min: 58, max: 82 };
-  const payloadPerWagon = randInt(payload.min, payload.max);
+  let payloadPerWagon = randInt(payload.min, payload.max);
+  const cap = Number.isFinite(maxWeightT) && (maxWeightT ?? 0) > 0 ? Math.max(180, Math.floor(maxWeightT as number)) : null;
+  if (cap != null) {
+    while (count * payloadPerWagon > cap && count > 2) count -= 1;
+    if (count * payloadPerWagon > cap) {
+      payloadPerWagon = Math.max(payload.min, Math.floor(cap / Math.max(1, count)));
+    }
+  }
   return {
     count,
     weight: count * payloadPerWagon,
@@ -757,18 +806,30 @@ export function applyFreightPricing(order: Order, standing?: CommercialStanding 
   const destCountry = order.destination_country ?? inferCountryFromLabel(order.destination);
   const requiresEtcs =
     order.requires_etcs === true || originCountry === 'CH' || destCountry === 'CH' || originCountry !== destCountry;
+  const special = order.special === true;
+  const exclusive = order.exclusive === true;
+  const yieldFactor = exclusive ? EXCLUSIVE_YIELD_FACTOR : special ? SPECIAL_ORDER_YIELD_FACTOR : 1;
+  const yieldAmt =
+    deployment && daily != null
+      ? daily * (order.deployment_days ?? 0)
+      : Math.round(priced.yield * yieldFactor);
+  const tkmRevenue = Math.round(priced.tkmRevenue * yieldFactor);
+  const electrified = isOrderElectrified(order);
   return {
     ...order,
     required_wagon_type: alignedType,
     origin_country: originCountry,
     destination_country: destCountry,
     requires_etcs: requiresEtcs,
-    yield: deployment && daily != null ? daily * (order.deployment_days ?? 0) : priced.yield,
-    tkm_revenue: priced.tkmRevenue,
-    eur_per_tkm: priced.eurPerTkm,
+    yield: yieldAmt,
+    tkm_revenue: tkmRevenue,
+    eur_per_tkm: priced.tkm > 0 ? yieldAmt / priced.tkm : priced.eurPerTkm,
     daily_rate: daily,
     penalty: scaleLegacyAmount(Number(order.penalty) || 0),
     penalty_per_min: penaltyPerMin > 0 ? scaleLegacyAmount(penaltyPerMin) : 0,
+    electrified,
+    special,
+    exclusive,
   };
 }
 
@@ -784,12 +845,50 @@ function routeCountries(route: RouteTemplate): {
   return { origin_country, destination_country, requires_etcs };
 }
 
-function pickRoute(category: FreightCustomerCategory, standing?: CommercialStanding | null): RouteTemplate {
+function routeIsElectrified(route: RouteTemplate): boolean {
+  return route.electrified !== false;
+}
+
+function inferRouteRegion(route: Pick<RouteTemplate, 'origin' | 'destination' | 'region'>): DepotRegion {
+  if (route.region) return route.region;
+  const blob = `${route.origin} ${route.destination}`.toLowerCase();
+  if (/duisburg|dortmund|thyssen/.test(blob)) return 'ruhr';
+  if (/hamburg|maschen|bremerhaven|emden/.test(blob)) return 'nord';
+  if (/münchen|muenchen|augsburg|passau|ingolstadt|innsbruck|verona/.test(blob)) return 'sued';
+  if (/leipzig|dresden|halle|berlin|pozna/.test(blob)) return 'ost';
+  if (/ludwigshafen|mannheim|karlsruhe|stuttgart|frankfurt/.test(blob)) return 'mitte';
+  if (/köln|koeln|venlo/.test(blob)) return 'west';
+  return 'ruhr';
+}
+
+function pickRoute(
+  category: FreightCustomerCategory,
+  standing?: CommercialStanding | null,
+  electrified?: boolean,
+  preferredRegions?: ReadonlySet<DepotRegion> | null,
+): RouteTemplate {
   const cap = maxSpotDistanceKm(Math.max(1, Number(standing?.level) || 1));
+  const wantWire = electrified !== false;
   const all = ROUTES[category];
-  const local = all.filter((r) => r.distanceKm <= cap);
-  const pool = local.length > 0 ? local : [...all].sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 2);
+  const byWire = all.filter((r) => routeIsElectrified(r) === wantWire);
+  const source = byWire.length > 0 ? byWire : wantWire ? all.filter(routeIsElectrified) : all.filter((r) => !routeIsElectrified(r));
+  const poolSource = source.length > 0 ? source : all;
+  const regional =
+    preferredRegions && preferredRegions.size > 0
+      ? poolSource.filter((r) => preferredRegions.has(inferRouteRegion(r)))
+      : poolSource;
+  const scoped = regional.length > 0 ? regional : poolSource;
+  const local = scoped.filter((r) => r.distanceKm <= cap);
+  const pool = local.length > 0 ? local : [...scoped].sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 2);
   return pick(pool);
+}
+
+function loadClassForHook(hookT: number, allowed: FreightLoadClass[], prefer: 'light' | 'heavy' | 'mix'): FreightLoadClass {
+  const can = new Set(allowed);
+  if (prefer === 'light' || hookT < 900) return 'leicht';
+  if (prefer === 'heavy' && can.has('schwer') && hookT >= 1_400) return 'schwer';
+  if (can.has('mittel') && hookT >= 700) return prefer === 'heavy' ? (can.has('schwer') ? 'schwer' : 'mittel') : 'mittel';
+  return 'leicht';
 }
 
 function eligibleCustomers(
@@ -798,8 +897,25 @@ function eligibleCustomers(
 ): FreightCustomer[] {
   const level = Math.max(1, Number(standing?.level) || 1);
   const rep = Math.max(0, Number(standing?.reputation) || 0);
-  const next = list.filter((c) => (c.minLevel ?? 1) <= level && (c.minReputation ?? 0) <= rep);
-  return next.length > 0 ? next : list.filter((c) => (c.minLevel ?? 1) <= 1);
+  const next = list.filter(
+    (c) =>
+      (c.minLevel ?? 1) <= level &&
+      (c.minReputation ?? 0) <= rep &&
+      (!c.exclusive || exclusiveJobsUnlocked(rep)),
+  );
+  return next.length > 0 ? next : list.filter((c) => (c.minLevel ?? 1) <= 1 && !c.exclusive);
+}
+
+interface SpotBuildOptions {
+  asConstructionSpot: boolean;
+  loadClass?: FreightLoadClass;
+  electrified?: boolean;
+  maxWeightT?: number;
+  special?: boolean;
+  exclusive?: boolean;
+  routeOverride?: RouteTemplate;
+  regionNote?: string;
+  preferredRegions?: ReadonlySet<DepotRegion> | null;
 }
 
 function buildSpotOrder(
@@ -807,25 +923,43 @@ function buildSpotOrder(
   gameDate: Date,
   tick: number,
   usedNumbers: Set<string>,
-  asConstructionSpot: boolean,
-  standing?: CommercialStanding | null,
-  loadClass: FreightLoadClass = 'mittel',
+  standing: CommercialStanding | null | undefined,
+  options: SpotBuildOptions,
 ): Order {
-  const route = pickRoute(customer.category, standing);
+  const asConstructionSpot = options.asConstructionSpot;
+  const loadClass = options.loadClass ?? 'mittel';
+  const wantWire = options.electrified !== false && !asConstructionSpot && customer.category !== 'gleisbau';
+  const route =
+    options.routeOverride ?? pickRoute(customer.category, standing, wantWire, options.preferredRegions);
+  const electrified = asConstructionSpot || customer.category === 'gleisbau' ? false : routeIsElectrified(route);
   const net = routeCountries(route);
   const cargo = pick(customer.cargoLabels);
   const preferred = wagonTypeForCargo(cargo, pick(customer.wagonTypes));
   const wagonType = customer.wagonTypes.includes(preferred) ? preferred : pick(customer.wagonTypes);
-  const need = wagonNeed(wagonType, loadClass);
+  const need = wagonNeed(wagonType, loadClass, options.maxWeightT);
   const type: OrderType = customer.category === 'gleisbau' || asConstructionSpot ? 'baugleis' : 'gueterverkehr';
   const priced = computeSpotYield(type, route.distanceKm, need.weight, customer.category, standing);
+  const exclusive = options.exclusive === true;
+  const special = options.special === true || exclusive;
+  const yieldFactor = exclusive ? EXCLUSIVE_YIELD_FACTOR : special ? SPECIAL_ORDER_YIELD_FACTOR : 1;
+  const yieldAmt = Math.round(priced.yield * yieldFactor);
+  const tkmRevenue = Math.round(priced.tkmRevenue * yieldFactor);
+  const eurPerTkm = priced.tkm > 0 ? yieldAmt / priced.tkm : priced.eurPerTkm;
   const sperre = type === 'baugleis' ? pick(SPERRPAUSEN) : null;
   const hours = type === 'baugleis' ? randInt(18, 36) : randInt(36, 96);
   const deadline = new Date(gameDate.getTime() + hours * 60 * 60 * 1000).toISOString();
+  const wireNote = electrified ? 'elektrifiziert (E-Lok / Dual / Diesel)' : 'ohne Oberleitung (Diesel / Dual, Anschluss oder Baustelle)';
+  const specialNote = exclusive
+    ? `Exklusiv-Ganzzug · Reputation ${Math.round((EXCLUSIVE_YIELD_FACTOR - 1) * 100)} % Aufschlag · `
+    : special
+      ? `Spezialauftrag · hochrentabel (+${Math.round((SPECIAL_ORDER_YIELD_FACTOR - 1) * 100)} %) · `
+      : '';
+  const regionNote = options.regionNote ? `${options.regionNote} · ` : '';
+  const titlePrefix = exclusive ? 'Exklusiv · ' : special ? 'Spezial · ' : '';
   const title =
     type === 'baugleis'
-      ? `${cargo} ${customer.name} · ${route.destination}`
-      : `${cargo} ${route.origin}–${route.destination}`;
+      ? `${titlePrefix}${cargo} ${customer.name} · ${route.destination}`
+      : `${titlePrefix}${cargo} ${route.origin}–${route.destination}`;
 
   return {
     id: newNotificationId(),
@@ -836,11 +970,11 @@ function buildSpotOrder(
     destination: route.destination,
     distance_km: route.distanceKm,
     weight_t: need.weight,
-    yield: priced.yield,
+    yield: yieldAmt,
     penalty: type === 'baugleis' ? scaleLegacyAmount(randInt(2800, 5200)) : scaleLegacyAmount(randInt(180, 800)),
     deadline,
     status: 'offen',
-    notes: `${customer.name} · ${need.classLabel}: ${need.count}× ${wagonType} · Ø ${need.payloadPerWagon} t/Wagen · ${priced.tkm.toLocaleString('de-DE')} tkm · ${priced.eurPerTkm.toFixed(3).replace('.', ',')} €/tkm (Sockel ${priced.baseRevenue.toLocaleString('de-DE')} € + ${priced.tkmRevenue.toLocaleString('de-DE')} € tkm-Anteil)`,
+    notes: `${specialNote}${regionNote}${customer.name} · ${wireNote} · ${need.classLabel}: ${need.count}× ${wagonType} · Ø ${need.payloadPerWagon} t/Wagen · ${priced.tkm.toLocaleString('de-DE')} tkm · ${eurPerTkm.toFixed(3).replace('.', ',')} €/tkm (Sockel ${priced.baseRevenue.toLocaleString('de-DE')} € + ${tkmRevenue.toLocaleString('de-DE')} € tkm-Anteil)`,
     min_brh: clampOrderMinBrh(type, type === 'baugleis' ? randInt(50, 65) : randInt(60, 75)),
     required_wagon_type: wagonType,
     required_wagon_count: need.count,
@@ -857,8 +991,11 @@ function buildSpotOrder(
     deployment_days: null,
     daily_rate: null,
     required_drivers: 1,
-    eur_per_tkm: priced.eurPerTkm,
-    tkm_revenue: priced.tkmRevenue,
+    eur_per_tkm: eurPerTkm,
+    tkm_revenue: tkmRevenue,
+    electrified,
+    special,
+    exclusive,
   };
 }
 
@@ -869,12 +1006,13 @@ function buildEinsatzOrder(
   tick: number,
   usedNumbers: Set<string>,
   standing?: CommercialStanding | null,
+  maxWeightT?: number,
 ): Order {
   const route = pickRoute('gleisbau', standing);
   const cargo = pick(customer.cargoLabels);
   const preferred = wagonTypeForCargo(cargo, pick(customer.wagonTypes));
   const wagonType = customer.wagonTypes.includes(preferred) ? preferred : pick(customer.wagonTypes);
-  const need = wagonNeed(wagonType);
+  const need = wagonNeed(wagonType, 'mittel', maxWeightT);
   const daily = baugleisDailyRate(days, route.distanceKm, need.weight, standing);
   const priced = computeSpotYield('baugleis', route.distanceKm, need.weight, customer.category, standing);
   const mega = days >= 180;
@@ -894,7 +1032,7 @@ function buildEinsatzOrder(
     penalty: scaleLegacyAmount(mega ? 28_000 : 12_000),
     deadline: new Date(gameDate.getTime() + days * 24 * 60 * 60 * 1000).toISOString(),
     status: 'offen',
-    notes: `${customer.name} bindet 1 Diesellok (BR 218 / V 90 / BR 290 o. ä.) plus ${BAUGLEIS_MIN_DRIVERS} Tf im Schichtwechsel für ${days} Tage. Tagespauschale ${daily.toLocaleString('de-DE')} € deckt Trasse, Energie und AZF/PDL-Basis plus Einsatzmarge. ${cargo}, ${need.count}× ${wagonType}.`,
+    notes: `${customer.name} bindet 1 Diesellok (BR 218 / V 90 / BR 290 o. ä.) plus ${BAUGLEIS_MIN_DRIVERS} Tf im Schichtwechsel für ${days} Tage. Tagespauschale ${daily.toLocaleString('de-DE')} € deckt Trasse, Energie und AZF/PDL-Basis plus Einsatzmarge. ${cargo}, ${need.count}× ${wagonType}. Ohne Oberleitung.`,
     min_brh: clampOrderMinBrh('baugleis', randInt(50, 62)),
     required_wagon_type: wagonType,
     required_wagon_count: need.count,
@@ -913,6 +1051,8 @@ function buildEinsatzOrder(
     required_drivers: BAUGLEIS_MIN_DRIVERS,
     eur_per_tkm: priced.eurPerTkm,
     tkm_revenue: priced.tkmRevenue,
+    electrified: false,
+    special: mega || special,
   };
 }
 
@@ -926,28 +1066,110 @@ export function generateMarketOrders(
   const used = usedNumbers ?? new Set<string>();
   const level = Math.max(1, Number(standing?.level) || 1);
   const sizing = marketSizingPolicy(standing, context);
+  const fleet = analyzeFleetForMarket(context?.locomotives);
   const gleisbau = eligibleCustomers(
     FREIGHT_CUSTOMERS.filter((c) => c.category === 'gleisbau'),
     standing,
   );
   const freight = eligibleCustomers(
-    FREIGHT_CUSTOMERS.filter((c) => c.category !== 'gleisbau'),
+    FREIGHT_CUSTOMERS.filter((c) => c.category !== 'gleisbau' && !c.exclusive),
     standing,
   );
+  const exclusiveCustomers = eligibleCustomers(
+    FREIGHT_CUSTOMERS.filter((c) => c.exclusive),
+    standing,
+  );
+  const sites = ownedNetworkSites(context?.ownedSiteIds);
+  const preferredRegions = new Set(sites.map((site) => site.region));
   const orders: Order[] = [];
 
-  const spotCount = randInt(8, 11);
-  const guaranteedLight = Math.min(spotCount, sizing.guaranteedLightOrders);
+  const lightCap = Math.min(fleet.minTrailingT * 0.92, fleet.maxOhleTrailingT);
+  const heavyCap = fleet.maxOhleTrailingT * 0.92;
+  const dieselCap = fleet.maxUnelectrifiedTrailingT * 0.92;
+
+  const guaranteedLight = sizing.guaranteedLightOrders;
   for (let i = 0; i < guaranteedLight; i += 1) {
-    orders.push(buildSpotOrder(pick(freight), gameDate, tick, used, false, standing, 'leicht'));
-  }
-  for (let i = guaranteedLight; i < spotCount; i += 1) {
-    orders.push(buildSpotOrder(pick(freight), gameDate, tick, used, false, standing, pick(sizing.allowedClasses)));
+    orders.push(
+      buildSpotOrder(pick(freight), gameDate, tick, used, standing, {
+        asConstructionSpot: false,
+        loadClass: 'leicht',
+        electrified: true,
+        maxWeightT: lightCap,
+        preferredRegions,
+      }),
+    );
   }
 
-  const bauSpot = randInt(2, 3);
+  const electrifiedCount = 3;
+  for (let i = 0; i < electrifiedCount; i += 1) {
+    const prefer = i === 0 ? 'light' : i === electrifiedCount - 1 ? 'heavy' : 'mix';
+    orders.push(
+      buildSpotOrder(pick(freight), gameDate, tick, used, standing, {
+        asConstructionSpot: false,
+        loadClass: loadClassForHook(fleet.maxOhleTrailingT, sizing.allowedClasses, prefer),
+        electrified: true,
+        maxWeightT: prefer === 'light' ? lightCap : heavyCap,
+        preferredRegions,
+      }),
+    );
+  }
+
+  const unelectrifiedCount = 3;
+  for (let i = 0; i < unelectrifiedCount; i += 1) {
+    const prefer = i === 0 ? 'light' : 'heavy';
+    const fromGleis = i === unelectrifiedCount - 1;
+    orders.push(
+      buildSpotOrder(pick(fromGleis ? gleisbau : freight), gameDate, tick, used, standing, {
+        asConstructionSpot: fromGleis,
+        loadClass: loadClassForHook(fleet.maxUnelectrifiedTrailingT, sizing.allowedClasses, prefer),
+        electrified: false,
+        maxWeightT: dieselCap,
+      }),
+    );
+  }
+
+  orders.push(
+    buildSpotOrder(pick(freight), gameDate, tick, used, standing, {
+      asConstructionSpot: false,
+      loadClass: loadClassForHook(fleet.maxOhleTrailingT, sizing.allowedClasses, 'heavy'),
+      electrified: true,
+      maxWeightT: heavyCap,
+      special: true,
+    }),
+  );
+  orders.push(
+    buildSpotOrder(pick(gleisbau), gameDate, tick, used, standing, {
+      asConstructionSpot: true,
+      loadClass: loadClassForHook(fleet.maxUnelectrifiedTrailingT, sizing.allowedClasses, 'mix'),
+      electrified: false,
+      maxWeightT: dieselCap,
+      special: true,
+    }),
+  );
+
+  const filler = Math.max(0, randInt(2, 4));
+  for (let i = 0; i < filler; i += 1) {
+    const wire = i % 2 === 0;
+    orders.push(
+      buildSpotOrder(pick(freight), gameDate, tick, used, standing, {
+        asConstructionSpot: false,
+        loadClass: pick(sizing.allowedClasses),
+        electrified: wire,
+        maxWeightT: wire ? heavyCap : dieselCap,
+      }),
+    );
+  }
+
+  const bauSpot = randInt(1, 2);
   for (let i = 0; i < bauSpot; i += 1) {
-    orders.push(buildSpotOrder(pick(gleisbau), gameDate, tick, used, true, standing, pick(sizing.allowedClasses)));
+    orders.push(
+      buildSpotOrder(pick(gleisbau), gameDate, tick, used, standing, {
+        asConstructionSpot: true,
+        loadClass: pick(sizing.allowedClasses),
+        electrified: false,
+        maxWeightT: dieselCap,
+      }),
+    );
   }
 
   const durations = [...allowedEinsatzDays(level)];
@@ -955,12 +1177,71 @@ export function generateMarketOrders(
   for (let i = 0; i < einsatzCount; i += 1) {
     const idx = Math.floor(Math.random() * durations.length);
     const days = durations.splice(idx, 1)[0] ?? 15;
-    orders.push(buildEinsatzOrder(pick(gleisbau), days, gameDate, tick, used, standing));
+    orders.push(buildEinsatzOrder(pick(gleisbau), days, gameDate, tick, used, standing, dieselCap));
   }
 
   if (level >= 6 && !orders.some((o) => o.deployment_days === 180)) {
     if (Math.random() < 0.35) {
-      orders.push(buildEinsatzOrder(pick(gleisbau), 180, gameDate, tick, used, standing));
+      orders.push(buildEinsatzOrder(pick(gleisbau), 180, gameDate, tick, used, standing, dieselCap));
+    }
+  }
+
+  for (const site of sites) {
+    const pool = eligibleCustomers(
+      FREIGHT_CUSTOMERS.filter((c) => site.categories.includes(c.category) && !c.exclusive),
+      standing,
+    );
+    if (pool.length === 0 || site.routes.length === 0) continue;
+    const siteRoute = pick(site.routes);
+    const routeOverride: RouteTemplate = {
+      origin: siteRoute.origin,
+      destination: siteRoute.destination,
+      distanceKm: siteRoute.distanceKm,
+      electrified: siteRoute.electrified,
+      region: site.region,
+    };
+    orders.push(
+      buildSpotOrder(pick(pool), gameDate, tick, used, standing, {
+        asConstructionSpot: !siteRoute.electrified,
+        loadClass: loadClassForHook(
+          siteRoute.electrified ? fleet.maxOhleTrailingT : fleet.maxUnelectrifiedTrailingT,
+          sizing.allowedClasses,
+          'mix',
+        ),
+        electrified: siteRoute.electrified,
+        maxWeightT: siteRoute.electrified ? heavyCap : dieselCap,
+        routeOverride,
+        regionNote: `${site.name}: ${site.flavor}`,
+      }),
+    );
+  }
+
+  if (exclusiveJobsUnlocked(standing?.reputation)) {
+    const exclusivePool = exclusiveCustomers.length > 0 ? exclusiveCustomers : freight;
+    const exclusiveCount = standing && (standing.reputation ?? 0) >= 85 ? 2 : 1;
+    for (let i = 0; i < exclusiveCount; i += 1) {
+      const site = sites[i % Math.max(1, sites.length)];
+      const siteRoute = site?.routes.find((r) => r.electrified) ?? site?.routes[0];
+      const routeOverride: RouteTemplate | undefined = siteRoute
+        ? {
+            origin: siteRoute.origin,
+            destination: siteRoute.destination,
+            distanceKm: Math.max(siteRoute.distanceKm, 280),
+            electrified: siteRoute.electrified,
+            region: site?.region,
+          }
+        : undefined;
+      orders.push(
+        buildSpotOrder(pick(exclusivePool), gameDate, tick, used, standing, {
+          asConstructionSpot: false,
+          loadClass: loadClassForHook(fleet.maxOhleTrailingT, sizing.allowedClasses, 'heavy'),
+          electrified: true,
+          maxWeightT: heavyCap,
+          exclusive: true,
+          routeOverride,
+          regionNote: 'Exklusivauftrag für Premium-Reputation',
+        }),
+      );
     }
   }
 

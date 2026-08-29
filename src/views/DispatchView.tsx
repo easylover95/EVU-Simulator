@@ -53,6 +53,7 @@ import {
   isExpiredOpenOffer,
   requiredDriversFor,
 } from '@/lib/orderMarket';
+import { evaluateAssignmentFit, isOrderElectrified, trailingLoadT } from '@/lib/traction';
 import { ensureMaintenance, isLocoDeployable } from '@/lib/workshop';
 import type { BaugleisDeployment } from '@/lib/baugleisDeployments';
 import { canStartBaugleisEinsatz, deploymentDailyOperating } from '@/lib/baugleisDeployments';
@@ -200,9 +201,10 @@ export function DispatchView({
   const baugleisOrder = isBaugleisOrder(selectedOrder);
   const availableLocos = useMemo(() => {
     const free = locomotives.filter((l) => isLocoDeployable(ensureMaintenance(l)));
-    if (einsatzOrder) return free.filter(isConstructionLoco);
-    return free;
-  }, [locomotives, einsatzOrder]);
+    const pool = einsatzOrder ? free.filter(isConstructionLoco) : free;
+    if (!selectedOrder) return pool;
+    return pool.filter((loco) => evaluateAssignmentFit(selectedOrder, loco)?.ok !== false);
+  }, [locomotives, einsatzOrder, selectedOrder]);
   const availableDrivers = useMemo(
     () =>
       drivers.filter(
@@ -289,6 +291,10 @@ export function DispatchView({
     if (!selectedOrder || !selectedLocoObj) return null;
     return calculateTrainBrh(selectedLocoObj, selectedOrder, wagons);
   }, [selectedOrder, selectedLocoObj, wagons]);
+  const tractionFit = useMemo(() => {
+    if (!selectedOrder || !selectedLocoObj) return null;
+    return evaluateAssignmentFit(selectedOrder, selectedLocoObj);
+  }, [selectedOrder, selectedLocoObj]);
   const wagonCheck = useMemo(() => {
     if (!selectedOrder) return null;
     return checkWagonAvailability(selectedOrder, wagons);
@@ -337,6 +343,7 @@ export function DispatchView({
     !seriesBlock &&
     !seriesBlock2 &&
     !lineClosure &&
+    (!tractionFit || tractionFit.ok) &&
     (!brhCheck || brhCheck.passed) &&
     (!wagonCheck || wagonCheck.sufficient);
 
@@ -344,6 +351,10 @@ export function DispatchView({
     if (!selectedOrder || !selectedLoco || !selectedDriver) return;
     if (einsatzOrder && !selectedDriver2) {
       setError(`Baugleis-Einsatz: ${BAUGLEIS_MIN_DRIVERS} Tf im Schichtwechsel erforderlich`);
+      return;
+    }
+    if (tractionFit && !tractionFit.ok) {
+      setError(tractionFit.message);
       return;
     }
     if (baugleisOrder && !azfReady) {
@@ -765,6 +776,11 @@ export function DispatchView({
                   <label className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400">
                     <Train className="h-3 w-3" /> Triebfahrzeug
                     {einsatzOrder && <span className="font-normal normal-case text-amber-400/80">· Diesel / Dual (BR 218, V 90 / BR 290)</span>}
+                    {selectedOrder && !einsatzOrder && (
+                      <span className="font-normal normal-case text-slate-500">
+                        · {isOrderElectrified(selectedOrder) ? 'Oberleitung' : 'ohne Fahrdraht'} · Hakenlast
+                      </span>
+                    )}
                   </label>
                   <select
                     value={selectedLoco}
@@ -774,7 +790,7 @@ export function DispatchView({
                     <option value="">— Bitte wählen —</option>
                     {availableLocos.map((loco) => (
                       <option key={loco.id} value={loco.id}>
-                        {getLocoDisplayName(loco.designation)} · Brh {loco.brake_pct}% · Kraftstoff {loco.fuel_level}%
+                        {getLocoDisplayName(loco.designation)} · {loco.fuel_type === 'elektrik' ? 'E-Lok' : loco.fuel_type === 'dual' ? 'Dual' : 'Diesel'} · Hakenlast {trailingLoadT(loco).toLocaleString('de-DE')} t · Brh {loco.brake_pct}%
                       </option>
                     ))}
                   </select>
@@ -782,10 +798,25 @@ export function DispatchView({
                     <p className="mt-1 text-[10px] text-rose-400">
                       {einsatzOrder
                         ? 'Keine freie Diesel-/Dual-Lok für den Baugleis-Einsatz'
-                        : 'Keine einsatzbereiten Triebfahrzeuge (HU ungültig / stillgelegt / belegt)'}
+                        : selectedOrder && !isOrderElectrified(selectedOrder)
+                          ? 'Keine passende Lok: ohne Oberleitung nur Diesel/Dual, Hakenlast muss die Fracht tragen'
+                          : 'Keine einsatzbereiten Triebfahrzeuge (HU ungültig / stillgelegt / belegt / Hakenlast)'}
                     </p>
                   )}
                 </div>
+
+                {tractionFit && (
+                  <div
+                    className={`rounded-sm border px-2.5 py-2 text-[11px] ${
+                      tractionFit.ok
+                        ? 'border-emerald-500/40 bg-emerald-950/30 text-emerald-100'
+                        : 'border-rose-500/40 bg-rose-950/30 text-rose-100'
+                    }`}
+                  >
+                    <div className="font-bold uppercase tracking-wide text-[10px] opacity-80">Zuweisungs-Check</div>
+                    <p className="mt-0.5 leading-relaxed">{tractionFit.message}</p>
+                  </div>
+                )}
 
                 <div>
                   <label className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400">
