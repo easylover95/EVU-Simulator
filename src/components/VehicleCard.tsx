@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { PhotoCardHeader } from '@/components/LocoPhoto';
 
 export const vehicleCardClass =
@@ -30,7 +30,7 @@ export function VehiclePriceBox({
   );
 }
 
-export function VehicleCard({
+export const VehicleCard = memo(function VehicleCard({
   designation,
   catalogId,
   kind = 'loco',
@@ -62,4 +62,4 @@ export function VehicleCard({
       <div className={vehicleCardBodyClass}>{children}</div>
     </article>
   );
-}
+});

@@ -16,7 +16,7 @@ export function Layout({
 }) {
   return (
     <div
-      className={`app-shell app-industrial-bg relative min-h-screen text-slate-300${
+      className={`app-shell app-industrial-bg relative min-h-[100dvh] text-slate-300${
         atmosphere ? ' has-submenu-atmosphere' : ''
       }`}
       data-view={view}

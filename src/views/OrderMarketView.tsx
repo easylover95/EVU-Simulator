@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, memo } from 'react';
 import {
   Package,
   HardHat,
@@ -22,6 +22,7 @@ import {
   MIN_BRH_RANGE,
 } from '@/lib/status';
 import { isBaugleisEinsatz, isOpenUnexpiredMarketOrder } from '@/lib/orderMarket';
+import { bestFleetFit, isOrderElectrified } from '@/lib/traction';
 import { useGameClock } from '@/lib/GameClockContext';
 import { SectionShell } from '@/components/SectionShell';
 import { OrderCostBreakdown } from '@/components/OrderCostBreakdown';
@@ -164,7 +165,7 @@ function durationBadge(days: number): { label: string; className: string } {
   return { label: `${days} Tage`, className: 'fi-pill fi-pill-orange' };
 }
 
-export function OrderMarketView({
+export const OrderMarketView = memo(function OrderMarketView({
   orders,
   wagons,
   loading,
@@ -262,6 +263,12 @@ export function OrderMarketView({
     return copy;
   }, [filtered, sortKey, sortDir, gameNow]);
 
+  const fleetFits = useMemo(() => {
+    const next = new Map<string, ReturnType<typeof bestFleetFit>>();
+    for (const order of sorted) next.set(order.id, bestFleetFit(order, locomotives));
+    return next;
+  }, [sorted, locomotives]);
+
   const marketActions = (
     <div className="fi-market-actions flex flex-wrap items-center gap-2">
       {onOpenDisposition && (
@@ -312,7 +319,7 @@ export function OrderMarketView({
   return (
     <SectionShell
       title="Frachtbörse"
-      subtitle={`${marketOrders.length} Aufträge · Frühspiel: mindestens 3 Leichtaufträge mit 4–6 Wagen · Schwere Züge ab Level 3 + 36 Wagen-Stellplätzen · Brh Güter ${MIN_BRH_RANGE.gueterverkehr.min}–${MIN_BRH_RANGE.gueterverkehr.max} · Bau ${MIN_BRH_RANGE.baugleis.min}–${MIN_BRH_RANGE.baugleis.max}`}
+      subtitle={`${marketOrders.length} Aufträge · Generator berücksichtigt Fuhrpark (E-/Diesel, Hakenlast) · Frühspiel: mindestens 3 Leichtaufträge mit 4–6 Wagen · Schwere Züge ab Level 3 + 36 Wagen-Stellplätzen · Brh Güter ${MIN_BRH_RANGE.gueterverkehr.min}–${MIN_BRH_RANGE.gueterverkehr.max} · Bau ${MIN_BRH_RANGE.baugleis.min}–${MIN_BRH_RANGE.baugleis.max}`}
       actions={marketActions}
       tutorialId="tutorial-frachtboerse"
     >
@@ -394,10 +401,24 @@ export function OrderMarketView({
                     <div>{order.title}</div>
                     {order.customer && <div className="text-[10px] font-normal text-slate-500">{order.customer}</div>}
                     {shortage && <div className="mt-0.5 text-[10px] font-bold text-rose-400">{shortage}</div>}
+                    {fleetFits.get(order.id)?.ok && (
+                      <div className="mt-0.5 text-[10px] font-semibold text-emerald-400">
+                        Fuhrpark passt · {fleetFits.get(order.id)?.message}
+                      </div>
+                    )}
+                    {fleetFits.get(order.id) && !fleetFits.get(order.id)?.ok && locomotives.length > 0 && (
+                      <div className="mt-0.5 text-[10px] font-semibold text-amber-300">
+                        {fleetFits.get(order.id)?.message}
+                      </div>
+                    )}
                   </td>
                   <td data-label="Strecke" className="fi-mobile-card-summary whitespace-nowrap text-[11px] text-slate-400">
                     {order.origin} → {order.destination}
                     <span className="ml-1 text-slate-600">({order.distance_km} km · {corridorCountryHint(order)})</span>
+                    <div className="mt-0.5 text-[10px] font-semibold text-sky-300/90">
+                      {isOrderElectrified(order) ? 'Fahrdraht / E-Lok möglich' : 'Ohne Oberleitung · Diesel/Dual'}
+                      {order.special ? ' · Spezialauftrag' : ''}
+                    </div>
                     {gate && <div className="mt-0.5 text-[10px] font-bold text-rose-400">{gate}</div>}
                   </td>
                   <td data-label="Last" className="tabular-nums">{Number(order.weight_t || 0).toLocaleString('de-DE')} t</td>
@@ -478,7 +499,18 @@ export function OrderMarketView({
               <div className="text-sm font-bold text-white">{detailOrder.title}</div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <DetailRow label="Streckenprofil" value={`${detailOrder.origin} → ${detailOrder.destination} · ${detailOrder.distance_km} km · ${corridorCountryHint(detailOrder)}`} />
-                <DetailRow label="Zuglast" value={`${detailOrder.weight_t} t`} />
+                <DetailRow
+                  label="Fahrleitung"
+                  value={
+                    isOrderElectrified(detailOrder)
+                      ? 'Elektrifiziert — E-Lok, Dual und Diesel zulässig'
+                      : 'Keine Oberleitung — nur Diesel oder Dual, Hakenlast prüfen'
+                  }
+                />
+                <DetailRow
+                  label="Fuhrpark-Check"
+                  value={bestFleetFit(detailOrder, locomotives)?.message ?? 'Kein Triebfahrzeug im Bestand'}
+                />
                 <DetailRow
                   label="Mindest-Brh"
                   value={`${clampOrderMinBrh(detailOrder.type, detailOrder.min_brh)} (${(MIN_BRH_RANGE[detailOrder.type] ?? MIN_BRH_RANGE.gueterverkehr).min}–${(MIN_BRH_RANGE[detailOrder.type] ?? MIN_BRH_RANGE.gueterverkehr).max})`}
@@ -584,7 +616,7 @@ export function OrderMarketView({
       )}
     </SectionShell>
   );
-}
+});
 
 function SperrpauseBanner({
   start,

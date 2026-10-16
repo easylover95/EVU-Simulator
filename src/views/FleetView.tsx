@@ -8,6 +8,7 @@ import { EtcsRetrofitModal } from '@/components/EtcsRetrofitModal';
 import { PhotoCardHeader } from '@/components/LocoPhoto';
 import { getLocoDisplayName } from '@/lib/locoPhotos';
 import { offerForLoco } from '@/lib/dealer';
+import { trailingLoadT } from '@/lib/traction';
 import {
   allFristen,
   canBookWorkshopJob,
@@ -218,10 +219,11 @@ export function FleetView({
               <div className="mt-3 space-y-3">
                 <ProgressBar value={loco.fuel_level} label="Kraftstoff" tone="fuel" />
                 <ProgressBar value={loco.brake_pct} label="Bremsleistung" tone="brake" />
-                <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                <div className="grid grid-cols-2 gap-2 text-center text-[11px] sm:grid-cols-4">
                   <Spec label="kW" value={loco.power_kw?.toLocaleString('de-DE') ?? '—'} />
                   <Spec label="km/h" value={loco.max_speed != null ? String(loco.max_speed) : '—'} />
                   <Spec label="t" value={loco.weight_t != null ? String(loco.weight_t) : '—'} />
+                  <Spec label="Hakenlast" value={`${trailingLoadT(loco).toLocaleString('de-DE')} t`} />
                 </div>
                 <div className="rounded-lg border border-slate-700 bg-slate-800/60 px-2 py-1.5 text-left text-[10px]">
                   <div className="font-bold text-slate-300">
@@ -379,7 +381,7 @@ export function FleetView({
               <DetailRow label="Bremsleistung" value={`${detailLoco.brake_pct}%`} />
               <DetailRow label="Leistung" value={`${detailLoco.power_kw?.toLocaleString('de-DE') ?? '—'} kW`} />
               <DetailRow label="Höchstgeschw." value={`${detailLoco.max_speed ?? '—'} km/h`} />
-              <DetailRow label="Masse" value={`${detailLoco.weight_t ?? '—'} t`} />
+              <DetailRow label="Hakenlast" value={`${trailingLoadT(detailLoco).toLocaleString('de-DE')} t`} />
               <DetailRow
                 label="Letzter Dienst"
                 value={

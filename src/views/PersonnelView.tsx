@@ -296,7 +296,7 @@ export function PersonnelView({
       </div>
 
       <div className="fi-card overflow-x-auto">
-        <table className="fi-table">
+        <table className="fi-table fi-mobile-card-table">
           <thead>
             <tr>
               <th>Name</th>
@@ -313,7 +313,7 @@ export function PersonnelView({
           <tbody>
             {drivers.length === 0 && (
               <tr>
-                <td colSpan={9} className="py-8 text-center text-slate-500">
+                <td colSpan={9} className="fi-mobile-empty-state py-8 text-center text-slate-500">
                   Kein Personal im Bestand
                 </td>
               </tr>
@@ -339,7 +339,7 @@ export function PersonnelView({
 
               return (
                 <tr key={driver.id}>
-                  <td>
+                  <td data-label="Name" className="fi-mobile-card-title">
                     <div className="flex items-center gap-2">
                       <span className="flex h-7 w-7 items-center justify-center rounded-sm border border-slate-600 bg-slate-800 text-[10px] font-bold text-slate-400">
                         {driver.name
@@ -351,13 +351,13 @@ export function PersonnelView({
                       <span className="font-bold text-white">{driver.name}</span>
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Status">
                     <span className={getDriverPillClass(driver.status)}>
                       <span className={`status-dot ${cfg.dot} ${driver.status === 'im_einsatz' ? 'animate-pulse' : ''}`} />
                       {statusLabel}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Qualifikationen">
                     <div className="flex flex-wrap gap-1">
                       {driver.qualifications.map((qualification) => (
                         <QualificationBadge key={qualification} qual={qualification} />
@@ -369,14 +369,14 @@ export function PersonnelView({
                       ))}
                     </div>
                   </td>
-                  <td className={`font-bold tabular-nums ${hoursColor}`}>
+                  <td data-label="48h" className={`font-bold tabular-nums ${hoursColor}`}>
                     {driver.hours_worked}/{driver.max_hours}h
                   </td>
-                  <td className={`tabular-nums ${restOk ? 'text-slate-300' : 'font-bold text-rose-400'}`}>
+                  <td data-label="Ruhezeit" className={`tabular-nums ${restOk ? 'text-slate-300' : 'font-bold text-rose-400'}`}>
                     {restHours}h{restOk ? '' : ' ⚠'}
                   </td>
-                  <td className="tabular-nums text-slate-300">{shiftHours !== null ? `${shiftHours}h` : '—'}</td>
-                  <td className="text-[11px] text-slate-300">
+                  <td data-label="Schicht" className="tabular-nums text-slate-300">{shiftHours !== null ? `${shiftHours}h` : '—'}</td>
+                  <td data-label="Rang / Gehalt" className="text-[11px] text-slate-300">
                     {meta
                       ? `${meta.role === 'tf' ? 'Tf' : meta.role === 'azf' ? 'AZF/RB' : 'Wp'} ${meta.rank} · ${meta.xp ?? 0} XP · ${formatEuro(meta.salary)}`
                       : '—'}
@@ -387,7 +387,7 @@ export function PersonnelView({
                       </span>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Telefon">
                     {driver.phone ? (
                       <span className="inline-flex items-center gap-1 text-slate-400">
                         <Phone className="h-2.5 w-2.5 text-slate-600" />
@@ -397,7 +397,7 @@ export function PersonnelView({
                       '—'
                     )}
                   </td>
-                  <td>
+                  <td data-label="Aktionen" className="fi-mobile-card-actions">
                     <div className="flex flex-wrap gap-1">
                       <button type="button" onClick={() => setDetailId(driver.id)} className="btn-action btn-action-detail">
                         <Info className="h-3 w-3" /> Details

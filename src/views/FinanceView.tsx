@@ -131,7 +131,7 @@ export function FinanceView({ company, orders, dailyFixed, bank, locomotives = [
             <p className="mb-2 text-[11px] text-slate-400">
               Aktueller Rahmen {formatEuro(bank.overdraftLimit)}. Level 1: 20.000 € · Level 10: 250.000 €.
             </p>
-            <table className="fi-table">
+            <table className="fi-table fi-mobile-card-table">
               <thead>
                 <tr>
                   <th>Level</th>
@@ -145,9 +145,9 @@ export function FinanceView({ company, orders, dailyFixed, bank, locomotives = [
                   const selected = normalizeOverdraftLimit(bank.overdraftLimit) === row.limit;
                   return (
                     <tr key={row.limit}>
-                      <td className="tabular-nums">Lvl {row.unlockLevel}</td>
-                      <td className="font-bold text-white">{row.label}</td>
-                      <td className={unlocked ? 'text-emerald-400' : 'text-slate-500'}>
+                      <td data-label="Level" className="tabular-nums">Lvl {row.unlockLevel}</td>
+                      <td data-label="Dispo" className="font-bold text-white">{row.label}</td>
+                      <td data-label="Status" className={unlocked ? 'text-emerald-400' : 'text-slate-500'}>
                         {selected ? 'Aktiv' : unlocked ? 'Freigeschaltet' : `ab Level ${row.unlockLevel}`}
                       </td>
                     </tr>
@@ -164,7 +164,7 @@ export function FinanceView({ company, orders, dailyFixed, bank, locomotives = [
               Kleinkredite früh, Großdarlehen erst mit dem Unternehmens-Level. 25.000 € ab Level 1, 1.000.000 € ab
               Level 10.
             </p>
-            <table className="fi-table">
+            <table className="fi-table fi-mobile-card-table">
               <thead>
                 <tr>
                   <th>Level</th>
@@ -177,9 +177,9 @@ export function FinanceView({ company, orders, dailyFixed, bank, locomotives = [
                   const unlocked = isLoanAmountUnlocked(row.amount, company?.level ?? 1);
                   return (
                     <tr key={row.amount}>
-                      <td className="tabular-nums">Lvl {row.unlockLevel}</td>
-                      <td className="font-bold text-white">{formatEuro(row.amount)}</td>
-                      <td className={unlocked ? 'text-emerald-400' : 'text-slate-500'}>
+                      <td data-label="Level" className="tabular-nums">Lvl {row.unlockLevel}</td>
+                      <td data-label="Darlehen" className="font-bold text-white">{formatEuro(row.amount)}</td>
+                      <td data-label="Status" className={unlocked ? 'text-emerald-400' : 'text-slate-500'}>
                         {unlocked ? 'Freigeschaltet' : `ab Level ${row.unlockLevel}`}
                       </td>
                     </tr>
@@ -232,7 +232,7 @@ export function FinanceView({ company, orders, dailyFixed, bank, locomotives = [
       <div className="game-box">
         <div className="game-box-header">Auftrags-Erträge im Überblick</div>
         <div className="overflow-x-auto">
-          <table className="fi-table">
+          <table className="fi-table fi-mobile-card-table">
             <thead>
               <tr>
                 <th>Auftragsnr.</th>
@@ -249,16 +249,16 @@ export function FinanceView({ company, orders, dailyFixed, bank, locomotives = [
                 const statusCfg = getOrderStatusConfig(order.status);
                 return (
                   <tr key={order.id}>
-                    <td className="font-mono text-slate-400">{order.order_number}</td>
-                    <td>
+                    <td data-label="Auftragsnr." className="fi-mobile-card-title font-mono text-slate-400">{order.order_number}</td>
+                    <td data-label="Typ">
                       <span className={`font-medium ${typeCfg.text}`}>{typeCfg.label}</span>
                     </td>
-                    <td className="text-slate-300">{order.title}</td>
-                    <td>
+                    <td data-label="Titel" className="fi-mobile-card-summary text-slate-300">{order.title}</td>
+                    <td data-label="Status">
                       <span className={getOrderPillClass(order.status)}>{statusCfg.label}</span>
                     </td>
-                    <td className="text-right font-bold text-emerald-400">{formatEuro(Number(order.yield))}</td>
-                    <td className="text-right font-medium text-rose-400">
+                    <td data-label="Ertrag" className="text-right font-bold text-emerald-400">{formatEuro(Number(order.yield))}</td>
+                    <td data-label="Pönale" className="text-right font-medium text-rose-400">
                       {order.type === 'baugleis' && order.penalty_per_min > 0
                         ? `${formatEuro(Number(order.penalty_per_min))}/Min`
                         : formatEuro(Number(order.penalty))}
@@ -311,7 +311,7 @@ function PnlCard({ pnl }: { pnl: PnlSummary }) {
         </span>
       </div>
       <div className="overflow-x-auto p-3">
-        <table className="fi-table">
+        <table className="fi-table fi-mobile-card-table">
           <thead>
             <tr>
               <th>Position</th>
@@ -321,8 +321,9 @@ function PnlCard({ pnl }: { pnl: PnlSummary }) {
           <tbody>
             {pnl.lines.map((line) => (
               <tr key={line.id}>
-                <td className={line.id === 'fracht' ? 'text-emerald-200' : 'text-slate-300'}>{line.label}</td>
+                <td data-label="Position" className={line.id === 'fracht' ? 'text-emerald-200' : 'text-slate-300'}>{line.label}</td>
                 <td
+                  data-label="Betrag"
                   className={`text-right font-bold tabular-nums ${
                     line.amount > 0 ? 'text-emerald-400' : line.amount < 0 ? 'text-rose-400' : 'text-slate-500'
                   }`}
@@ -332,8 +333,8 @@ function PnlCard({ pnl }: { pnl: PnlSummary }) {
               </tr>
             ))}
             <tr>
-              <td className="font-bold text-white">Ergebnis</td>
-              <td className={`text-right font-bold tabular-nums ${pnl.net >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+              <td data-label="Position" className="font-bold text-white">Ergebnis</td>
+              <td data-label="Betrag" className={`text-right font-bold tabular-nums ${pnl.net >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                 {formatEuro(pnl.net)}
               </td>
             </tr>

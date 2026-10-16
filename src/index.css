@@ -1230,6 +1230,15 @@ body,
     padding-right: 0.75rem;
     padding-bottom: calc(8.75rem + env(safe-area-inset-bottom));
   }
+  .btn-action,
+  .btn-gold {
+    min-height: 3rem;
+    min-width: 3rem;
+    touch-action: manipulation;
+  }
+  .fi-filter {
+    min-height: 3rem;
+  }
   .app-mobile-clock {
     position: fixed;
     left: 0.5rem;

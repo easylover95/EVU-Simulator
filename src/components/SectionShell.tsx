@@ -70,7 +70,7 @@ export function SectionShell({
         <div className="flex flex-wrap items-center justify-end gap-2">
           {actions}
           {!hideBack && goBack && (
-            <button type="button" onClick={goBack} className={`text-xs ${secondaryButtonClass}`}>
+            <button type="button" onClick={goBack} className={`text-xs max-md:min-h-12 ${secondaryButtonClass}`}>
               <ArrowLeft className="h-3.5 w-3.5" />
               {backLabel}
             </button>

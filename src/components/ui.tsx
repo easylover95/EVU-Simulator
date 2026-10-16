@@ -73,7 +73,11 @@ export function Button({
   const base =
     variant === 'danger' ? dangerButtonClass : variant === 'secondary' ? secondaryButtonClass : primaryButtonClass;
   return (
-    <button type="button" className={`inline-flex items-center justify-center gap-1.5 text-xs ${base} ${className}`} {...rest}>
+    <button
+      type="button"
+      className={`inline-flex items-center justify-center gap-1.5 text-xs max-md:min-h-12 max-md:min-w-12 ${base} ${className}`}
+      {...rest}
+    >
       {children}
     </button>
   );

@@ -253,7 +253,7 @@ export function BankView({
               {inOverdraft && utilization > OVERDRAFT_CRITICAL_UTILIZATION && <p className="font-semibold text-rose-300">Kritische Zinsstufe aktiv. Sanierung hat Priorität.</p>}
             </div>
             <div className="overflow-x-auto rounded-lg border border-slate-800">
-              <table className="fi-table">
+              <table className="fi-table fi-mobile-card-table">
                 <thead>
                   <tr>
                     <th>Level</th>
@@ -267,9 +267,9 @@ export function BankView({
                     const selected = draftOverdraft === row.limit;
                     return (
                       <tr key={row.limit} className={selected ? 'bg-amber-950/40' : undefined}>
-                        <td className="tabular-nums">Lvl {row.unlockLevel}</td>
-                        <td className="font-bold text-white">{row.label}</td>
-                        <td className={unlocked ? 'text-emerald-400' : 'text-slate-500'}>
+                        <td data-label="Level" className="tabular-nums">Lvl {row.unlockLevel}</td>
+                        <td data-label="Dispo" className="font-bold text-white">{row.label}</td>
+                        <td data-label="Status" className={unlocked ? 'text-emerald-400' : 'text-slate-500'}>
                           {selected ? 'Aktiv' : unlocked ? 'Freigeschaltet' : `ab Level ${row.unlockLevel}`}
                         </td>
                       </tr>
@@ -352,7 +352,7 @@ export function BankView({
               Darlehen auszahlen
             </Button>
             <div className="overflow-x-auto rounded-lg border border-slate-800">
-              <table className="fi-table">
+              <table className="fi-table fi-mobile-card-table">
                 <thead>
                   <tr>
                     <th>Level</th>
@@ -366,9 +366,9 @@ export function BankView({
                     const selected = amount === row.amount;
                     return (
                       <tr key={row.amount} className={selected ? 'bg-amber-950/40' : undefined}>
-                        <td className="tabular-nums">Lvl {row.unlockLevel}</td>
-                        <td className="font-bold text-white">{formatEuro(row.amount)}</td>
-                        <td className={unlocked ? 'text-emerald-400' : 'text-slate-500'}>
+                        <td data-label="Level" className="tabular-nums">Lvl {row.unlockLevel}</td>
+                        <td data-label="Darlehen" className="font-bold text-white">{formatEuro(row.amount)}</td>
+                        <td data-label="Status" className={unlocked ? 'text-emerald-400' : 'text-slate-500'}>
                           {selected ? 'Gewählt' : unlocked ? 'Freigeschaltet' : `ab Level ${row.unlockLevel}`}
                         </td>
                       </tr>
@@ -423,7 +423,7 @@ export function BankView({
         <CardFlush>
           <CardHeader>Aktive Darlehen</CardHeader>
           <div className="overflow-x-auto">
-            <table className="fi-table">
+            <table className="fi-table fi-mobile-card-table">
               <thead>
                 <tr>
                   <th>Kondition</th>
@@ -437,11 +437,11 @@ export function BankView({
               <tbody>
                 {(bank.loans ?? []).map((loan) => (
                   <tr key={loan.id}>
-                    <td>{loan.interestLabel}</td>
-                    <td className="font-bold text-amber-300">{formatEuro(loan.principalRemaining)}</td>
-                    <td className="text-slate-400">{formatEuro(loan.interestRemaining)}</td>
-                    <td>{formatEuro(loan.dailyPayment)}</td>
-                    <td>
+                    <td data-label="Kondition" className="fi-mobile-card-title">{loan.interestLabel}</td>
+                    <td data-label="Restschuld" className="font-bold text-amber-300">{formatEuro(loan.principalRemaining)}</td>
+                    <td data-label="Restzinsen" className="text-slate-400">{formatEuro(loan.interestRemaining)}</td>
+                    <td data-label="Tagesrate">{formatEuro(loan.dailyPayment)}</td>
+                    <td data-label="Aktionen" className="fi-mobile-card-actions">
                       <Button variant="secondary" onClick={() => setPendingAction({ kind: 'repay', loan })}>
                         Sondertilgung
                       </Button>
@@ -498,7 +498,7 @@ export function BankView({
       <CardFlush>
         <CardHeader>Buchungshistorie</CardHeader>
         <div className="overflow-x-auto">
-          <table className="fi-table">
+          <table className="fi-table fi-mobile-card-table">
             <thead>
               <tr>
                 <th>Datum</th>
@@ -509,16 +509,16 @@ export function BankView({
             <tbody>
               {booked.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="py-6 text-center text-slate-500">
+                  <td colSpan={3} className="fi-mobile-empty-state py-6 text-center text-slate-500">
                     Noch keine Buchungen
                   </td>
                 </tr>
               )}
               {booked.map((b) => (
                 <tr key={b.id}>
-                  <td className="tabular-nums text-slate-500">{formatTickLabel(b.tick)}</td>
-                  <td>{b.label}</td>
-                  <td className={`text-right font-bold ${b.amount >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <td data-label="Datum" className="tabular-nums text-slate-500">{formatTickLabel(b.tick)}</td>
+                  <td data-label="Vorgang" className="fi-mobile-card-summary">{b.label}</td>
+                  <td data-label="Betrag" className={`text-right font-bold ${b.amount >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {b.amount >= 0 ? '+' : ''}
                     {formatEuro(b.amount)}
                   </td>

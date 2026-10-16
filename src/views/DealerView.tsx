@@ -14,6 +14,7 @@ import { VehicleCard, VehiclePriceBox } from '@/components/VehicleCard';
 import { WagonRentModal } from '@/components/WagonRentModal';
 import { WorkshopView } from '@/views/WorkshopView';
 import { getLocoDisplayName } from '@/lib/locoPhotos';
+import { trailingLoadT } from '@/lib/traction';
 import {
   COUNTRY_PACKAGES,
   DEFAULT_LOCO_ACQUIRE,
@@ -791,7 +792,8 @@ function LocoOfferCard({
       <div className="mt-1 flex items-center gap-2 text-[11px] text-slate-400">
         {offer.fuel_type !== 'elektrik' && <Fuel className="h-3 w-3 text-amber-400" />}
         {offer.fuel_type !== 'diesel' && <Zap className="h-3 w-3 text-sky-400" />}
-        {offer.power_kw.toLocaleString('de-DE')} kW · {offer.max_speed} km/h · {offer.weight_t} t
+        {offer.power_kw.toLocaleString('de-DE')} kW · {offer.max_speed} km/h · {offer.weight_t} t · Hakenlast{' '}
+        {trailingLoadT(offer).toLocaleString('de-DE')} t
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
         <VehiclePriceBox label="Katalog / revidiert" value={formatEuro(offer.buyPrice)} />
