@@ -37,3 +37,5 @@ simulation/output/progression-dispo-ui-check.txt
 evu-freight-year-365-simulation.patch
 EVU-Simulator-final-*.zip
 simulation/modal-mobile-check/
+
+godot/.godot/
