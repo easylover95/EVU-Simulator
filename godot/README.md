@@ -17,7 +17,11 @@ Dieses Godot-4-Teilprojekt gehört zum bestehenden Repository `easylover95/EVU-S
 - 6× Res und 4× Eanos als Starterwagen
 - echte Startaufträge aus `src/lib/seed.ts`
 - Güterverkehr und Baugleis-Verträge
-- Disposition, Trassen-/Energie-/Crewkosten und Auszahlung
+- Disposition, Personalprüfung und Abfahrtsfreigabe
+- Tf, Wagenprüfer und AZF/RB mit Arbeitszeit, Gehalt, Qualifikation und Nachschulung
+- Trassenpreis aus Zug-km, Tonnage und Baugleis-Faktor
+- getrennte Energie-, Trassen- und Crewkosten pro Zuglauf
+- Auftragsabschluss und Auszahlung
 
 ## Godot-Dateien
 
