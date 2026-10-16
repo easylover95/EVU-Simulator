@@ -12,6 +12,8 @@ const githubPagesBase = '/EVU-Simulator/';
  * known public asset roots are rewritten in emitted production files.
  */
 function githubPagesPublicAssets() {
+  // The slash and closing parenthesis are escaped for a portable regex literal.
+  // eslint-disable-next-line no-useless-escape
   const assetRoot = /([\"'`(])\/(assets|locos|wagons|maps|icons|bg-rail-atmosphere\.webp|manifest\.json|sw\.js)(?=[/'\"`\)])/g;
   return {
     name: 'github-pages-public-assets',
