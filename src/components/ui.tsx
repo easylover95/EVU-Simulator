@@ -1,22 +1,22 @@
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from 'react';
 
 export const cardClass =
-  'app-glass border-amber-500/30 rounded-xl p-6 shadow-2xl';
+  'app-glass border-white/10 rounded-[1.15rem] p-6 shadow-[0_8px_28px_rgba(0,0,0,0.28)]';
 
 export const cardFlushClass =
-  'app-glass border-amber-500/30 rounded-xl shadow-2xl overflow-hidden';
+  'app-glass border-white/10 rounded-[1.15rem] shadow-[0_8px_28px_rgba(0,0,0,0.28)] overflow-hidden';
 
 export const accentTextClass = 'text-amber-400';
-export const accentBorderClass = 'border-amber-500/50';
+export const accentBorderClass = 'border-amber-500/40';
 
 export const primaryButtonClass =
-  'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-bold px-4 py-2 rounded-lg shadow-md transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-40';
+  'bg-[#f5b942] hover:brightness-105 text-[#1c1c1e] font-semibold px-4 py-2.5 min-h-10 rounded-[0.85rem] shadow-sm transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-40';
 
 export const secondaryButtonClass =
-  'border border-amber-500/50 bg-slate-900/80 text-amber-300 hover:bg-amber-950/50 font-bold px-4 py-2 rounded-lg shadow-md transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-40';
+  'border border-amber-500/40 bg-white/5 text-amber-300 hover:bg-amber-500/10 font-semibold px-4 py-2.5 min-h-10 rounded-[0.85rem] shadow-sm transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-40';
 
 export const dangerButtonClass =
-  'border border-rose-500/40 bg-rose-950/40 text-rose-200 hover:bg-rose-900/50 font-bold px-4 py-2 rounded-lg shadow-md transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-40';
+  'border border-rose-500/35 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 font-semibold px-4 py-2.5 min-h-10 rounded-[0.85rem] shadow-sm transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-40';
 
 export function Card({ className = '', children, ...rest }: HTMLAttributes<HTMLDivElement>) {
   return (
@@ -37,7 +37,7 @@ export function CardFlush({ className = '', children, ...rest }: HTMLAttributes<
 export function CardHeader({ className = '', children }: { className?: string; children: ReactNode }) {
   return (
     <div
-      className={`app-glass-header border-b border-amber-500/20 px-4 py-2.5 text-xs font-bold uppercase tracking-wide text-amber-200 ${className}`}
+      className={`app-glass-header border-b border-white/10 px-4 py-2.5 text-[13px] font-semibold tracking-tight text-[#f2f2f7] ${className}`}
     >
       {children}
     </div>
@@ -56,8 +56,8 @@ export function PageHeader({
   return (
     <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
       <div>
-        <h2 className="text-lg font-bold text-white">{title}</h2>
-        {subtitle && <p className="text-xs text-slate-400">{subtitle}</p>}
+        <h2 className="text-[1.35rem] font-semibold tracking-tight text-white">{title}</h2>
+        {subtitle && <p className="text-[13px] text-[#8e8e93]">{subtitle}</p>}
       </div>
       {actions}
     </div>
@@ -73,7 +73,7 @@ export function Button({
   const base =
     variant === 'danger' ? dangerButtonClass : variant === 'secondary' ? secondaryButtonClass : primaryButtonClass;
   return (
-    <button type="button" className={`inline-flex items-center justify-center gap-1.5 text-xs ${base} ${className}`} {...rest}>
+    <button type="button" className={`inline-flex items-center justify-center gap-1.5 text-[13px] ${base} ${className}`} {...rest}>
       {children}
     </button>
   );
@@ -93,10 +93,10 @@ export function StatPill({
   return (
     <span
       data-tutorial={dataTutorial}
-      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-amber-500/30 bg-slate-900/80 px-2.5 py-1 text-xs leading-none"
+      className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs leading-none"
     >
-      <span className="text-[9px] font-bold uppercase leading-none tracking-wider text-slate-500">{label}</span>
-      <span className={`text-xs font-bold tabular-nums leading-none ${valueClass}`}>{value}</span>
+      <span className="text-[10px] font-medium leading-none tracking-normal text-[#8e8e93]">{label}</span>
+      <span className={`text-xs font-semibold tabular-nums leading-none ${valueClass}`}>{value}</span>
     </span>
   );
 }

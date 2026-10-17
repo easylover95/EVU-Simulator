@@ -39,5 +39,5 @@ EVU-Simulator-final-*.zip
 simulation/modal-mobile-check/
 
 godot/.godot/
-
 *.import
+.aider*

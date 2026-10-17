@@ -49,7 +49,6 @@ import { useGameClock } from '@/lib/GameClockContext';
 import { canSpend } from '@/lib/bank';
 import { countryPackageLabel, type NetworkAccessState } from '@/lib/networkAccess';
 import {
-  BASE_WAGON_BERTHS,
   freeWagonBerths,
   wagonBerthCap,
   wagonUnitCount,
@@ -259,15 +258,11 @@ export function DealerView({
   }
 
   return (
-    <SectionShell title="Händler" subtitle="Kauf, Verkauf und Leasing von Triebfahrzeugen und Wagen">
+    <SectionShell title="Händler" subtitle="Loks und Wagen kaufen oder leasen">
       <Card className="border-amber-400/30 bg-amber-950/20 p-4">
-        <div className="text-[10px] font-bold uppercase tracking-wide text-amber-300">Depotkapazität</div>
+        <div className="text-[10px] font-bold uppercase tracking-wide text-amber-300">Platz im Depot</div>
         <p className="mt-1 text-sm font-bold text-amber-100">
           Loks {locomotives.length} / {berthCap} · Wagen {wagonUsed} / {wagonCap}
-        </p>
-        <p className="mt-1 text-[11px] text-amber-200/70">
-          Start: 2 Lok-Gleise und {BASE_WAGON_BERTHS} Wagen-Stellplätze. Weitere Plätze kaufst du gegen Gebühr, sobald
-          das Firmen-Level reicht.
         </p>
       </Card>
       <DepotUpgradePanel

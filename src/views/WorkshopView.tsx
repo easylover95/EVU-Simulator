@@ -15,7 +15,6 @@ import {
   allFristen,
   canBookWorkshopJob,
   CONDITION_CLASSES,
-  DEFAULT_WORKSHOP_SLOTS,
   ensureMaintenance,
   etcsRetrofitConfirmWarning,
   formatFristPair,
@@ -87,7 +86,7 @@ export function WorkshopView({
   return (
     <SectionShell
       title="Werkstatt"
-      subtitle="Fristarbeit, ZU, HU — ETCS-Nachrüstung für alle Loks (1 Tag, eigener Slot) — Reparatur nur bei Schaden"
+      subtitle="Wartung und Reparatur deiner Loks"
       tutorialId="tutorial-werkstatt"
     >
       <Card className="border-amber-400/40 bg-amber-950/30 p-4">
@@ -95,26 +94,17 @@ export function WorkshopView({
           <div className="min-w-0">
             <div className="text-[10px] font-bold uppercase tracking-wide text-amber-300">Werkstatt-Slots</div>
             <p className="mt-1 text-sm font-bold text-amber-100">
-              {slotsUsed} / {workshopCap} Slots belegt · {slotsFree} frei
+              {slotsUsed} / {workshopCap} belegt · {slotsFree} frei
             </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-amber-200/70">
-              ZU, HU und ETCS-Nachrüstung belegen je einen eigenen Slot. F läuft ohne Slot. Fremdvergabe (F/ZU/HU)
-              stets +25 %, ohne Slot. ETCS nur eigen, gleicher Preis wie beim Händler (8 % Katalog), 1 Tag. Überfällige
-              Frist (rot) bis +60 %.
-              Reparatur erscheint erst nach einem gemeldeten Schaden.
-            </p>
-            <p className="mt-1 text-[11px] text-amber-200/80">
+            <p className="mt-1 text-[11px] text-amber-200/70">
               {nextWs
-                ? `Nächster Ausbau: ${nextWs.label} ab Level ${nextWs.unlockLevel} — unter Gebäude kaufbar.`
-                : 'Maximale eigene Slot-Zahl erreicht.'}
-              {workshopDiscountPct > 0
-                ? ` Meilenstein-Rabatt −${workshopDiscountPct} % auf alle Werkstattpreise (F/ZU/HU, Reparatur, ETCS).`
-                : ''}
+                ? `Nächster Ausbau ab Level ${nextWs.unlockLevel}`
+                : 'Maximale Slots erreicht'}
+              {workshopDiscountPct > 0 ? ` · −${workshopDiscountPct} % Rabatt` : ''}
             </p>
           </div>
           <div className="shrink-0 text-right text-[11px] text-amber-200/80">
-            <div>Start: {DEFAULT_WORKSHOP_SLOTS} eigene Slots</div>
-            <div>{workshopJobs.length} laufende Aufträge</div>
+            <div>{workshopJobs.length} Aufträge aktiv</div>
           </div>
         </div>
       </Card>

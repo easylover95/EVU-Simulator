@@ -27,6 +27,7 @@ import { SectionShell } from '@/components/SectionShell';
 import { OrderCostBreakdown } from '@/components/OrderCostBreakdown';
 import { WagonShortageBanner } from '@/components/WagonShortageBanner';
 import { checkWagonAvailability, wagonShortageLabel } from '@/lib/brh';
+import { isOrderFleetReady, sortOrdersFleetReadyFirst } from '@/lib/firstTrip';
 import { Button } from '@/components/ui';
 import type { Acquisition } from '@/lib/dealer';
 import { corridorCountryHint, networkAcceptBlock, type NetworkAccessState } from '@/lib/networkAccess';
@@ -184,11 +185,12 @@ export function OrderMarketView({
   onOpenNetworkDealer,
 }: OrderMarketViewProps) {
   const { gameNow, tick } = useGameClock();
-  const [filter, setFilter] = useState<'all' | OrderType | 'einsatz'>('all');
+  const [filter, setFilter] = useState<'ready' | 'all' | OrderType | 'einsatz'>('ready');
   const [search, setSearch] = useState('');
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [sortKey, setSortKey] = useState<MarketSortKey | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [readyFallbackApplied, setReadyFallbackApplied] = useState(false);
 
   const toggleSort = (column: MarketSortKey) => {
     if (sortKey === column) {
@@ -233,9 +235,23 @@ export function OrderMarketView({
     [orders, gameNow],
   );
 
+  const readyCount = useMemo(
+    () => marketOrders.filter((o) => isOrderFleetReady(o, wagons)).length,
+    [marketOrders, wagons],
+  );
+
+  useEffect(() => {
+    if (readyFallbackApplied || loading) return;
+    if (marketOrders.length > 0 && readyCount === 0 && filter === 'ready') {
+      setFilter('all');
+      setReadyFallbackApplied(true);
+    }
+  }, [readyCount, marketOrders.length, filter, loading, readyFallbackApplied]);
+
   const filtered = useMemo(() => {
     let result = marketOrders;
-    if (filter === 'einsatz') result = result.filter((o) => isBaugleisEinsatz(o));
+    if (filter === 'ready') result = result.filter((o) => isOrderFleetReady(o, wagons));
+    else if (filter === 'einsatz') result = result.filter((o) => isBaugleisEinsatz(o));
     else if (filter !== 'all') result = result.filter((o) => o.type === filter && !isBaugleisEinsatz(o));
     if (search) {
       const s = search.toLowerCase();
@@ -249,18 +265,24 @@ export function OrderMarketView({
       );
     }
     return result;
-  }, [marketOrders, filter, search]);
+  }, [marketOrders, filter, search, wagons]);
 
   const sorted = useMemo(() => {
-    if (!sortKey) return filtered;
+    if (!sortKey) {
+      // Default: fleet-ready first (also when viewing Alle / Typfilter)
+      return sortOrdersFleetReadyFirst(filtered, wagons);
+    }
     const copy = [...filtered];
     copy.sort((a, b) => {
+      const readyCmp =
+        (isOrderFleetReady(a, wagons) ? 0 : 1) - (isOrderFleetReady(b, wagons) ? 0 : 1);
+      if (readyCmp !== 0) return readyCmp;
       const cmp = marketSortValue(a, sortKey, gameNow) - marketSortValue(b, sortKey, gameNow);
       if (cmp === 0) return a.order_number.localeCompare(b.order_number);
       return sortDir === 'asc' ? cmp : -cmp;
     });
     return copy;
-  }, [filtered, sortKey, sortDir, gameNow]);
+  }, [filtered, sortKey, sortDir, gameNow, wagons]);
 
   const marketActions = (
     <div className="fi-market-actions flex flex-wrap items-center gap-2">
@@ -312,7 +334,7 @@ export function OrderMarketView({
   return (
     <SectionShell
       title="Frachtbörse"
-      subtitle={`${marketOrders.length} Aufträge · Frühspiel: mindestens 3 Leichtaufträge mit 4–6 Wagen · Schwere Züge ab Level 3 + 36 Wagen-Stellplätzen · Brh Güter ${MIN_BRH_RANGE.gueterverkehr.min}–${MIN_BRH_RANGE.gueterverkehr.max} · Bau ${MIN_BRH_RANGE.baugleis.min}–${MIN_BRH_RANGE.baugleis.max}`}
+      subtitle={`${readyCount} passend · ${marketOrders.length} gesamt`}
       actions={marketActions}
       tutorialId="tutorial-frachtboerse"
     >
@@ -320,10 +342,11 @@ export function OrderMarketView({
       <div className="fi-filter-bar">
         {(
           [
+            ['ready', `Passt (${readyCount})`],
             ['all', 'Alle'],
-            ['gueterverkehr', 'Güterverkehr'],
+            ['gueterverkehr', 'Güter'],
             ['baugleis', 'Baustelle'],
-            ['einsatz', 'Baugleis-Einsatz'],
+            ['einsatz', 'Baugleis'],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -333,6 +356,7 @@ export function OrderMarketView({
           >
             {(key === 'baugleis' || key === 'einsatz') && <HardHat className="h-3 w-3" />}
             {key === 'gueterverkehr' && <Package className="h-3 w-3" />}
+            {key === 'ready' && <ClipboardList className="h-3 w-3" />}
             {label}
           </button>
         ))}
@@ -361,7 +385,9 @@ export function OrderMarketView({
             {sorted.length === 0 && (
               <tr>
                 <td colSpan={11} className="fi-mobile-empty-state py-8 text-center text-slate-500">
-                  Keine Aufträge in dieser Ansicht
+                  {filter === 'ready'
+                    ? 'Kein passender Auftrag — „Alle“ wählen oder Wagen kaufen.'
+                    : 'Keine Aufträge hier'}
                 </td>
               </tr>
             )}

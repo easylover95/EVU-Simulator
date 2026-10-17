@@ -112,7 +112,7 @@ export function PersonnelView({
   return (
     <SectionShell
       title="Personal"
-      subtitle={`${drivers.length} Mitarbeiter im Dienstplan · Ruhezeit 8 h · 48-h-Fenster`}
+      subtitle={`${drivers.length} Mitarbeiter`}
       tutorialId="tutorial-personal"
     >
       {onRecruit && (

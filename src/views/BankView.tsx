@@ -9,15 +9,9 @@ import {
   INSURANCE_BASE_DAILY,
   INSURANCE_CATALOG,
   LOAN_AMOUNTS,
-  MAX_DEBT_TO_EQUITY_RATIO,
   checkLoanCredit,
   LOAN_OFFERS,
-  LOAN_TIER_TABLE,
-  MAX_LOAN_PRINCIPAL,
   OVERDRAFT_CRITICAL_UTILIZATION,
-  OVERDRAFT_HIGH_DAILY_RATE,
-  OVERDRAFT_INVESTMENT_LOCK_UTILIZATION,
-  OVERDRAFT_SAFE_DAILY_RATE,
   OVERDRAFT_SAFE_UTILIZATION,
   OVERDRAFT_TIER_TABLE,
   OVERDRAFT_TIERS,
@@ -131,7 +125,7 @@ export function BankView({
   }
 
   return (
-    <SectionShell title="Bank" subtitle="Konto, Dispo-Kreditrahmen, Darlehen und Versicherungen" tutorialId="tutorial-bank-dispo">
+    <SectionShell title="Bank" subtitle="Geld, Dispo und Kredite" tutorialId="tutorial-bank-dispo">
 
       <div className="grid gap-3 md:grid-cols-3">
         <Card>
@@ -143,8 +137,8 @@ export function BankView({
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
             {inOverdraft
-              ? `Dispo genutzt: ${(utilization * 100).toFixed(1).replace('.', ',')} % · ${formatEuro(usedOverdraft)} von ${formatEuro(bank.overdraftLimit)}`
-              : `Notfallrahmen ${formatEuro(bank.overdraftLimit)} ungenutzt`}
+              ? `Dispo: ${formatEuro(usedOverdraft)} / ${formatEuro(bank.overdraftLimit)}`
+              : `Dispo: ${formatEuro(bank.overdraftLimit)}`}
           </p>
         </Card>
         <Card>
@@ -155,19 +149,17 @@ export function BankView({
             {(activeOverdraftRate * 100).toFixed(3).replace('.', ',')} % / Tag
           </div>
           <p className="mt-1 text-[11px] text-slate-400">
-            {inOverdraft
-              ? `Aktive Stufe bei ${(utilization * 100).toFixed(1).replace('.', ',')} % Rahmen-Auslastung.`
-              : 'Bei Inanspruchnahme bis 50 % des Rahmens.'}
+            {inOverdraft ? 'Wird vom Konto abgezogen' : 'Nur bei genutztem Dispo'}
           </p>
         </Card>
         <Card>
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-            <Landmark className="h-3.5 w-3.5 text-amber-400" /> Laufende Kredite
+            <Landmark className="h-3.5 w-3.5 text-amber-400" /> Kredite
           </div>
           <div className="mt-2 text-2xl font-bold text-white">
             {formatEuro((bank.loans ?? []).reduce((s, l) => s + (Number(l?.principalRemaining) || Number(l?.principal) || 0), 0))}
           </div>
-          <p className="mt-1 text-[11px] text-slate-400">{(bank.loans ?? []).length} aktive Darlehen</p>
+          <p className="mt-1 text-[11px] text-slate-400">{(bank.loans ?? []).length} aktiv</p>
         </Card>
       </div>
 
@@ -175,27 +167,22 @@ export function BankView({
 
       <div className="grid gap-3 lg:grid-cols-2">
         <CardFlush>
-          <CardHeader>Dispo-Kreditrahmen</CardHeader>
+          <CardHeader>Dispo</CardHeader>
           <div className="space-y-3 p-4">
-            <p className="text-xs text-slate-400">
-              Notfallrahmen bis 175.000&nbsp;€ ab Level&nbsp;10. Zinsen steigen mit der tatsächlichen Auslastung:
-              bis 50&nbsp;% 0,035&nbsp;% / Tag, über 50 bis 85&nbsp;% 0,055&nbsp;% / Tag und darüber 0,080&nbsp;% / Tag.
-              Höhere Rahmenstufen schalten mit dem Firmen-Level frei.
-            </p>
+            <p className="text-xs text-slate-400">Puffer fürs Minus — höher mit mehr Level.</p>
             {sanierung.insolvent && (
               <p className="rounded-lg border border-rose-500/40 bg-rose-950/40 px-3 py-2 text-[11px] font-bold text-rose-200">
-                Insolvenz — die Sanierungsfrist ist abgelaufen. Das Konto liegt unter dem Kreditrahmen.
+                Insolvenz — Konto zu lange im Minus.
               </p>
             )}
             {sanierung.active && (
               <p className="rounded-lg border border-amber-500/40 bg-amber-950/40 px-3 py-2 text-[11px] font-bold text-amber-200">
-                Sanierung: noch {sanierung.daysRemaining} {sanierung.daysRemaining === 1 ? 'Tag' : 'Tage'},
-                bis Insolvenz droht. Konto unter dem gewählten Dispo-Limit.
+                Achtung: noch {sanierung.daysRemaining} {sanierung.daysRemaining === 1 ? 'Tag' : 'Tage'} bis Insolvenz.
               </p>
             )}
             <div title={frameLocked ? DISPO_LOCK_HINT : undefined} className="space-y-2">
               <label className="block text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                Kreditrahmen
+                Rahmen
                 <input
                   type="range"
                   min={0}
@@ -217,7 +204,7 @@ export function BankView({
                     ? DISPO_LOCK_HINT
                     : unlocked
                       ? undefined
-                      : `Freischaltung ab Level ${row.unlockLevel}`;
+                      : `ab Level ${row.unlockLevel}`;
                   return (
                     <span key={row.limit} title={hint} className="inline-flex">
                       <Button
@@ -228,9 +215,7 @@ export function BankView({
                       >
                         {!unlocked && <Lock className="h-3 w-3" />}
                         {row.label}
-                        {!unlocked && (
-                          <span className="font-semibold opacity-80">Freischaltung ab Level {row.unlockLevel}</span>
-                        )}
+                        {!unlocked && <span className="opacity-80">Lvl {row.unlockLevel}</span>}
                       </Button>
                     </span>
                   );
@@ -239,48 +224,21 @@ export function BankView({
             </div>
             {draftOverdraft !== currentTier && (
               <Button onClick={() => setPendingAction({ kind: 'overdraft', limit: draftOverdraft })}>
-                Rahmen zur Bestätigung
+                Übernehmen
               </Button>
             )}
-            <div className={`rounded-lg border px-3 py-2 text-[11px] leading-relaxed ${investmentLocked ? 'border-rose-500/40 bg-rose-950/40 text-rose-100' : 'border-amber-500/30 bg-amber-950/25 text-amber-100'}`}>
-              <strong>{investmentLocked ? 'Wachstumssperre aktiv.' : 'Investitionen sind cash-only.'}</strong>{' '}
-              Fahrzeuge, Wagen, Depots, Pakete und Netzzugang benötigen immer frei verfügbares Guthaben; der Dispo dient ausschließlich operativen Kosten.
-              {investmentLocked && ` Ab ${(OVERDRAFT_INVESTMENT_LOCK_UTILIZATION * 100).toFixed(0)} % Rahmen-Auslastung ist die Sanierung vorrangig.`}
-            </div>
-            <div className="space-y-1 text-[10px] text-slate-400">
-              <p>0–50 %: {(OVERDRAFT_SAFE_DAILY_RATE * 100).toFixed(3).replace('.', ',')} % / Tag · 50–85 %: {(OVERDRAFT_HIGH_DAILY_RATE * 100).toFixed(3).replace('.', ',')} % / Tag · über {(OVERDRAFT_CRITICAL_UTILIZATION * 100).toFixed(0)} %: 0,080 % / Tag.</p>
-              {inOverdraft && utilization > OVERDRAFT_SAFE_UTILIZATION && utilization <= OVERDRAFT_CRITICAL_UTILIZATION && <p className="font-semibold text-amber-300">Erhöhte Zinsstufe aktiv. Reduziere den Dispo unter 50 %.</p>}
-              {inOverdraft && utilization > OVERDRAFT_CRITICAL_UTILIZATION && <p className="font-semibold text-rose-300">Kritische Zinsstufe aktiv. Sanierung hat Priorität.</p>}
-            </div>
-            <div className="overflow-x-auto rounded-lg border border-slate-800">
-              <table className="fi-table">
-                <thead>
-                  <tr>
-                    <th>Level</th>
-                    <th>Dispo</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {OVERDRAFT_TIER_TABLE.filter((row) => row.limit > 0).map((row) => {
-                    const unlocked = isOverdraftTierUnlocked(row.limit, companyLevel);
-                    const selected = draftOverdraft === row.limit;
-                    return (
-                      <tr key={row.limit} className={selected ? 'bg-amber-950/40' : undefined}>
-                        <td className="tabular-nums">Lvl {row.unlockLevel}</td>
-                        <td className="font-bold text-white">{row.label}</td>
-                        <td className={unlocked ? 'text-emerald-400' : 'text-slate-500'}>
-                          {selected ? 'Aktiv' : unlocked ? 'Freigeschaltet' : `ab Level ${row.unlockLevel}`}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <p className="text-[11px] text-slate-500">
-              Level 1 startet mit 25.000 € Dispo. Der volle Notfallrahmen von 175.000 € gilt ab Level 10 und wird danach nicht weiter erhöht.
-            </p>
+            {investmentLocked && (
+              <p className="rounded-lg border border-rose-500/40 bg-rose-950/40 px-3 py-2 text-[11px] font-bold text-rose-100">
+                Dispo zu hoch ausgelastet — Käufe erst nach Sanierung.
+              </p>
+            )}
+            {inOverdraft && utilization > OVERDRAFT_SAFE_UTILIZATION && (
+              <p className="text-[11px] font-semibold text-amber-300">
+                {utilization > OVERDRAFT_CRITICAL_UTILIZATION
+                  ? 'Zinsen kritisch — Dispo schnell abbauen.'
+                  : 'Zinsen erhöht — Dispo unter 50 % halten.'}
+              </p>
+            )}
           </div>
         </CardFlush>
 
@@ -332,54 +290,23 @@ export function BankView({
               </label>
             </div>
             <p className="text-xs text-slate-400">
-              Tagesrate {formatEuro(daily)} · Gesamtrückzahlung {formatEuro(daily * offer.termDays)} · max.{' '}
-              {formatEuro(MAX_LOAN_PRINCIPAL)}
+              Rate {formatEuro(daily)} / Tag · gesamt {formatEuro(daily * offer.termDays)}
             </p>
-            <p className={loanAvailable ? 'text-[11px] text-emerald-300' : 'text-[11px] text-rose-300'}>
-              Bonität: Verschuldungsgrad nach Auszahlung{' '}
-              {creditCheck.projectedDebtToEquity == null ? '—' : `${creditCheck.projectedDebtToEquity.toFixed(2).replace('.', ',')}×`}
-              {' '}von maximal {MAX_DEBT_TO_EQUITY_RATIO.toFixed(2).replace('.', ',')}×. Eigenkapitalbasis {formatEuro(creditCheck.equity)}.
-            </p>
-            {!loanAvailable && creditCheck.reason && <p className="text-[11px] text-rose-300">{creditCheck.reason}</p>}
+            {!loanAvailable && (
+              <p className="text-[11px] text-rose-300">
+                {creditCheck.reason ?? 'Kredit gerade nicht möglich.'}
+              </p>
+            )}
             <Button
               disabled={!loanAvailable}
-              title={!amountUnlocked ? `Freischaltung ab Level ${loanUnlockLevel(amount)}` : creditCheck.reason ?? undefined}
+              title={!amountUnlocked ? `ab Level ${loanUnlockLevel(amount)}` : creditCheck.reason ?? undefined}
               onClick={() => {
                 if (!loanAvailable) return;
                 setPendingAction({ kind: 'loan', amount, termDays: offer.termDays, annualPct: offer.annualPct, label: offer.label, dailyPayment: daily });
               }}
             >
-              Darlehen auszahlen
+              Auszahlen
             </Button>
-            <div className="overflow-x-auto rounded-lg border border-slate-800">
-              <table className="fi-table">
-                <thead>
-                  <tr>
-                    <th>Level</th>
-                    <th>Darlehen</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {LOAN_TIER_TABLE.map((row) => {
-                    const unlocked = isLoanAmountUnlocked(row.amount, companyLevel);
-                    const selected = amount === row.amount;
-                    return (
-                      <tr key={row.amount} className={selected ? 'bg-amber-950/40' : undefined}>
-                        <td className="tabular-nums">Lvl {row.unlockLevel}</td>
-                        <td className="font-bold text-white">{formatEuro(row.amount)}</td>
-                        <td className={unlocked ? 'text-emerald-400' : 'text-slate-500'}>
-                          {selected ? 'Gewählt' : unlocked ? 'Freigeschaltet' : `ab Level ${row.unlockLevel}`}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            <p className="text-[11px] text-slate-500">
-              25.000 € ab Level 1, 50.000 € ab Level 2. 250.000 / 500.000 / 1.000.000 € erst ab Level 5 / 8 / 10.
-            </p>
           </div>
         </CardFlush>
       </div>
@@ -394,8 +321,8 @@ export function BankView({
           <div className="app-glass-panel rounded-xl border border-sky-400/20 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="text-sm font-bold text-white">Gebundene Risikovorsorge</div>
-                <p className="mt-1 text-[11px] leading-relaxed text-slate-400">Bei ungeplanten Lokschäden deckt der Fonds die Reparatur zuerst. Nur der ungedeckte Rest belastet anschließend Konto oder Dispo.</p>
+                <div className="text-sm font-bold text-white">Reparatur-Rücklage</div>
+                <p className="mt-1 text-[11px] text-slate-400">Zahlt zuerst bei Lok-Schäden.</p>
               </div>
               <div className="text-right">
                 <div className="text-xl font-bold text-sky-300">{formatEuro(maintenanceFund.balance)}</div>

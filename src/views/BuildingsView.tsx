@@ -3,9 +3,6 @@ import { Card } from '@/components/ui';
 import { SectionShell } from '@/components/SectionShell';
 import { DepotUpgradePanel } from '@/components/DepotUpgradePanel';
 import {
-  BASE_LOCO_BERTHS,
-  BASE_WAGON_BERTHS,
-  BASE_WORKSHOP_SLOTS,
   nextExpansion,
   workshopSlotCap,
   type DepotState,
@@ -40,27 +37,25 @@ export function BuildingsView({
   const workshopFree = Math.max(0, workshopCap - workshopUsed);
   const nextWs = nextExpansion(depot, 'workshop');
   return (
-    <SectionShell title="Gebäude" subtitle="Zentrale, Depot und Werkstatt-Ausbau">
+    <SectionShell title="Gebäude" subtitle="Depot und Werkstatt ausbauen">
       <Card>
         <div className="flex items-start gap-4">
           <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-400">
             <Building2 className="h-7 w-7" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-white">Gebäude — Zentrale {standort}</h3>
+            <h3 className="text-lg font-bold text-white">Zentrale {standort}</h3>
             <p className="mt-1 text-sm text-slate-400">
-              {companyName ?? 'AixRail GmbH'} startet mit {BASE_LOCO_BERTHS} Lok-Stellplätzen,{' '}
-              {BASE_WAGON_BERTHS} Wagen-Plätzen und {BASE_WORKSHOP_SLOTS} Werkstatt-Slots. Weitere Gleise und
-              Werkstattkapazität kaufst du hier stufenweise, sobald das Firmen-Level reicht.
+              {companyName ?? 'AixRail GmbH'} · mehr Platz für Loks, Wagen und Werkstatt
             </p>
             <p className="mt-2 text-sm font-bold text-amber-100">
-              Werkstatt aktuell {workshopUsed} / {workshopCap} belegt · {workshopFree} frei
+              Werkstatt {workshopUsed} / {workshopCap} · {workshopFree} frei
             </p>
-            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-              {nextWs
-                ? `Nächster Werkstatt-Ausbau: ${nextWs.label} ab Level ${nextWs.unlockLevel}. Sind alle eigenen Slots voll, bleibt Fremdvergabe (+25 %, ohne Slot) in der Werkstatt buchbar.`
-                : 'Maximale eigene Werkstattkapazität erreicht. Fremdvergabe bleibt als Überlauf verfügbar.'}
-            </p>
+            {nextWs && (
+              <p className="mt-1 text-[11px] text-slate-500">
+                Nächster Ausbau ab Level {nextWs.unlockLevel}
+              </p>
+            )}
           </div>
         </div>
       </Card>

@@ -210,17 +210,11 @@ export function processWorldEventsTick(
       extraCost,
     };
     next = { ...next, closures: [...next.closures, closure] };
-    assignments = assignments.map((a) => {
-      if (a.status !== 'aktiv' && a.status !== 'geplant') return a;
-      const order = a.order;
-      if (!order) return a;
-      if (!orderBlockedByClosure(order, nextTick, [closure])) return a;
-      return addAssignmentDelay(a, randInt(3, 8), input.locos);
-    });
+    // Verspätung/Kosten entscheidet die Leitstelle (Incident #1) — kein Auto-Delay.
     sendMessage(
       'Warnung',
       `Streckensperrung ${pair[0]}–${pair[1]}`,
-      `Kurzfristige Netzstörung für ${hours} Spielstunden. Betroffene Aufträge sind gesperrt bzw. verspätet. Umleitung ca. ${formatEuro(extraCost)}.`,
+      `Netzstörung für ${hours} Spielstunden. In der Leitstelle disponieren: Umleiten, Warten oder Auftrag umbuchen. Umleitung ca. ${formatEuro(extraCost)}.`,
       nextTick,
     );
   } else if (roll < 0.52) {

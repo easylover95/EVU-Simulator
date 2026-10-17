@@ -238,7 +238,7 @@ export const OVERDRAFT_TIER_TABLE: ReadonlyArray<{
   { limit: 120_000, unlockLevel: 7, label: '120.000 €', grosskunde: false },
   { limit: 140_000, unlockLevel: 8, label: '140.000 €', grosskunde: false },
   { limit: 155_000, unlockLevel: 9, label: '155.000 €', grosskunde: false },
-  { limit: 175_000, unlockLevel: 10, label: '175.000 € · Notfallrahmen', grosskunde: false },
+  { limit: 175_000, unlockLevel: 10, label: '175.000 €', grosskunde: false },
 ];
 
 export function defaultOverdraftForLevel(level: number): OverdraftTier {

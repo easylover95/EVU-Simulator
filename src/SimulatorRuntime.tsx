@@ -62,6 +62,7 @@ import {
   applyTickToDrivers,
   BASE_TICK_INTERVAL_MS,
   ersatzattestNotification,
+  formatGameDateTime,
   loadGameMinute,
   mergeDriverAfterFetch,
   MINUTES_PER_HOUR,
@@ -288,6 +289,7 @@ import {
   releaseWagonPacksByNeed,
 } from '@/lib/brh';
 import { hasSeenTutorial, markTutorialSeen } from '@/lib/tutorial';
+import { ensureFleetReadyMarketOrders, markFirstTripDone } from '@/lib/firstTrip';
 import { clearLocalGameState } from '@/lib/gameReset';
 import { archiveCurrentRun, recordCompletedRun, startStatisticsRun } from '@/lib/statisticsArchive';
 import { isSessionActive, setSessionActive } from '@/lib/session';
@@ -312,6 +314,43 @@ import {
   saveWorldEvents,
   type WorldEventState,
 } from '@/lib/events';
+import {
+  buildTrainRuns,
+  loadIncidentStore,
+  maybeSpawnClosureForLeitstelle,
+  resolveIncident,
+  saveIncidentStore,
+  syncClosureIncidents,
+  type Incident,
+  type LeitstelleIncidentStore,
+} from '@/lib/leitstelle';
+import {
+  applyShiftToCareer,
+  canHandleConcurrentTrains,
+  careerFullTitle,
+  computeShiftPayroll,
+  loadDispatcherCareer,
+  rankDef,
+  saveDispatcherCareer,
+  type DispatcherCareer,
+} from '@/lib/dispatcherCareer';
+import {
+  acknowledgeShiftReport,
+  attachPayrollToReport,
+  endShift,
+  loadShiftState,
+  noteShiftCancel,
+  noteShiftIncidentResolved,
+  noteShiftSettlement,
+  noteShiftTrain,
+  saveShiftState,
+  scheduledShiftAt,
+  SHIFT_WINDOWS,
+  startShift,
+  type OpenHandoverItem,
+  type ShiftKind,
+  type ShiftState,
+} from '@/lib/shifts';
 import {
   deleteMessage,
   deleteReadMessages,
@@ -347,6 +386,13 @@ const FleetView = lazy(() => import('@/views/FleetView').then(({ FleetView }) =>
 const WagonParkView = lazy(() => import('@/views/WagonParkView').then(({ WagonParkView }) => ({ default: WagonParkView })));
 const OrderMarketView = lazy(() => import('@/views/OrderMarketView').then(({ OrderMarketView }) => ({ default: OrderMarketView })));
 const DispatchView = lazy(() => import('@/views/DispatchView').then(({ DispatchView }) => ({ default: DispatchView })));
+const LeitstellenView = lazy(() => import('@/views/LeitstellenView').then(({ LeitstellenView }) => ({ default: LeitstellenView })));
+const ShiftHandoverModal = lazy(() =>
+  import('@/components/ShiftHandoverModal').then(({ ShiftHandoverModal }) => ({ default: ShiftHandoverModal })),
+);
+const ShiftLoginModal = lazy(() =>
+  import('@/components/ShiftLoginModal').then(({ ShiftLoginModal }) => ({ default: ShiftLoginModal })),
+);
 const PersonnelView = lazy(() => import('@/views/PersonnelView').then(({ PersonnelView }) => ({ default: PersonnelView })));
 const FinanceView = lazy(() => import('@/views/FinanceView').then(({ FinanceView }) => ({ default: FinanceView })));
 const PcDashboardView = lazy(() => import('@/views/PcDashboardView').then(({ PcDashboardView }) => ({ default: PcDashboardView })));
@@ -431,6 +477,20 @@ function App() {
   const [worldEvents, setWorldEvents] = useState<WorldEventState>(() =>
     loadWorldEvents(loadCompanyEconomy()?.lastTick ?? SEED_COMPANY.tick),
   );
+  const [leitstelleIncidents, setLeitstelleIncidents] = useState<Incident[]>(
+    () => loadIncidentStore().incidents,
+  );
+  const leitstelleStoreRef = useRef<LeitstelleIncidentStore>(loadIncidentStore());
+  const [shiftState, setShiftState] = useState<ShiftState>(() => loadShiftState());
+  const shiftStateRef = useRef(shiftState);
+  shiftStateRef.current = shiftState;
+  const [dispatcherCareer, setDispatcherCareer] = useState<DispatcherCareer>(() =>
+    loadDispatcherCareer(loadCompanyProfile()?.name?.split(/\s+/)[0]),
+  );
+  const dispatcherCareerRef = useRef(dispatcherCareer);
+  dispatcherCareerRef.current = dispatcherCareer;
+  const [shiftLoginOpen, setShiftLoginOpen] = useState(false);
+  const [shiftLoginPrefill, setShiftLoginPrefill] = useState<ShiftKind | null>(null);
   const [dealerNetworkHighlight, setDealerNetworkHighlight] = useState<CountryPackage | null>(null);
   const [marketRefreshDay, setMarketRefreshDay] = useState<string | null>(() => loadMarketRefreshDay());
   const [achievements, setAchievements] = useState<AchievementState>(() => loadAchievementState());
@@ -498,6 +558,7 @@ function App() {
   const networkRef = useRef(networkAccess);
   const eventsRef = useRef(worldEvents);
   const achievementsRef = useRef(achievements);
+  // leitstelleStoreRef initialized with state above
 
   companyRef.current = company;
   driversRef.current = drivers;
@@ -824,7 +885,8 @@ function App() {
       saveStaffMeta(next);
       return next;
     });
-    setWagons(mergeWagonPatches(mergeFleet(SEED_WAGONS, extra.wagons, sold.wagons), wagonPatchesRef.current));
+    const fleetWagons = mergeWagonPatches(mergeFleet(SEED_WAGONS, extra.wagons, sold.wagons), wagonPatchesRef.current);
+    setWagons(fleetWagons);
     const seeded = applyProfileToCompany(SEED_COMPANY, loadCompanyProfile());
     const nextCompany = applyEconomy(seeded, loadCompanyEconomy());
     setCompany(nextCompany);
@@ -837,7 +899,12 @@ function App() {
         : refreshMarketOrders(SEED_ORDERS, nextCompany.tick, standingFromCompany(nextCompany), {
             wagonBerthCapacity: wagonBerthCap(depotRef.current),
           });
-    const market = purgeExpiredOpenOrders(marketRaw, gameNowAtLoad);
+    const market = ensureFleetReadyMarketOrders(
+      purgeExpiredOpenOrders(marketRaw, gameNowAtLoad),
+      fleetWagons,
+      nextCompany.tick,
+      gameNowAtLoad,
+    );
     const hydrated = hydrateDeploymentAssignments(
       deploymentsRef.current,
       market,
@@ -853,6 +920,7 @@ function App() {
     setDeployments(hydrated.deployments);
     driversRef.current = hydrated.drivers;
     assignmentsRef.current = hydrated.assignments;
+    if (hydrated.assignments.length > 0) markFirstTripDone();
     savePersistedOrders(hydrated.orders);
     chargedTripsRef.current = grandfatherAktivTrips(
       hydrated.assignments.filter((a) => a.status === 'aktiv').map((a) => a.id),
@@ -974,14 +1042,21 @@ function App() {
 
   const cleanupExpiredOpenOffers = useCallback(() => {
     const now = tickToDate(companyRef.current?.tick ?? 0);
+    const tickNow = companyRef.current?.tick ?? 0;
     setOrders((prev) => {
-      const next = purgeExpiredOpenOrders(prev, now);
+      const purged = purgeExpiredOpenOrders(prev, now);
+      const next = ensureFleetReadyMarketOrders(purged, wagonsRef.current, tickNow, now);
       if (next === prev) return prev;
       ordersRef.current = next;
       savePersistedOrders(next);
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+    cleanupExpiredOpenOffers();
+  }, [loading, cleanupExpiredOpenOffers]);
 
   useEffect(() => {
     if (loading || view !== 'auftragsmarkt') return;
@@ -1355,6 +1430,18 @@ function App() {
       book('Trassenstörung / Aufschlag', -eventTick.extraPathCost, nextTick, 'betrieb');
     }
 
+    {
+      const synced = syncClosureIncidents(
+        leitstelleStoreRef.current,
+        eventTick.state.closures,
+        assignmentsRef.current,
+        nextTick,
+      );
+      leitstelleStoreRef.current = synced;
+      saveIncidentStore(synced);
+      setLeitstelleIncidents(synced.incidents);
+    }
+
     const einsatzTick = processBaugleisDeploymentsTick(
       deploymentsRef.current,
       nextCompany,
@@ -1703,11 +1790,12 @@ function App() {
     const day = marketRefreshDayKey(t, clockMinutes);
     saveMarketRefreshDay(day);
     setMarketRefreshDay(day);
-    setOrders((prev) =>
-      refreshMarketOrders(prev, t, standingFromCompany(current), {
+    setOrders((prev) => {
+      const refreshed = refreshMarketOrders(prev, t, standingFromCompany(current), {
         wagonBerthCapacity: wagonBerthCap(depotRef.current),
-      }),
-    );
+      });
+      return ensureFleetReadyMarketOrders(refreshed, wagonsRef.current, t, tickToDate(t));
+    });
   }
 
   function handleLocalAssign(
@@ -1719,6 +1807,18 @@ function App() {
   ) {
     const gameNowIso = tickToIso(companyRef.current?.tick ?? 0);
     const tick = companyRef.current?.tick ?? 0;
+    const activeRuns = assignmentsRef.current.filter((a) => a.status === 'aktiv' || a.status === 'geplant').length;
+    if (!canHandleConcurrentTrains(dispatcherCareerRef.current, activeRuns)) {
+      const cap = rankDef(dispatcherCareerRef.current.rank).maxConcurrentTrains;
+      sendMessage(
+        'Warnung',
+        'Disponenten-Rang Limit',
+        `Als ${rankDef(dispatcherCareerRef.current.rank).label} max. ${cap} Züge gleichzeitig. Schicht abschließen oder befördern lassen.`,
+        tick,
+      );
+      playUiSound('warning');
+      return;
+    }
     const loco = locomotivesRef.current.find((l) => l.id === locomotiveId);
     const driver = driversRef.current.find((d) => d.id === driverId);
     const second = secondDriverId ? driversRef.current.find((d) => d.id === secondDriverId) : undefined;
@@ -1819,6 +1919,7 @@ function App() {
       assignmentsRef.current = next;
       return next;
     });
+    markFirstTripDone();
     setOrders((prev) => prev.map((o) => (o.id === order.id ? updatedOrder : o)));
     setLocomotives((prev) => prev.map((l) => (l.id === locomotiveId ? updatedLoco : l)));
     if (wagonPackIds.length > 0) {
@@ -1927,6 +2028,22 @@ function App() {
       nextCo = { ...nextCo, balance: nextCo.balance - penaltyAmt };
       book(`Pönale ${a.order?.order_number ?? ''}`, -penaltyAmt, atTick, 'strafe');
     }
+    if (shiftStateRef.current.current?.active) {
+      const loco = a.locomotive ?? locomotivesRef.current.find((l) => l.id === a.locomotive_id);
+      persistShift(
+        noteShiftSettlement(shiftStateRef.current, {
+          assignmentId: a.id,
+          label: `${loco?.designation ?? 'Lok'} · ${a.order?.order_number ?? a.id.slice(0, 6)}`,
+          locoName: loco ? `${loco.designation} ${loco.name}` : a.locomotive_id,
+          origin: a.order?.origin ?? '—',
+          dest: a.order?.destination ?? '—',
+          revenueEuro: yieldAmt,
+          penaltyEuro: late ? penaltyAmt : 0,
+          late,
+          delayMinutes: Math.max(0, Number(a.delay_ticks) || 0) * 60,
+        }),
+      );
+    }
 
     if (a.rest_violation) {
       const risk = resolveRestTripRisk();
@@ -1992,7 +2109,251 @@ function App() {
   ]);
   settleSpotAssignmentRef.current = settleSpotAssignment;
 
+  function persistLeitstelleStore(store: LeitstelleIncidentStore) {
+    leitstelleStoreRef.current = store;
+    saveIncidentStore(store);
+    setLeitstelleIncidents(store.incidents);
+  }
+
+  function persistShift(next: ShiftState) {
+    shiftStateRef.current = next;
+    saveShiftState(next);
+    setShiftState(next);
+  }
+
+  function collectOpenHandover(): OpenHandoverItem[] {
+    const tickNow = companyRef.current?.tick ?? 0;
+    const runs = buildTrainRuns(assignmentsRef.current, tickNow, leitstelleStoreRef.current.incidents);
+    const items: OpenHandoverItem[] = [];
+    for (const run of runs) {
+      if (run.status === 'abgebrochen' || run.status === 'ankunft') continue;
+      if (run.status !== 'unterwegs' && run.status !== 'geplant' && run.status !== 'gestoert' && run.status !== 'halt') {
+        continue;
+      }
+      const a = assignmentsRef.current.find((x) => x.id === run.assignmentId);
+      const loco = a?.locomotive ?? locomotivesRef.current.find((l) => l.id === run.locoId);
+      items.push({
+        assignmentId: run.assignmentId,
+        label: run.label,
+        locoName: loco ? `${loco.designation} ${loco.name}` : run.locoId,
+        origin: a?.order?.origin ?? '—',
+        dest: a?.order?.destination ?? '—',
+        delayMinutes: run.delayMinutes,
+        status: run.status,
+        note:
+          run.status === 'gestoert'
+            ? 'Störung offen — Folgeschicht muss disponieren'
+            : run.delayMinutes > 0
+              ? `Verspätung ${Math.round(run.delayMinutes / 60)} h`
+              : 'Noch unterwegs',
+      });
+    }
+    return items;
+  }
+
+  function sightActiveTrainsForShift() {
+    if (!shiftStateRef.current.current?.active) return;
+    const tickNow = companyRef.current?.tick ?? 0;
+    const runs = buildTrainRuns(assignmentsRef.current, tickNow, leitstelleStoreRef.current.incidents);
+    let next = shiftStateRef.current;
+    for (const run of runs) {
+      if (run.status === 'abgebrochen' || run.status === 'ankunft') continue;
+      const a = assignmentsRef.current.find((x) => x.id === run.assignmentId);
+      const loco = a?.locomotive ?? locomotivesRef.current.find((l) => l.id === run.locoId);
+      next = noteShiftTrain(next, {
+        assignmentId: run.assignmentId,
+        label: run.label,
+        locoName: loco ? `${loco.designation} ${loco.name}` : run.locoId,
+        origin: a?.order?.origin ?? '—',
+        dest: a?.order?.destination ?? '—',
+        delayMinutes: run.delayMinutes,
+        late: run.delayMinutes > 0,
+      });
+    }
+    if (next !== shiftStateRef.current) persistShift(next);
+  }
+
+  function openShiftLogin(prefill?: ShiftKind | null) {
+    setShiftLoginPrefill(prefill ?? scheduledShiftAt(tickToDate(companyRef.current?.tick ?? 0, clockMinutesRef.current)));
+    setShiftLoginOpen(true);
+  }
+
+  function handleStartShift(kind: ShiftKind) {
+    const tickNow = companyRef.current?.tick ?? 0;
+    const now = tickToDate(tickNow, clockMinutesRef.current);
+    const next = startShift(shiftStateRef.current, kind, tickNow, now);
+    persistShift(next);
+    setShiftLoginOpen(false);
+    setClockRunning(true);
+    sightActiveTrainsForShift();
+    if (view !== 'leitstelle') setView('leitstelle');
+  }
+
+  function handleEndShift() {
+    const cur = shiftStateRef.current.current;
+    if (!cur?.active) return;
+    sightActiveTrainsForShift();
+    const tickNow = companyRef.current?.tick ?? 0;
+    const now = tickToDate(tickNow, clockMinutesRef.current);
+    const started = new Date(cur.startedAtGameMs);
+    let next = endShift(
+      shiftStateRef.current,
+      now,
+      collectOpenHandover(),
+      formatGameDateTime(started),
+      formatGameDateTime(now),
+    );
+    const report = next.pendingReport;
+    if (report) {
+      const draftPay = computeShiftPayroll(dispatcherCareerRef.current, report, cur.stats);
+      const applied = applyShiftToCareer(dispatcherCareerRef.current, draftPay);
+      dispatcherCareerRef.current = applied.career;
+      saveDispatcherCareer(applied.career);
+      setDispatcherCareer(applied.career);
+      next = attachPayrollToReport(next, applied.payroll, careerFullTitle(applied.career));
+      if (applied.payroll.totalWageEuro > 0) {
+        const companyNow = companyRef.current;
+        if (companyNow) {
+          persistCompany({
+            ...companyNow,
+            balance: companyNow.balance - applied.payroll.totalWageEuro,
+          });
+        }
+        book(
+          `Disponenten-Lohn ${SHIFT_WINDOWS[report.kind].short}`,
+          -applied.payroll.totalWageEuro,
+          tickNow,
+          'gehalt',
+        );
+      }
+    }
+    persistShift(next);
+    setClockRunning(false);
+  }
+
+  function handleStartNextShiftFromReport() {
+    const report = shiftStateRef.current.pendingReport ?? shiftStateRef.current.lastReport;
+    persistShift(acknowledgeShiftReport(shiftStateRef.current));
+    openShiftLogin(report?.nextKind ?? null);
+  }
+
+  function handleDismissShiftReport() {
+    persistShift(acknowledgeShiftReport(shiftStateRef.current));
+  }
+
+  function handleRenameDispatcher(name: string) {
+    const next = { ...dispatcherCareerRef.current, displayName: name.trim() || dispatcherCareerRef.current.displayName };
+    dispatcherCareerRef.current = next;
+    saveDispatcherCareer(next);
+    setDispatcherCareer(next);
+  }
+
+  function syncLeitstelleForView() {
+    const tickNow = companyRef.current?.tick ?? 0;
+    let store = leitstelleStoreRef.current;
+    let closures = eventsRef.current.closures;
+    const spawn = maybeSpawnClosureForLeitstelle(store, closures, assignmentsRef.current, tickNow);
+    store = spawn.store;
+    if (spawn.closure) {
+      const nextEvents: WorldEventState = {
+        ...eventsRef.current,
+        closures: [...eventsRef.current.closures, spawn.closure],
+      };
+      eventsRef.current = nextEvents;
+      setWorldEvents(nextEvents);
+      saveWorldEvents(nextEvents);
+      closures = nextEvents.closures;
+      sendMessage(
+        'Warnung',
+        `Streckensperrung ${spawn.closure.origin}–${spawn.closure.destination}`,
+        `Aktiver Zug betroffen. In der Leitstelle disponieren: Umleiten, Warten oder Auftrag umbuchen.`,
+        tickNow,
+      );
+    }
+    persistLeitstelleStore(syncClosureIncidents(store, closures, assignmentsRef.current, tickNow));
+  }
+
+  function handleResolveLeitstelleIncident(incidentId: string, optionId: string) {
+    const before = leitstelleStoreRef.current.incidents.find((i) => i.id === incidentId);
+    const result = resolveIncident(leitstelleStoreRef.current, incidentId, optionId);
+    persistLeitstelleStore({ ...leitstelleStoreRef.current, incidents: result.incidents });
+
+    if (before && shiftStateRef.current.current?.active) {
+      const opt = before.options.find((o) => o.id === optionId);
+      persistShift(
+        noteShiftIncidentResolved(shiftStateRef.current, {
+          incidentId,
+          title: before.title,
+          optionId,
+          optionLabel: opt?.label ?? optionId,
+          costEuro: result.costEuro,
+          atTick: companyRef.current?.tick ?? 0,
+        }),
+      );
+    }
+
+    if (result.costEuro > 0) {
+      const tickNow = companyRef.current?.tick ?? 0;
+      const current = companyRef.current;
+      if (current) {
+        persistCompany({ ...current, balance: current.balance - result.costEuro });
+      }
+      book(result.ledgerLabel ?? 'Leitstelle / Disposition', -result.costEuro, tickNow, 'betrieb');
+    }
+
+    if (result.delayAssignmentId && result.delayTicksAdd > 0) {
+      setAssignments((prev) => {
+        const next = prev.map((a) =>
+          a.id === result.delayAssignmentId
+            ? { ...a, delay_ticks: (a.delay_ticks ?? 0) + result.delayTicksAdd }
+            : a,
+        );
+        assignmentsRef.current = next;
+        return next;
+      });
+    }
+
+    if (result.cancelAssignmentId) {
+      const target = assignmentsRef.current.find((a) => a.id === result.cancelAssignmentId);
+      if (target) handleLocalCancel(target);
+    }
+  }
+
+  useEffect(() => {
+    if (view === 'leitstelle') syncLeitstelleForView();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, assignments, worldEvents.closures, company?.tick]);
+
+  useEffect(() => {
+    if (view !== 'leitstelle') return;
+    if (shiftStateRef.current.current?.active) return;
+    if (shiftStateRef.current.pendingReport) return;
+    openShiftLogin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
+
+  useEffect(() => {
+    const cur = shiftState.current;
+    if (!cur?.active) return;
+    if (gameNow.getTime() < cur.endsAtGameMs) return;
+    handleEndShift();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameNow, shiftState.current?.active, shiftState.current?.endsAtGameMs]);
+
   function handleLocalCancel(a: AssignmentWithDetails) {
+    if (shiftStateRef.current.current?.active) {
+      const loco = a.locomotive ?? locomotivesRef.current.find((l) => l.id === a.locomotive_id);
+      persistShift(
+        noteShiftCancel(shiftStateRef.current, {
+          assignmentId: a.id,
+          label: `${loco?.designation ?? 'Lok'} · ${a.order?.order_number ?? a.id.slice(0, 6)}`,
+          locoName: loco ? `${loco.designation} ${loco.name}` : a.locomotive_id,
+          origin: a.order?.origin ?? '—',
+          dest: a.order?.destination ?? '—',
+          delayMinutes: Math.max(0, Number(a.delay_ticks) || 0) * 60,
+        }),
+      );
+    }
     releaseAssignmentWagons(a);
     setAssignments((prev) => {
       const next = prev.map((x) => (x.id === a.id ? { ...x, status: 'abgebrochen' as const } : x));
@@ -2897,6 +3258,7 @@ function App() {
           gameNow,
           unreadCount,
           networkStatus,
+          activeShift: shiftState.current?.active ? shiftState.current : null,
           onRefreshNetwork: refreshNetworkStatus,
           onSetView: setView,
           onSetClockRunning: setClockRunning,
@@ -2952,7 +3314,9 @@ function App() {
               orders={orders}
               assignments={assignments}
               locomotives={locomotives}
+              wagons={wagons}
               onNavigate={setView}
+              onDisponieren={handleDisponierenFromOrder}
             />
           )}
           {glass && (
@@ -2967,7 +3331,9 @@ function App() {
                   orders={orders}
                   assignments={assignments}
                   locomotives={locomotives}
+                  wagons={wagons}
                   onNavigate={setView}
+                  onDisponieren={handleDisponierenFromOrder}
                 />
               ) : (
                 <PcDashboardView
@@ -3031,6 +3397,30 @@ function App() {
                 />
               )}
               {view === 'spielerboerse' && <PlayerMarketView />}
+              {view === 'leitstelle' && (
+                <LeitstellenView
+                  company={company}
+                  assignments={assignments}
+                  locomotives={locomotives}
+                  drivers={drivers}
+                  wagons={wagons}
+                  tick={company?.tick ?? 0}
+                  gameNow={gameNow}
+                  worldEvents={worldEvents}
+                  incidents={leitstelleIncidents}
+                  networkStatus={networkStatus}
+                  activeShift={shiftState.current?.active ? shiftState.current : null}
+                  career={dispatcherCareer}
+                  clockRunning={clockRunning}
+                  clockSpeed={clockSpeed}
+                  onSetClockRunning={setClockRunning}
+                  onSetClockSpeed={setClockSpeed}
+                  onRequestLogin={() => openShiftLogin()}
+                  onEndShift={handleEndShift}
+                  onResolveIncident={handleResolveLeitstelleIncident}
+                  onOpenOffice={(target) => setView(target)}
+                />
+              )}
               {view === 'disposition' && (
                 <DispatchView
                   orders={orders}
@@ -3274,6 +3664,24 @@ function App() {
         )}
         {logoutOpen && (
           <LogoutConfirmModal onCancel={() => setLogoutOpen(false)} onConfirm={confirmLogoutToMenu} />
+        )}
+        {shiftLoginOpen && !shiftState.pendingReport && (
+          <ShiftLoginModal
+            career={dispatcherCareer}
+            gameNow={gameNow}
+            handoverBook={shiftState.handoverBook}
+            preselectKind={shiftLoginPrefill}
+            onStartDuty={handleStartShift}
+            onClose={() => setShiftLoginOpen(false)}
+            onRename={handleRenameDispatcher}
+          />
+        )}
+        {shiftState.pendingReport && (
+          <ShiftHandoverModal
+            report={shiftState.pendingReport}
+            onStartNext={handleStartNextShiftFromReport}
+            onClose={handleDismissShiftReport}
+          />
         )}
         {resetGameOpen && <ResetGameConfirmModal onCancel={cancelGameReset} onConfirm={confirmGameReset} />}
         </Suspense>

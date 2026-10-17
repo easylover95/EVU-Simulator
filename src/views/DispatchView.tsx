@@ -503,7 +503,7 @@ export function DispatchView({
 
   if (loading) {
     return (
-      <SectionShell title="Disposition" subtitle="Live-Tracking, Flotte und Einsatzplanung" actions={dispatchActions}>
+      <SectionShell title="Disposition" subtitle="Zug planen und starten" actions={dispatchActions}>
         <div className="flex h-64 items-center justify-center">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-600 border-t-amber-500" />
         </div>
@@ -512,7 +512,7 @@ export function DispatchView({
   }
 
   return (
-    <SectionShell title="Disposition" subtitle="Live-Tracking, Flotte und Einsatzplanung (Brh / Wagen)" actions={dispatchActions} tutorialId="tutorial-disposition">
+    <SectionShell title="Disposition" subtitle="Zug planen und starten" actions={dispatchActions} tutorialId="tutorial-disposition">
 
       {error && (
         <div className="rounded-md border border-rose-600/60 bg-rose-900/30 px-3 py-2 text-xs text-rose-300">{error}</div>

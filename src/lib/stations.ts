@@ -90,31 +90,45 @@ const ALIASES: Record<string, keyof typeof RAIL_STATIONS> = {
 };
 
 export const TRUNK_CORRIDORS: Array<[keyof typeof RAIL_STATIONS, keyof typeof RAIL_STATIONS]> = [
+  // Nord–Süd
   ['hamburg', 'hannover'],
   ['hannover', 'fulda'],
   ['fulda', 'nuernberg'],
   ['nuernberg', 'muenchen'],
   ['nuernberg', 'ingolstadt'],
   ['ingolstadt', 'muenchen'],
+  ['hamburg', 'berlin'],
+  ['berlin', 'hannover'],
+  ['berlin', 'leipzig'],
+  ['berlin', 'dresden'],
+  ['dresden', 'leipzig'],
+  // West–Ost / Mitte
   ['koeln', 'frankfurt'],
   ['frankfurt', 'wuerzburg'],
   ['wuerzburg', 'nuernberg'],
   ['wuerzburg', 'fulda'],
   ['leipzig', 'halle'],
   ['leipzig', 'nuernberg'],
-  ['passau', 'regensburg'],
-  ['regensburg', 'nuernberg'],
-  ['bayreuth', 'nuernberg'],
-  ['bayreuth', 'regensburg'],
-  ['salzgitter', 'hannover'],
-  ['stuttgart', 'augsburg'],
-  ['augsburg', 'muenchen'],
-  ['ludwigshafen', 'mannheim'],
+  ['hannover', 'dortmund'],
+  // Rhein / Ruhr / Südwest
   ['mannheim', 'frankfurt'],
   ['frankfurt', 'koeln'],
   ['koeln', 'duisburg'],
   ['duisburg', 'dortmund'],
+  ['ludwigshafen', 'mannheim'],
+  ['mannheim', 'karlsruhe'],
+  ['karlsruhe', 'stuttgart'],
+  ['stuttgart', 'mannheim'],
+  ['stuttgart', 'augsburg'],
+  ['augsburg', 'muenchen'],
+  ['karlsruhe', 'basel'],
+  // Bayern Ost
+  ['passau', 'regensburg'],
+  ['regensburg', 'nuernberg'],
+  ['bayreuth', 'nuernberg'],
+  ['bayreuth', 'regensburg'],
   ['passau', 'augsburg'],
+  ['salzgitter', 'hannover'],
 ];
 
 function fold(name: string): string {
@@ -174,4 +188,157 @@ export function lerpLatLng(
     lat: from.lat + (to.lat - from.lat) * k,
     lng: from.lng + (to.lng - from.lng) * k,
   };
+}
+
+export type StationKey = keyof typeof RAIL_STATIONS;
+
+/** Canonical Station-Key aus Freitext (oder null). */
+export function resolveStationKey(name: string | null | undefined): StationKey | null {
+  if (!name) return null;
+  const key = fold(name);
+  const alias = ALIASES[key];
+  if (alias) return alias;
+
+  for (const [aliasKey, stationKey] of Object.entries(ALIASES)) {
+    if (key.includes(aliasKey) || aliasKey.includes(key)) return stationKey;
+  }
+
+  for (const [stationKey, station] of Object.entries(RAIL_STATIONS)) {
+    if (fold(station.label) === key) return stationKey as StationKey;
+  }
+  return null;
+}
+
+function haversineKm(a: StationCoord, b: StationCoord): number {
+  const dLat = (a.lat - b.lat) * 111;
+  const dLng = (a.lng - b.lng) * 75;
+  return Math.hypot(dLat, dLng);
+}
+
+let adjacencyCache: Map<StationKey, StationKey[]> | null = null;
+
+function railAdjacency(): Map<StationKey, StationKey[]> {
+  if (adjacencyCache) return adjacencyCache;
+  const g = new Map<StationKey, StationKey[]>();
+  const link = (a: StationKey, b: StationKey) => {
+    if (!g.has(a)) g.set(a, []);
+    if (!g.has(b)) g.set(b, []);
+    if (!g.get(a)!.includes(b)) g.get(a)!.push(b);
+    if (!g.get(b)!.includes(a)) g.get(b)!.push(a);
+  };
+  for (const [a, b] of TRUNK_CORRIDORS) link(a, b);
+  adjacencyCache = g;
+  return g;
+}
+
+/** Kürzester Pfad über Hauptknoten (BFS, Kantenlänge ≈ km). */
+export function findRailStationPath(fromKey: StationKey, toKey: StationKey): StationKey[] | null {
+  if (fromKey === toKey) return [fromKey];
+  const g = railAdjacency();
+  if (!g.has(fromKey) || !g.has(toKey)) return null;
+
+  const prev = new Map<StationKey, StationKey | null>();
+  const dist = new Map<StationKey, number>();
+  const queue: StationKey[] = [fromKey];
+  prev.set(fromKey, null);
+  dist.set(fromKey, 0);
+
+  while (queue.length > 0) {
+    // simples Dijkstra ohne Heap — Graph ist klein
+    queue.sort((a, b) => (dist.get(a) ?? 1e9) - (dist.get(b) ?? 1e9));
+    const cur = queue.shift()!;
+    if (cur === toKey) break;
+    const curDist = dist.get(cur) ?? 1e9;
+    for (const nb of g.get(cur) ?? []) {
+      const w = haversineKm(RAIL_STATIONS[cur], RAIL_STATIONS[nb]);
+      const next = curDist + w;
+      if (next < (dist.get(nb) ?? 1e9)) {
+        dist.set(nb, next);
+        prev.set(nb, cur);
+        if (!queue.includes(nb)) queue.push(nb);
+      }
+    }
+  }
+
+  if (!prev.has(toKey)) return null;
+  const path: StationKey[] = [];
+  let walk: StationKey | null = toKey;
+  while (walk) {
+    path.push(walk);
+    walk = prev.get(walk) ?? null;
+  }
+  path.reverse();
+  return path;
+}
+
+export type RailWaypoint = { lat: number; lng: number; label: string; key?: StationKey };
+
+/**
+ * Geometrische Zugstrecke entlang des Knotennetzes (keine Luftlinie).
+ * Fallback: direkte Start→Ziel-Linie.
+ */
+export function railRouteWaypoints(origin: string, destination: string): RailWaypoint[] {
+  const fromKey = resolveStationKey(origin);
+  const toKey = resolveStationKey(destination);
+  const from = lookupStation(origin);
+  const to = lookupStation(destination);
+
+  if (fromKey && toKey) {
+    const keys = findRailStationPath(fromKey, toKey);
+    if (keys && keys.length >= 2) {
+      return keys.map((k) => {
+        const s = RAIL_STATIONS[k];
+        return { lat: s.lat, lng: s.lng, label: s.label, key: k };
+      });
+    }
+  }
+
+  return [
+    { lat: from.lat, lng: from.lng, label: from.label || origin },
+    { lat: to.lat, lng: to.lng, label: to.label || destination },
+  ];
+}
+
+export function railRouteLatLngs(
+  origin: string,
+  destination: string,
+): Array<{ lat: number; lng: number }> {
+  return railRouteWaypoints(origin, destination).map(({ lat, lng }) => ({ lat, lng }));
+}
+
+/** Position auf einer Polyline (0–1 entlang der Gesamtlänge). */
+export function pointAlongLatLngPath(
+  path: Array<{ lat: number; lng: number }>,
+  t: number,
+): { lat: number; lng: number } {
+  if (path.length === 0) return { lat: GERMANY_CENTER.lat, lng: GERMANY_CENTER.lng };
+  if (path.length === 1) return path[0]!;
+  const k = Math.max(0, Math.min(1, t));
+
+  const segLens: number[] = [];
+  let total = 0;
+  for (let i = 0; i < path.length - 1; i++) {
+    const a = path[i]!;
+    const b = path[i + 1]!;
+    const len = Math.hypot((a.lat - b.lat) * 111, (a.lng - b.lng) * 75);
+    segLens.push(len);
+    total += len;
+  }
+  if (total <= 0) return path[0]!;
+
+  let remain = k * total;
+  for (let i = 0; i < segLens.length; i++) {
+    const len = segLens[i]!;
+    if (remain <= len) {
+      const local = len <= 0 ? 0 : remain / len;
+      const a = path[i]!;
+      const b = path[i + 1]!;
+      return {
+        lat: a.lat + (b.lat - a.lat) * local,
+        lng: a.lng + (b.lng - a.lng) * local,
+      };
+    }
+    remain -= len;
+  }
+  return path[path.length - 1]!;
 }

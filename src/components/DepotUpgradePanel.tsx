@@ -72,13 +72,12 @@ export function DepotUpgradePanel({
                 {used[kind]} / {caps[kind]} belegt · {freeDepotCapacity(depot, kind, used[kind])} frei
               </p>
               {next && (
-                <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
-                  Nächster Ausbau: {next.label} · {formatEuro(next.cost)} · ab Level {next.unlockLevel}
-                  {companyLevel < next.unlockLevel ? ' (noch gesperrt)' : ''}
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Nächster: {formatEuro(next.cost)} · Lvl {next.unlockLevel}
                 </p>
               )}
               {!next && (
-                <p className="mt-1 text-[11px] text-slate-500">Keine weiteren Stufen in dieser Linie.</p>
+                <p className="mt-1 text-[11px] text-slate-500">Maximum erreicht</p>
               )}
               <div className="mt-3 space-y-2">
                 {rows.map((expansion) => {

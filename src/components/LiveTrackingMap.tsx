@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { CircleDot, ClipboardList, Gauge, Info, Layers3, RadioTower, Train, User, Wrench, X } from 'lucide-react';
+import type { LineClosure } from '@/lib/events';
 import type { AssignmentWithDetails, Locomotive, Wagon } from '@/lib/supabase';
 import { RAIL_STATIONS, lookupStation, TRUNK_CORRIDORS } from '@/lib/stations';
 import { buildTrackedTrains, locoMarkerId, type TrackedTrain } from '@/lib/tracking';
@@ -19,8 +20,9 @@ type BaseLayerPreset = {
 
 const BASE_LAYER_PRESETS: Record<MapStyle, BaseLayerPreset> = {
   voyager: {
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap &copy; CARTO Voyager',
+    // Esri Street als freie Alternative (CARTO Voyager braucht API-Key)
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri — Esri, HERE, Garmin, USGS',
     className: 'fi-map-base-voyager',
   },
   satellite: {
@@ -29,8 +31,8 @@ const BASE_LAYER_PRESETS: Record<MapStyle, BaseLayerPreset> = {
     className: 'fi-map-base-satellite',
   },
   dark: {
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; OpenStreetMap &copy; CARTO Dark Matter',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Tiles &copy; Esri — Esri, HERE, Garmin',
     className: 'fi-map-base-dark',
   },
   osm: {
@@ -41,7 +43,7 @@ const BASE_LAYER_PRESETS: Record<MapStyle, BaseLayerPreset> = {
 };
 
 const MAP_STYLE_OPTIONS: Array<{ id: MapStyle; label: string; description: string }> = [
-  { id: 'voyager', label: 'Standard', description: 'Topografie & Grenzen' },
+  { id: 'voyager', label: 'Standard', description: 'Straßenkarte (Esri)' },
   { id: 'satellite', label: 'Satellit', description: 'Luftbild mit EVU-Korridoren' },
   { id: 'dark', label: 'Dunkel', description: 'Nacht-Leitstelle' },
   { id: 'osm', label: 'OpenStreetMap', description: 'Freie Basiskarte' },
@@ -59,6 +61,8 @@ interface LiveTrackingMapProps {
   fitRequest?: number;
   refreshRequest?: number;
   variant?: 'card' | 'fill';
+  closures?: LineClosure[];
+  highlightClosureIds?: string[];
 }
 
 function trainIcon(kind: 'live' | 'planned' | 'parked' | 'maint', selected: boolean): L.DivIcon {
@@ -121,11 +125,14 @@ export function LiveTrackingMap({
   fitRequest = 0,
   refreshRequest = 0,
   variant = 'card',
+  closures = [],
+  highlightClosureIds = [],
 }: LiveTrackingMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markersRef = useRef<Map<string, L.Marker>>(new Map());
   const linesRef = useRef<Map<string, L.LayerGroup>>(new Map());
+  const closureLayersRef = useRef<Map<string, L.LayerGroup>>(new Map());
   const baseLayerRef = useRef<L.TileLayer | null>(null);
   const tracksRef = useRef<TrackedTrain[]>([]);
   const parkedRef = useRef<ParkedLoco[]>([]);
@@ -357,6 +364,70 @@ export function LiveTrackingMap({
       }
     }
   }, [trains, parked, selectedId]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (!map.getPane('fi-closures')) {
+      const pane = map.createPane('fi-closures');
+      pane.style.zIndex = '450';
+    }
+
+    const active = closures.filter((c) => c.untilTick > tick);
+    const seen = new Set<string>();
+    const highlight = new Set(highlightClosureIds);
+
+    for (const closure of active) {
+      seen.add(closure.id);
+      const from = lookupStation(closure.origin);
+      const to = lookupStation(closure.destination);
+      const route: L.LatLngExpression[] = [
+        [from.lat, from.lng],
+        [to.lat, to.lng],
+      ];
+      const hot = highlight.has(closure.id);
+      const style = {
+        glow: {
+          pane: 'fi-closures',
+          color: '#f43f5e',
+          weight: hot ? 16 : 12,
+          opacity: hot ? 0.35 : 0.22,
+          lineCap: 'round' as const,
+        },
+        core: {
+          pane: 'fi-closures',
+          color: hot ? '#fecdd3' : '#fb7185',
+          weight: hot ? 4 : 3,
+          opacity: hot ? 0.98 : 0.85,
+          dashArray: '8 10',
+          lineCap: 'round' as const,
+          className: hot ? 'fi-closure-line is-hot' : 'fi-closure-line',
+        },
+      };
+      let group = closureLayersRef.current.get(closure.id);
+      if (!group) {
+        group = L.layerGroup([L.polyline(route, style.glow), L.polyline(route, style.core)])
+          .bindTooltip(`Sperrung ${closure.origin}–${closure.destination}`, {
+            className: 'fi-map-tooltip',
+            sticky: true,
+          })
+          .addTo(map);
+        closureLayersRef.current.set(closure.id, group);
+      } else {
+        const layers = group.getLayers().filter((layer): layer is L.Polyline => layer instanceof L.Polyline);
+        layers[0]?.setLatLngs(route).setStyle(style.glow);
+        layers[1]?.setLatLngs(route).setStyle(style.core);
+      }
+    }
+
+    for (const [id, group] of closureLayersRef.current) {
+      if (!seen.has(id)) {
+        group.remove();
+        closureLayersRef.current.delete(id);
+      }
+    }
+  }, [closures, highlightClosureIds, tick]);
 
   useEffect(() => {
     if (!selectedId) return;

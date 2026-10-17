@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
+import { gsmrTtsPlugin } from './scripts/viteGsmrTtsPlugin';
 
 const host = process.env.TAURI_DEV_HOST;
 const isGithubPages = process.env.GITHUB_ACTIONS === 'true';
@@ -34,7 +35,7 @@ function githubPagesPublicAssets() {
 // https://vitejs.dev/config/
 export default defineConfig({
   base: isGithubPages ? githubPagesBase : '/',
-  plugins: [react(), githubPagesPublicAssets()],
+  plugins: [react(), githubPagesPublicAssets(), gsmrTtsPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),

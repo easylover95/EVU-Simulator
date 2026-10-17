@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { CloudOff, MapPin, Train, X } from 'lucide-react';
+import type { LineClosure } from '@/lib/events';
 import type { AssignmentWithDetails, Locomotive, Wagon } from '@/lib/supabase';
 import { buildTrackedTrains, locoMarkerId } from '@/lib/tracking';
 import { lookupStation } from '@/lib/stations';
@@ -26,6 +27,8 @@ export interface OfflineRailMapProps {
   onSelect?: (id: string | null) => void;
   onOpenTrainDispatch?: (assignmentId: string) => void;
   variant?: 'card' | 'fill';
+  closures?: LineClosure[];
+  highlightClosureIds?: string[];
 }
 
 function toPoint(lat: number, lng: number): MapPoint {
@@ -48,6 +51,8 @@ export function OfflineRailMap({
   onSelect,
   onOpenTrainDispatch,
   variant = 'card',
+  closures = [],
+  highlightClosureIds = [],
 }: OfflineRailMapProps) {
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
   const selectedId = controlledSelectedId === undefined ? internalSelectedId : controlledSelectedId;
@@ -85,6 +90,20 @@ export function OfflineRailMap({
       </div>
 
       <svg className="fi-offline-rail-map__routes" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+        {closures
+          .filter((closure) => closure.untilTick > tick)
+          .map((closure) => {
+            const from = toPoint(lookupStation(closure.origin).lat, lookupStation(closure.origin).lng);
+            const to = toPoint(lookupStation(closure.destination).lat, lookupStation(closure.destination).lng);
+            const hot = highlightClosureIds.includes(closure.id);
+            return (
+              <polyline
+                key={closure.id}
+                points={`${from.x},${from.y} ${to.x},${to.y}`}
+                className={hot ? 'is-closure is-hot' : 'is-closure'}
+              />
+            );
+          })}
         {trains.map((train) => {
           const from = toPoint(train.from.lat, train.from.lng);
           const current = toPoint(train.lat, train.lng);

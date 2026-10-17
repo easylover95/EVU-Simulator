@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import type { LineClosure } from '@/lib/events';
 import type { AssignmentWithDetails, Locomotive, Wagon } from '@/lib/supabase';
 import type { NetworkStatus } from '@/lib/networkStatus';
 import { OfflineRailMap } from '@/components/OfflineRailMap';
@@ -21,6 +22,8 @@ type TrackingMapSurfaceProps = {
   fitRequest?: number;
   refreshRequest?: number;
   variant?: 'card' | 'fill';
+  closures?: LineClosure[];
+  highlightClosureIds?: string[];
 };
 
 /**

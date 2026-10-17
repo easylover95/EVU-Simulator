@@ -5,7 +5,9 @@ import { formatEuro } from '@/lib/status';
 import { CLOCK_SPEEDS, formatGameDateTime, type ClockSpeed } from '@/lib/gameTime';
 import { NAV_CATEGORIES, categoryDef, categoryForView, prefetchAssetsForView, showsSubnav, type AppView } from '@/lib/navigation';
 import { NetworkStatusNotice } from '@/components/NetworkStatusNotice';
+import { ShiftBadge } from '@/components/ShiftBadge';
 import type { NetworkStatus } from '@/lib/networkStatus';
+import type { ActiveShift } from '@/lib/shifts';
 
 export interface AppTopbarProps {
   headerRef: RefObject<HTMLElement | null>;
@@ -18,6 +20,7 @@ export interface AppTopbarProps {
   gameNow: Date;
   unreadCount: number;
   networkStatus: NetworkStatus;
+  activeShift?: ActiveShift | null;
   onRefreshNetwork: () => void;
   onSetView: (view: AppView) => void;
   onSetClockRunning: (running: boolean) => void;
@@ -40,6 +43,7 @@ export function AppTopbar({
   gameNow,
   unreadCount,
   networkStatus,
+  activeShift = null,
   onRefreshNetwork,
   onSetView,
   onSetClockRunning,
@@ -57,7 +61,7 @@ export function AppTopbar({
   const [mobileSectionOpen, setMobileSectionOpen] = useState(false);
   const mobileNavItems: Array<{ id: string; label: string; view: AppView; icon: typeof Home; active: boolean }> = [
     { id: 'home', label: 'Home', view: 'zentrale', icon: Home, active: view === 'zentrale' || view === 'dashboard' },
-    { id: 'missionen', label: 'Missionen', view: 'disposition', icon: ClipboardList, active: view === 'disposition' || view === 'tourenplaner' || view === 'tourenuebersicht' },
+    { id: 'missionen', label: 'Leitstelle', view: 'leitstelle', icon: ClipboardList, active: view === 'leitstelle' || view === 'disposition' || view === 'tourenplaner' || view === 'tourenuebersicht' },
     { id: 'markt', label: 'Markt', view: 'auftragsmarkt', icon: ShoppingCart, active: view === 'auftragsmarkt' || view === 'spielerboerse' },
     { id: 'rangliste', label: 'Rangliste', view: 'auswertungen', icon: Trophy, active: view === 'auswertungen' || view === 'statistikarchiv' },
   ];
@@ -138,6 +142,11 @@ export function AppTopbar({
             aria-hidden
           />
           <span className="fi-tick app-topbar-time">{formatGameDateTime(gameNow)}</span>
+          <ShiftBadge
+            activeShift={activeShift}
+            gameNow={gameNow}
+            onOpenLeitstelle={() => onSetView('leitstelle')}
+          />
         </div>
 
         <div className="app-topbar-actions">
