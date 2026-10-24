@@ -1,5 +1,7 @@
 import { lerpLatLng, lookupStation, pointAlongLatLngPath, railRouteLatLngs, RAIL_STATIONS } from '@/lib/stations';
 import { RANK_META } from '@/vectra/career';
+import { odPoolForHub, type CorridorTier, type OdPair } from '@/vectra/corridors';
+import { hubById, type HubId } from '@/vectra/hubs';
 import type { Corridor, CorridorNode, DispatcherRank, Driver, Locomotive, TrainRun } from '@/vectra/types';
 
 export const NODES: CorridorNode[] = [
@@ -12,7 +14,6 @@ export const NODES: CorridorNode[] = [
   { id: 'muenchen', label: 'München', x: 78, y: 78 },
 ];
 
-/** Legacy-Korridore (nur noch Fallback / Distanzschätzung). */
 export const CORRIDORS: Corridor[] = [
   { id: 'do-du', from: 'dortmund', to: 'duisburg', lengthKm: 55 },
   { id: 'du-ko', from: 'duisburg', to: 'koeln', lengthKm: 70 },
@@ -20,42 +21,6 @@ export const CORRIDORS: Corridor[] = [
   { id: 'ma-ff', from: 'mannheim', to: 'frankfurt', lengthKm: 85 },
   { id: 'ff-nu', from: 'frankfurt', to: 'nuernberg', lengthKm: 230 },
   { id: 'nu-mu', from: 'nuernberg', to: 'muenchen', lengthKm: 170 },
-];
-
-type OdPair = {
-  origin: string;
-  destination: string;
-  cargo: string;
-  dangerousGoods?: boolean;
-  plannedDurationMin: number;
-};
-
-/** Deutschlandweite OD-Paare — Karte zeigt nur aktive Läufe. */
-const OD_POOL: OdPair[] = [
-  { origin: 'Hamburg', destination: 'München', cargo: 'Container', plannedDurationMin: 420 },
-  { origin: 'Hamburg', destination: 'Köln', cargo: 'Intermodal', plannedDurationMin: 280 },
-  { origin: 'Berlin', destination: 'München', cargo: 'Automobile', plannedDurationMin: 380 },
-  { origin: 'Berlin', destination: 'Frankfurt', cargo: 'Papierrollen', plannedDurationMin: 300 },
-  { origin: 'Dortmund', destination: 'Basel', cargo: 'Stahlcoils', plannedDurationMin: 340 },
-  { origin: 'Duisburg', destination: 'Nürnberg', cargo: 'Kohle', plannedDurationMin: 320 },
-  { origin: 'Köln', destination: 'Leipzig', cargo: 'Container', plannedDurationMin: 290 },
-  { origin: 'Köln', destination: 'München', cargo: 'Chemikalien (RID)', dangerousGoods: true, plannedDurationMin: 360 },
-  { origin: 'Mannheim', destination: 'Hamburg', cargo: 'Kesselwagen (RID)', dangerousGoods: true, plannedDurationMin: 400 },
-  { origin: 'Mannheim', destination: 'Berlin', cargo: 'Intermodal', plannedDurationMin: 370 },
-  { origin: 'Frankfurt', destination: 'Passau', cargo: 'Automotive (Just-in-Time)', plannedDurationMin: 310 },
-  { origin: 'Frankfurt', destination: 'Hannover', cargo: 'Schrott', plannedDurationMin: 220 },
-  { origin: 'Stuttgart', destination: 'Hamburg', cargo: 'Automobile', plannedDurationMin: 390 },
-  { origin: 'Stuttgart', destination: 'Berlin', cargo: 'Maschinen', plannedDurationMin: 360 },
-  { origin: 'München', destination: 'Dortmund', cargo: 'Container', plannedDurationMin: 350 },
-  { origin: 'München', destination: 'Köln', cargo: 'Chemikalien (RID)', dangerousGoods: true, plannedDurationMin: 330 },
-  { origin: 'Nürnberg', destination: 'Hamburg', cargo: 'Holz', plannedDurationMin: 380 },
-  { origin: 'Leipzig', destination: 'Mannheim', cargo: 'Getreide', plannedDurationMin: 300 },
-  { origin: 'Hannover', destination: 'München', cargo: 'Stahlcoils', plannedDurationMin: 340 },
-  { origin: 'Dresden', destination: 'Köln', cargo: 'Container', plannedDurationMin: 360 },
-  { origin: 'Karlsruhe', destination: 'Berlin', cargo: 'Intermodal', plannedDurationMin: 390 },
-  { origin: 'Augsburg', destination: 'Duisburg', cargo: 'Automobile', plannedDurationMin: 320 },
-  { origin: 'Basel', destination: 'Hamburg', cargo: 'Kesselwagen (RID)', dangerousGoods: true, plannedDurationMin: 450 },
-  { origin: 'Halle', destination: 'Stuttgart', cargo: 'Papierrollen', plannedDurationMin: 310 },
 ];
 
 function estimateKm(origin: string, destination: string): number {
@@ -70,17 +35,30 @@ function corridorKey(origin: string, destination: string): string {
   return `${origin}→${destination}`;
 }
 
-export function createSeedLocos(hqCity = 'Dortmund'): Locomotive[] {
+const DRIVER_QUAL_ROTATION: string[][] = [
+  ['Vectron', 'E-Lok'],
+  ['E-Lok', 'TRAXX'],
+  ['Vectron', 'E-Lok', 'Gefahrgut RID'],
+  ['EuroDual', 'E-Lok'],
+  ['Vectron', 'E-Lok'],
+  ['E-Lok', 'Gefahrgut RID'],
+  ['Vectron', 'TRAXX'],
+  ['E-Lok'],
+  ['Vectron', 'E-Lok'],
+  ['EuroDual', 'E-Lok', 'Gefahrgut RID'],
+];
+
+export function createSeedLocos(hqCity = 'Duisburg'): Locomotive[] {
   return [
-    { id: 'loco-1', model: 'Vectron MS', unitNumber: '193 501', status: 'bereit', location: 'Köln' },
-    { id: 'loco-2', model: 'Vectron MS', unitNumber: '193 518', status: 'bereit', location: 'Frankfurt' },
-    { id: 'loco-3', model: 'TRAXX F140', unitNumber: '185 204', status: 'bereit', location: 'Nürnberg' },
+    { id: 'loco-1', model: 'Vectron MS', unitNumber: '193 501', status: 'bereit', location: hqCity },
+    { id: 'loco-2', model: 'Vectron MS', unitNumber: '193 518', status: 'bereit', location: hqCity },
+    { id: 'loco-3', model: 'TRAXX F140', unitNumber: '185 204', status: 'bereit', location: hqCity },
     { id: 'loco-4', model: 'TRAXX F140', unitNumber: '185 211', status: 'bereit', location: hqCity },
-    { id: 'loco-5', model: 'EuroDual', unitNumber: '159 001', status: 'bereit', location: 'München' },
+    { id: 'loco-5', model: 'EuroDual', unitNumber: '159 001', status: 'bereit', location: hqCity },
     { id: 'loco-6', model: 'EuroDual', unitNumber: '159 014', status: 'wartung', location: hqCity },
-    { id: 'loco-7', model: 'Vectron MS', unitNumber: '193 540', status: 'bereit', location: 'Mannheim' },
-    { id: 'loco-8', model: 'TRAXX F140', unitNumber: '185 228', status: 'bereit', location: 'Duisburg' },
-    { id: 'loco-9', model: 'EuroDual', unitNumber: '159 022', status: 'bereit', location: 'Frankfurt' },
+    { id: 'loco-7', model: 'Vectron MS', unitNumber: '193 540', status: 'bereit', location: hqCity },
+    { id: 'loco-8', model: 'TRAXX F140', unitNumber: '185 228', status: 'bereit', location: hqCity },
+    { id: 'loco-9', model: 'EuroDual', unitNumber: '159 022', status: 'bereit', location: hqCity },
     { id: 'loco-10', model: 'Vectron MS', unitNumber: '193 555', status: 'bereit', location: hqCity },
   ];
 }
@@ -103,8 +81,8 @@ export function createSeedDrivers(): Driver[] {
     id: `tf-${i + 1}`,
     name: row.name,
     gender: row.gender,
-    /** Feste Edge-Neural-Stimme — bleibt über die gesamte Karriere gleich. */
-    ttsVoiceId: row.gender === 'male' ? maleIds[i % maleIds.length]! : 'de-DE-KatjaNeural',
+    voiceId: row.gender === 'male' ? maleIds[i % maleIds.length]! : 'de-DE-KatjaNeural',
+    qualifications: DRIVER_QUAL_ROTATION[i % DRIVER_QUAL_ROTATION.length]!,
     remainingDutyMinutes: 420 - i * 18,
     maxDutyMinutes: 540,
     status: i === 8 ? 'krank' : i === 7 ? 'pause' : 'bereit',
@@ -136,10 +114,12 @@ function buildRunFromOd(
   delayMinutes: number,
 ): TrainRun {
   const duration = od.plannedDurationMin || Math.round(estimateKm(od.origin, od.destination) / 0.9);
+  const speed = progress > 0.02 && progress < 0.98 ? 70 + (delayMinutes > 5 ? -15 : 0) + (od.dangerousGoods ? -10 : 0) : 0;
   return {
     id,
     trainNumber,
     cargo: od.cargo,
+    tonnageT: od.tonnageT,
     origin: od.origin,
     destination: od.destination,
     progress,
@@ -151,28 +131,32 @@ function buildRunFromOd(
     status: 'unterwegs',
     corridorId: corridorKey(od.origin, od.destination),
     dangerousGoods: Boolean(od.dangerousGoods),
+    currentSpeedKmH: Math.max(0, Math.round(speed)),
   };
 }
 
-/** Startflotte je Rang — OD aus deutschlandweitem Pool. */
 export function createSeedTrains(
   drivers: Driver[],
   locos: Locomotive[],
   rank: DispatcherRank = 1,
+  homeHubId: HubId = 'duisburg-ruhrort',
+  unlockedTier: CorridorTier = 1,
 ): TrainRun[] {
+  const hub = hubById(homeHubId);
+  const pool = odPoolForHub(unlockedTier, hub.regionStations);
   const max = RANK_META[rank].maxTrains;
   const usableLocos = locos.filter((l) => l.status !== 'wartung');
   const usableDrivers = drivers.filter((d) => d.status !== 'krank');
-  const count = Math.min(max, OD_POOL.length, usableLocos.length, usableDrivers.length);
+  const count = Math.min(max, pool.length, usableLocos.length, usableDrivers.length);
   const runs: TrainRun[] = [];
 
   for (let i = 0; i < count; i++) {
-    const od = OD_POOL[i % OD_POOL.length]!;
+    const od = pool[i % pool.length]!;
     const progress = 0.12 + (i % 6) * 0.1;
     const run = buildRunFromOd(
       od,
       `run-${i + 1}`,
-      `GZ ${51200 + i * 173}`,
+      `DGS ${51200 + i * 173}`,
       usableDrivers[i]!.id,
       usableLocos[i]!.id,
       progress,
@@ -184,15 +168,16 @@ export function createSeedTrains(
   return runs;
 }
 
-/**
- * Hält die aktive Zugzahl auf Rang-Niveau: nach Ankunft neue Läufe mit frischen OD.
- */
 export function refillTrainsToRank(
   trains: TrainRun[],
   drivers: Driver[],
   locos: Locomotive[],
   rank: DispatcherRank,
+  homeHubId: HubId = 'duisburg-ruhrort',
+  unlockedTier: CorridorTier = 1,
 ): TrainRun[] {
+  const hub = hubById(homeHubId);
+  const pool = odPoolForHub(unlockedTier, hub.regionStations);
   const max = RANK_META[rank].maxTrains;
   const active = trains.filter((t) => t.status === 'unterwegs' || t.status === 'halt' || t.status === 'gestoert');
   if (active.length >= max) return trains;
@@ -206,13 +191,13 @@ export function refillTrainsToRank(
   while (need > 0) {
     const freeDriver = nextDrivers.find((d) => d.status === 'bereit' && d.remainingDutyMinutes > 90);
     const freeLoco = nextLocos.find((l) => l.status === 'bereit');
-    if (!freeDriver || !freeLoco) break;
+    if (!freeDriver || !freeLoco || pool.length === 0) break;
 
-    const od = OD_POOL[(seq * 5 + rank * 3) % OD_POOL.length]!;
+    const od = pool[(seq * 5 + rank * 3) % pool.length]!;
     const run = buildRunFromOd(
       od,
       `run-${Date.now().toString(36)}-${seq}`,
-      `GZ ${50000 + ((seq * 37) % 40000)}`,
+      `DGS ${50000 + ((seq * 37) % 40000)}`,
       freeDriver.id,
       freeLoco.id,
       0.05 + (seq % 5) * 0.04,
@@ -227,17 +212,18 @@ export function refillTrainsToRank(
   return next;
 }
 
-/** Beim Schichtantritt / nach Beförderung: Flotte auf Rang-Soll bringen. */
 export function scaleFleetForRank(
   trains: TrainRun[],
   drivers: Driver[],
   locos: Locomotive[],
   rank: DispatcherRank,
+  homeHubId: HubId = 'duisburg-ruhrort',
+  unlockedTier: CorridorTier = 1,
 ): { trains: TrainRun[]; drivers: Driver[]; locos: Locomotive[] } {
   const nextDrivers = drivers.map((d) => ({ ...d }));
   const nextLocos = locos.map((l) => ({ ...l }));
   let nextTrains = trains.map((t) => ({ ...t }));
-  nextTrains = refillTrainsToRank(nextTrains, nextDrivers, nextLocos, rank);
+  nextTrains = refillTrainsToRank(nextTrains, nextDrivers, nextLocos, rank, homeHubId, unlockedTier);
   return { trains: nextTrains, drivers: nextDrivers, locos: nextLocos };
 }
 
@@ -249,7 +235,6 @@ export function corridorById(id: string): Corridor {
   return CORRIDORS.find((c) => c.id === id) ?? CORRIDORS[0]!;
 }
 
-/** Position entlang der gerouteten Zugstrecke (Knotennetz). */
 export function trainLatLngForRun(train: Pick<TrainRun, 'origin' | 'destination' | 'progress'>): {
   lat: number;
   lng: number;
@@ -258,7 +243,6 @@ export function trainLatLngForRun(train: Pick<TrainRun, 'origin' | 'destination'
   return pointAlongLatLngPath(path, train.progress);
 }
 
-/** @deprecated — nutze trainLatLngForRun */
 export function trainLatLng(corridorId: string, progress: number): { lat: number; lng: number } {
   const parts = corridorId.split('→');
   if (parts.length === 2) {

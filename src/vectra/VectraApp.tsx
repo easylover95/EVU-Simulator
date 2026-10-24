@@ -33,7 +33,9 @@ import {
   stopSpeech,
   type GsmrLinkStatus,
 } from '@/vectra/gsmr';
-import { employerById, type Employer } from '@/vectra/employers';
+import { evaluateCorridorUnlock, type CorridorTier } from '@/vectra/corridors';
+import { RRC } from '@/vectra/employers';
+import { hubById, type HubId } from '@/vectra/hubs';
 import { createSeedDrivers, createSeedLocos, createSeedTrains, scaleFleetForRank } from '@/vectra/seed';
 import type { GameSettings, GameState, SaveGame } from '@/vectra/saveGame';
 import {
@@ -86,34 +88,46 @@ function Atmosphere({ theme }: { theme: AtmosphereTheme }) {
   );
 }
 
-function createWorld(hqCity: string, rank: 1 | 2 | 3 = 1) {
+function createWorld(hqCity: string, rank: 1 | 2 | 3 = 1, homeHubId: HubId = 'duisburg-ruhrort', unlockedTier: CorridorTier = 1) {
   const seedDrivers = createSeedDrivers();
   const seedLocos = createSeedLocos(hqCity);
-  const seedTrains = createSeedTrains(seedDrivers, seedLocos, rank);
+  const seedTrains = createSeedTrains(seedDrivers, seedLocos, rank, homeHubId, unlockedTier);
   return { seedDrivers, seedLocos, seedTrains };
 }
 
 function hydrateFromSave(save: SaveGame) {
-  const brand = employerById(save.employerId);
+  const hub = hubById(save.homeHubId);
   if (save.locos.length > 0 && save.drivers.length > 0 && save.trains.length > 0) {
     return {
-      brand,
+      hub,
       career: save.career,
       locos: save.locos,
       drivers: save.drivers.map((d) => ({
         ...d,
         gender: d.gender === 'female' ? ('female' as const) : ('male' as const),
-        ttsVoiceId: typeof d.ttsVoiceId === 'string' ? d.ttsVoiceId : null,
+        voiceId:
+          typeof d.voiceId === 'string'
+            ? d.voiceId
+            : typeof (d as { ttsVoiceId?: string }).ttsVoiceId === 'string'
+              ? (d as { ttsVoiceId: string }).ttsVoiceId
+              : null,
+        qualifications: d.qualifications?.length ? d.qualifications : ['E-Lok'],
       })),
-      trains: save.trains,
+      trains: save.trains.map((t) => ({
+        ...t,
+        tonnageT: t.tonnageT ?? 1200,
+        currentSpeedKmH: t.currentSpeedKmH ?? 0,
+      })),
       handoverBook: save.handoverBook,
       logEntries: save.logEntries,
       inGameMinutes: save.inGameMinutes,
+      unlockedTier: save.unlockedTier,
+      homeHubId: save.homeHubId,
     };
   }
-  const world = createWorld(brand.hqCity, save.career.rank);
+  const world = createWorld(hub.city, save.career.rank, save.homeHubId, save.unlockedTier);
   return {
-    brand,
+    hub,
     career: save.career,
     locos: world.seedLocos,
     drivers: world.seedDrivers,
@@ -121,6 +135,8 @@ function hydrateFromSave(save: SaveGame) {
     handoverBook: save.handoverBook,
     logEntries: save.logEntries,
     inGameMinutes: save.inGameMinutes,
+    unlockedTier: save.unlockedTier,
+    homeHubId: save.homeHubId,
   };
 }
 
@@ -147,7 +163,11 @@ export function VectraApp({
   const [screen, setScreen] = useState<AppScreen>(() =>
     phase === 'ACTIVE_SHIFT' ? 'leitstelle' : 'briefing',
   );
-  const [employer] = useState<Employer>(() => boot.brand);
+  const [hub] = useState(() => boot.hub);
+  const [homeHubId] = useState<HubId>(() => boot.homeHubId);
+  const [unlockedTier, setUnlockedTier] = useState<CorridorTier>(() => boot.unlockedTier);
+  const unlockedTierRef = useRef(unlockedTier);
+  unlockedTierRef.current = unlockedTier;
   const [career, setCareer] = useState<CareerState>(() => boot.career);
 
   const [locos, setLocos] = useState(() => boot.locos);
@@ -216,6 +236,8 @@ export function VectraApp({
         openCount,
         nextMin,
         careerRef.current.rank,
+        homeHubId,
+        unlockedTierRef.current,
       );
       setTrains(tick.trains);
       setDrivers(tick.drivers);
@@ -234,7 +256,7 @@ export function VectraApp({
         setRadioDriverName(tfName);
         speakGsmr(tick.newIncident.messageText, undefined, undefined, {
           gender: caller?.gender ?? 'male',
-          voiceId: caller?.ttsVoiceId ?? null,
+          voiceId: caller?.voiceId ?? null,
           driverName: tfName,
           onStatus: setRadioLink,
         });
@@ -277,7 +299,7 @@ export function VectraApp({
     shiftEndRef.current = computeShiftEndMin(startMin, kind);
     const meta = RANK_META[career.rank];
     const budget = meta.budget;
-    const scaled = scaleFleetForRank(trains, drivers, locos, career.rank);
+    const scaled = scaleFleetForRank(trains, drivers, locos, career.rank, homeHubId, unlockedTier);
     setTrains(scaled.trains);
     setDrivers(scaled.drivers);
     setLocos(scaled.locos);
@@ -296,7 +318,7 @@ export function VectraApp({
         {
           id: `log-start-${Date.now()}`,
           atMin: startMin,
-          text: `${SHIFT_WINDOWS[kind].label} angetreten — ${meta.label}, ${meta.maxTrains} Züge, Budget ${euro(budget)}`,
+          text: `${SHIFT_WINDOWS[kind].label} angetreten — ${meta.label}, Hub ${hub.name}, Tier ${unlockedTier}, ${meta.maxTrains} Züge, Budget ${euro(budget)}`,
           tone: 'ok',
         },
       ],
@@ -352,15 +374,31 @@ export function VectraApp({
       promoted: false,
       handoverNotes: notes,
       nextShift: nextShift(liveShift.currentShift),
+      corridorUnlockMessage: null,
+      unlockedTierAfter: unlockedTierRef.current,
     };
     const nextCareer = applyShiftCareer(careerNow, draft);
     draft.rankAfter = nextCareer.rank;
     draft.promoted = nextCareer.rank > rankBefore;
     draft.rankProgress = promoProgressLabel(nextCareer);
+    const unlock = evaluateCorridorUnlock(unlockedTierRef.current, punctNow, nextCareer);
+    draft.unlockedTierAfter = unlock.unlockedTier;
+    draft.corridorUnlockMessage = unlock.message;
+    if (unlock.newlyUnlocked) {
+      setUnlockedTier(unlock.unlockedTier);
+      unlockedTierRef.current = unlock.unlockedTier;
+    }
     careerRef.current = nextCareer;
     setCareer(nextCareer);
-    if (nextCareer.rank > rankBefore) {
-      const scaled = scaleFleetForRank(liveTrains, driversRef.current, locosRef.current, nextCareer.rank);
+    if (nextCareer.rank > rankBefore || unlock.newlyUnlocked) {
+      const scaled = scaleFleetForRank(
+        liveTrains,
+        driversRef.current,
+        locosRef.current,
+        nextCareer.rank,
+        homeHubId,
+        unlock.unlockedTier,
+      );
       setTrains(scaled.trains);
       setDrivers(scaled.drivers);
       setLocos(scaled.locos);
@@ -411,7 +449,9 @@ export function VectraApp({
     return {
       version: 1,
       savedAt: new Date().toISOString(),
-      employerId: employer.id,
+      employerId: 'rrc',
+      homeHubId,
+      unlockedTier: unlockedTierRef.current,
       career,
       locos,
       drivers,
@@ -436,7 +476,25 @@ export function VectraApp({
     }
   }, [phase]);
 
-  const brand = employer;
+  const brand = { ...RRC, hqCity: hub.city, hubName: hub.name };
+  const selectedTrain = trains.find((t) => t.id === selectedTrainId) ?? null;
+  const selectedDriver = selectedTrain ? drivers.find((d) => d.id === selectedTrain.driverId) : null;
+  const selectedLoco = selectedTrain ? locos.find((l) => l.id === selectedTrain.locoId) : null;
+
+  function callDirectFunk(trainId: string) {
+    const train = trains.find((t) => t.id === trainId);
+    if (!train) return;
+    const d = drivers.find((x) => x.id === train.driverId);
+    if (!d) return;
+    const msg = `${d.name} über GSM-R: ${train.trainNumber}, ${train.origin} nach ${train.destination}, aktuell ${train.currentSpeedKmH || 0} km/h. Disposition?`;
+    setRadioDriverName(d.name);
+    speakGsmr(msg, undefined, undefined, {
+      gender: d.gender,
+      voiceId: d.voiceId,
+      driverName: d.name,
+      onStatus: setRadioLink,
+    });
+  }
 
   /* ---------- SCREENS ---------- */
 
@@ -449,7 +507,7 @@ export function VectraApp({
             <div className="vr-brand">
               <strong>{brand.legalName}</strong>
               <span>
-                {brand.shortName} · {brand.hqCity}
+                {brand.shortName} · {brand.hubName}
               </span>
             </div>
             <div className="vr-chip">
@@ -461,7 +519,7 @@ export function VectraApp({
             <div className="vr-desk">
               <h1>Disponenten-Schreibtisch</h1>
               <p className="vr-os">
-                {brand.legalName} · Leitstelle {brand.hqCity}
+                {brand.legalName} · {brand.hubName}
               </p>
               <div className="vr-btn-stack">
                 <button
@@ -510,6 +568,7 @@ export function VectraApp({
         <div className="vr-shell">
           <ShellChrome
             brand={brand}
+            unlockedTier={unlockedTier}
             career={career}
             shift={shift}
             handover={false}
@@ -571,6 +630,7 @@ export function VectraApp({
         <div className="vr-shell">
         <ShellChrome
           brand={brand}
+          unlockedTier={unlockedTier}
           career={career}
           shift={shift}
           handover={false}
@@ -584,7 +644,7 @@ export function VectraApp({
           <section className="vr-panel">
             <div className="vr-panel-h">
               <span>
-                Fuhrpark · {locos.length} Loks · Soll {RANK_META[career.rank].maxTrains} Züge · {brand.hqCity}
+                Fuhrpark · {locos.length} Loks · Soll {RANK_META[career.rank].maxTrains} Züge · {brand.hubName}
               </span>
             </div>
             <div className="vr-scroll">
@@ -709,6 +769,7 @@ export function VectraApp({
       <div className="vr-shell">
       <ShellChrome
         brand={brand}
+        unlockedTier={unlockedTier}
         career={career}
         shift={shift}
         handover={handover}
@@ -771,7 +832,7 @@ export function VectraApp({
                           setRadioDriverName(inc.driverName);
                           speakGsmr(inc.messageText, undefined, undefined, {
                             gender: caller?.gender ?? 'male',
-                            voiceId: caller?.ttsVoiceId ?? null,
+                            voiceId: caller?.voiceId ?? null,
                             driverName: inc.driverName,
                             onStatus: setRadioLink,
                           });
@@ -844,21 +905,97 @@ export function VectraApp({
             <div className="vr-panel-h">
               <span className="flex items-center gap-1.5">
                 <Train className="h-3.5 w-3.5 text-sky-400" />
-                Netzkarte
+                Dark-GIS Vektor-Radar
               </span>
               <span className="flex items-center gap-2 text-[10px]">
                 <span className="text-emerald-300">● Pünktlich</span>
                 <span className="text-amber-300">● +5–15 Min.</span>
                 <span className="text-rose-300">● Störung</span>
+                <span className="text-slate-400">Tier {unlockedTier}</span>
               </span>
             </div>
-            <CorridorMap
-              trains={trains}
-              activeIncident={activeCall}
-              selectedTrainId={selectedTrainId}
-              onSelectTrain={setSelectedTrainId}
-              hqCity={brand.hqCity}
-            />
+            <div className="vr-map-stack">
+              <CorridorMap
+                trains={trains}
+                activeIncident={activeCall}
+                selectedTrainId={selectedTrainId}
+                onSelectTrain={setSelectedTrainId}
+                hqCity={brand.hqCity}
+              />
+              {selectedTrain && (
+                <aside className="vr-steckbrief" aria-label="Zug-Steckbrief">
+                  <header>
+                    <p className="vr-steckbrief-kicker">Zug-Steckbrief</p>
+                    <h3>{selectedTrain.trainNumber}</h3>
+                    <button
+                      type="button"
+                      className="vr-steckbrief-close"
+                      onClick={() => setSelectedTrainId(null)}
+                      aria-label="Schließen"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </header>
+                  <dl>
+                    <div>
+                      <dt>Lok</dt>
+                      <dd>
+                        {selectedLoco
+                          ? `${selectedLoco.model} ${selectedLoco.unitNumber}`
+                          : '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Tonnage / Fracht</dt>
+                      <dd>
+                        {selectedTrain.tonnageT.toLocaleString('de-DE')} t · {selectedTrain.cargo}
+                        {selectedTrain.dangerousGoods ? ' · RID' : ''}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Relation</dt>
+                      <dd>
+                        {selectedTrain.origin} → {selectedTrain.destination}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Status</dt>
+                      <dd>
+                        {TRAIN_STATUS_LABEL[selectedTrain.status]} · {selectedTrain.currentSpeedKmH}{' '}
+                        km/h ·{' '}
+                        {selectedTrain.delayMinutes <= 0
+                          ? 'Pünktlich'
+                          : `+${Math.round(selectedTrain.delayMinutes)} Min.`}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Tf</dt>
+                      <dd>
+                        {selectedDriver?.name ?? '—'}
+                        {selectedDriver
+                          ? ` · Restlenkzeit ${Math.round(selectedDriver.remainingDutyMinutes)} Min.`
+                          : ''}
+                      </dd>
+                    </div>
+                    {selectedDriver?.qualifications?.length ? (
+                      <div>
+                        <dt>Qualifikationen</dt>
+                        <dd>{selectedDriver.qualifications.join(', ')}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                  <button
+                    type="button"
+                    className="vr-btn vr-btn-primary w-full"
+                    onClick={() => callDirectFunk(selectedTrain.id)}
+                    disabled={!selectedDriver}
+                  >
+                    <Radio className="h-3.5 w-3.5" />
+                    GSM-R Direktfunk
+                  </button>
+                </aside>
+              )}
+            </div>
           </section>
         </div>
       </main>
@@ -1059,6 +1196,14 @@ export function VectraApp({
               <p className="text-xs" style={{ color: 'var(--vr-muted)' }}>
                 Rangfortschritt: {report.rankProgress}
               </p>
+              {report.corridorUnlockMessage && (
+                <p className="rounded border border-emerald-500/30 bg-emerald-950/40 px-2 py-1.5 text-xs text-emerald-200">
+                  {report.corridorUnlockMessage}
+                </p>
+              )}
+              <p className="text-[10px] uppercase tracking-wide text-slate-500">
+                Korridor-Tier: {report.unlockedTierAfter}
+              </p>
               <div>
                 <div className="mb-1 text-[10px] font-bold uppercase text-slate-500">Übergabe-Notizen</div>
                 {report.handoverNotes.length === 0 ? (
@@ -1106,6 +1251,7 @@ export function VectraApp({
 
 function ShellChrome({
   brand,
+  unlockedTier,
   career,
   shift,
   handover,
@@ -1116,7 +1262,8 @@ function ShellChrome({
   onEnd,
   endLabel,
 }: {
-  brand: Employer;
+  brand: { legalName: string; hubName: string };
+  unlockedTier: CorridorTier;
   career: CareerState;
   shift: ShiftState;
   handover: boolean;
@@ -1132,7 +1279,7 @@ function ShellChrome({
       <div className="vr-brand">
         <strong>{brand.legalName}</strong>
         <span>
-          {brand.hqCity} · {careerTitle(career)}
+          {brand.hubName} · Tier {unlockedTier} · {careerTitle(career)}
           {shift.currentShift ? ` · ${SHIFT_WINDOWS[shift.currentShift].label}` : ''}
         </span>
       </div>

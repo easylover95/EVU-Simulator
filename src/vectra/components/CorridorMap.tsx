@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { trainLatLngForRun } from '@/vectra/seed';
@@ -6,57 +6,12 @@ import { lookupStation, railRouteWaypoints, RAIL_STATIONS } from '@/lib/stations
 import { delayColor } from '@/vectra/simulation';
 import type { Incident, TrainRun } from '@/vectra/types';
 
-/** Freie Kachelquellen ohne API-Key (kein CARTO). */
-export type MapStyleId = 'osm' | 'topo' | 'satellite' | 'dark';
+/** Layer 1: Dark GIS Base (Esri Dark Gray — kein API-Key). */
+const DARK_BASE_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}';
+const DARK_BASE_ATTR = 'Tiles &copy; Esri — Esri, HERE, Garmin';
 
-type BasePreset = {
-  id: MapStyleId;
-  label: string;
-  url: string;
-  attribution: string;
-  maxZoom: number;
-  subdomains?: string;
-  ormOpacity: number;
-};
-
-const BASE_PRESETS: BasePreset[] = [
-  {
-    id: 'osm',
-    label: 'Straße',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    maxZoom: 19,
-    subdomains: 'abc',
-    ormOpacity: 0.88,
-  },
-  {
-    id: 'topo',
-    label: 'Topo',
-    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> · <a href="https://opentopomap.org">OpenTopoMap</a>',
-    maxZoom: 17,
-    subdomains: 'abc',
-    ormOpacity: 0.85,
-  },
-  {
-    id: 'satellite',
-    label: 'Satellit',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri — Esri, Maxar, Earthstar Geographics',
-    maxZoom: 19,
-    ormOpacity: 0.7,
-  },
-  {
-    id: 'dark',
-    label: 'Nacht',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Tiles &copy; Esri — Esri, HERE, Garmin',
-    maxZoom: 16,
-    ormOpacity: 0.9,
-  },
-];
-
+/** Layer 2: OpenRailwayMap-Gleise (subtil über Dark Base). */
 const ORM_URL = 'https://{s}.tiles.openrailwaymap.org/standard/{z}/{x}/{y}.png';
 const ORM_ATTR =
   '<a href="https://www.openrailwaymap.org/">OpenRailwayMap</a> · <a href="https://www.openstreetmap.org/copyright">OSM</a>';
@@ -108,9 +63,6 @@ export function CorridorMap({
   const fittedRef = useRef(false);
   selectRef.current = onSelectTrain;
 
-  const [mapStyle, setMapStyle] = useState<MapStyleId>('osm');
-  const [showRails, setShowRails] = useState(true);
-
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
@@ -118,13 +70,27 @@ export function CorridorMap({
       center: [51.16, 10.45],
       zoom: 6,
       minZoom: 5,
-      maxZoom: 18,
+      maxZoom: 16,
       zoomControl: false,
       attributionControl: true,
     });
 
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     mapRef.current = map;
+
+    // Layer 1 — Base GIS (Dark)
+    baseLayerRef.current = L.tileLayer(DARK_BASE_URL, {
+      attribution: DARK_BASE_ATTR,
+      maxZoom: 16,
+    }).addTo(map);
+
+    // Layer 2 — Track Network (ORM, gedämpft)
+    ormLayerRef.current = L.tileLayer(ORM_URL, {
+      subdomains: 'abc',
+      maxZoom: 19,
+      opacity: 0.55,
+      attribution: ORM_ATTR,
+    }).addTo(map);
 
     const raf = window.requestAnimationFrame(() => map.invalidateSize());
     const t = window.setTimeout(() => map.invalidateSize(), 180);
@@ -147,40 +113,7 @@ export function CorridorMap({
     };
   }, []);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    const preset = BASE_PRESETS.find((p) => p.id === mapStyle) ?? BASE_PRESETS[0]!;
-
-    baseLayerRef.current?.remove();
-    ormLayerRef.current?.remove();
-    baseLayerRef.current = null;
-    ormLayerRef.current = null;
-
-    const opts: L.TileLayerOptions = {
-      attribution: preset.attribution,
-      maxZoom: preset.maxZoom,
-    };
-    if (preset.subdomains) opts.subdomains = preset.subdomains;
-
-    const base = L.tileLayer(preset.url, opts).addTo(map);
-    baseLayerRef.current = base;
-
-    if (showRails) {
-      const orm = L.tileLayer(ORM_URL, {
-        subdomains: 'abc',
-        maxZoom: 19,
-        opacity: preset.ormOpacity,
-        attribution: ORM_ATTR,
-      }).addTo(map);
-      ormLayerRef.current = orm;
-    }
-
-    map.setMaxZoom(Math.min(18, preset.maxZoom));
-  }, [mapStyle, showRails]);
-
-  // Aktive Zugstrecken entlang des Bahnknoten-Netzes (keine Luftlinie)
+  // Layer 2+ — Neon-Trassen der aktiven Läufe
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -195,11 +128,11 @@ export function CorridorMap({
       let marker = stationLayersRef.current.get(key);
       if (!marker) {
         marker = L.circleMarker([lat, lng], {
-          radius: via ? 3.5 : 5.5,
-          color: via ? '#92400e' : '#0f172a',
+          radius: via ? 3 : 5,
+          color: via ? '#1e3a5f' : '#0f172a',
           weight: via ? 1 : 2,
-          fillColor: via ? '#fbbf24' : '#38bdf8',
-          fillOpacity: via ? 0.85 : 0.95,
+          fillColor: via ? '#38bdf8' : '#64d2ff',
+          fillOpacity: via ? 0.7 : 0.95,
         }).addTo(map);
         if (label) {
           marker.bindTooltip(label, {
@@ -224,22 +157,22 @@ export function CorridorMap({
 
       const hot = train.id === blockedId;
       const selected = selectedTrainId === train.id;
-      const coreColor = hot ? '#fb7185' : selected ? '#f5b942' : showRails ? '#f59e0b' : '#0ea5e9';
-      const glowColor = hot ? '#fb7185' : showRails ? '#fbbf24' : '#38bdf8';
+      const coreColor = hot ? '#fb7185' : selected ? '#f5b942' : '#38bdf8';
+      const glowColor = hot ? '#fb7185' : '#0ea5e9';
 
       let layer = routeLayersRef.current.get(train.id);
       if (!layer) {
         const glow = L.polyline(path, {
           color: glowColor,
-          weight: showRails ? 10 : 7,
-          opacity: showRails ? 0.28 : 0.18,
+          weight: 11,
+          opacity: 0.22,
           lineCap: 'round',
           lineJoin: 'round',
         }).addTo(map);
         const core = L.polyline(path, {
           color: coreColor,
-          weight: hot || selected ? 5 : showRails ? 4 : 3.2,
-          opacity: 0.92,
+          weight: hot || selected ? 5 : 3.5,
+          opacity: 0.95,
           lineCap: 'round',
           lineJoin: 'round',
           dashArray: hot ? '8 6' : undefined,
@@ -249,22 +182,17 @@ export function CorridorMap({
       } else {
         layer.glow.setLatLngs(path);
         layer.core.setLatLngs(path);
-        layer.glow.setStyle({
-          color: glowColor,
-          weight: showRails ? 10 : 7,
-          opacity: showRails ? 0.28 : 0.18,
-        });
+        layer.glow.setStyle({ color: glowColor, weight: 11, opacity: 0.22 });
         layer.core.setStyle({
           color: coreColor,
-          weight: hot || selected ? 5 : showRails ? 4 : 3.2,
-          opacity: 0.92,
+          weight: hot || selected ? 5 : 3.5,
+          opacity: 0.95,
           dashArray: hot ? '8 6' : undefined,
         });
       }
 
       waypoints.forEach((wp, i) => {
         const isEnd = i === 0 || i === waypoints.length - 1;
-        if (!showRails && !isEnd) return;
         const key = wp.key ?? `${train.id}-${i}-${wp.label}`;
         seenStations.add(key);
         upsertStationMarker(key, wp.lat, wp.lng, isEnd ? wp.label : wp.label, !isEnd);
@@ -275,9 +203,12 @@ export function CorridorMap({
       seenStations.add(hqCity);
       const hq = Object.values(RAIL_STATIONS).find((s) => s.label === hqCity) ?? lookupStation(hqCity);
       bounds.extend([hq.lat, hq.lng]);
-      upsertStationMarker(hqCity, hq.lat, hq.lng, `Leitstelle ${hqCity}`, false);
-      const hqMarker = stationLayersRef.current.get(hqCity);
-      hqMarker?.setStyle({ color: '#f5b942', fillColor: '#f5b942', radius: 6 });
+      upsertStationMarker(hqCity, hq.lat, hq.lng, `Hub ${hqCity}`, false);
+      stationLayersRef.current.get(hqCity)?.setStyle({
+        color: '#f5b942',
+        fillColor: '#f5b942',
+        radius: 7,
+      });
     }
 
     for (const [id, layer] of routeLayersRef.current) {
@@ -298,8 +229,9 @@ export function CorridorMap({
       map.fitBounds(bounds.pad(0.18), { animate: fittedRef.current });
       fittedRef.current = true;
     }
-  }, [trains, activeIncident, selectedTrainId, hqCity, showRails]);
+  }, [trains, activeIncident, selectedTrainId, hqCity]);
 
+  // Layer 3 — Live Telemetrie (Zug-Tags)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -311,10 +243,12 @@ export function CorridorMap({
       seen.add(train.id);
       const pos = trainLatLngForRun(train);
       const latlng: L.LatLngExpression = [pos.lat, pos.lng];
-      const label = train.trainNumber.replace(/^GZ\s+/i, '');
+      const label = train.trainNumber.replace(/^(GZ|DGS)\s+/i, '');
       const color = markerColor(train);
       const selected = selectedTrainId === train.id;
       let marker = markersRef.current.get(train.id);
+
+      const tip = `${train.trainNumber} · ${train.currentSpeedKmH || '—'} km/h · ${train.origin} → ${train.destination}`;
 
       if (!marker) {
         const id = train.id;
@@ -322,7 +256,7 @@ export function CorridorMap({
           icon: trainIcon(color, label, selected),
           zIndexOffset: 900,
         })
-          .bindTooltip(`${train.trainNumber} · ${train.origin} → ${train.destination}`, {
+          .bindTooltip(tip, {
             className: 'vr-map-tooltip',
             direction: 'top',
             offset: [0, -12],
@@ -333,7 +267,7 @@ export function CorridorMap({
       } else {
         marker.setLatLng(latlng);
         marker.setIcon(trainIcon(color, label, selected));
-        marker.setTooltipContent(`${train.trainNumber} · ${train.origin} → ${train.destination}`);
+        marker.setTooltipContent(tip);
       }
     }
 
@@ -347,27 +281,10 @@ export function CorridorMap({
 
   return (
     <div ref={shellRef} className="vr-map-shell">
-      <div className="vr-map-styles" role="toolbar" aria-label="Kartenansicht">
-        {BASE_PRESETS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className={`vr-map-style-btn${mapStyle === p.id ? ' is-on' : ''}`}
-            onClick={() => setMapStyle(p.id)}
-          >
-            {p.label}
-          </button>
-        ))}
-        <button
-          type="button"
-          className={`vr-map-style-btn${showRails ? ' is-on' : ''}`}
-          onClick={() => setShowRails((v) => !v)}
-          title="OpenRailwayMap-Gleise ein-/ausblenden"
-        >
-          Gleise
-        </button>
+      <div className="vr-map-layer-badge" aria-hidden>
+        DARK GIS · LIVE TELEMETRY
       </div>
-      <div ref={containerRef} className="vr-map" aria-label="Netzkarte aktive Zugläufe" />
+      <div ref={containerRef} className="vr-map" aria-label="Dark-GIS Vektorkarte aktive Zugläufe" />
     </div>
   );
 }

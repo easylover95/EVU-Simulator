@@ -1,45 +1,29 @@
-/** Start-EVUs zur Auswahl (Test-Set). */
+/** Festes EVU-Branding — Hub-Wahl separat in hubs.ts. */
 
-export type EmployerId = 'rrc' | 'sfr' | 'tal';
+export type EmployerId = 'rrc';
 
 export interface Employer {
   id: EmployerId;
   shortName: string;
   legalName: string;
-  hqCity: string;
   regionHint: string;
   accent: string;
 }
 
-export const EMPLOYERS: Employer[] = [
-  {
-    id: 'rrc',
-    shortName: 'RRC',
-    legalName: 'Rhein-Ruhr Cargo',
-    hqCity: 'Dortmund',
-    regionHint: 'Ruhrgebiet · Kohle, Stahl, Container',
-    accent: '#f5b942',
-  },
-  {
-    id: 'sfr',
-    shortName: 'SFR',
-    legalName: 'Südwest Freight Rail',
-    hqCity: 'Mannheim',
-    regionHint: 'Rhein-Neckar · Chemie, Kombiverkehr',
-    accent: '#64d2ff',
-  },
-  {
-    id: 'tal',
-    shortName: 'TAL',
-    legalName: 'TransAlp Logistics GmbH',
-    hqCity: 'München',
-    regionHint: 'Alpenkorridor · Automotive, Intermodal',
-    accent: '#30d158',
-  },
-];
+/** Einziges EVU laut Handout v2.0. */
+export const RRC: Employer = {
+  id: 'rrc',
+  shortName: 'RRC',
+  legalName: 'Rhein-Ruhr Cargo GmbH',
+  regionHint: 'Freie Hub-Wahl · CTS-Style Expansion',
+  accent: '#f5b942',
+};
 
-export function employerById(id: EmployerId): Employer {
-  return EMPLOYERS.find((e) => e.id === id) ?? EMPLOYERS[0]!;
+/** @deprecated — nur noch RRC; Array für Legacy-UI-Schleifen. */
+export const EMPLOYERS: Employer[] = [RRC];
+
+export function employerById(_id?: string | null): Employer {
+  return RRC;
 }
 
 export const OS_LABEL = 'Disponenten-Leitstelle';

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { RANK_META } from '@/vectra/career';
-import { EMPLOYERS, type EmployerId } from '@/vectra/employers';
+import { CORRIDOR_TIER_META } from '@/vectra/corridors';
+import { RRC } from '@/vectra/employers';
 import { setGsmrVolumes } from '@/vectra/gsmrSettings';
+import { defaultHubId, HUBS, hubById, type HubId } from '@/vectra/hubs';
 import {
   clearSave,
   DEFAULT_SETTINGS,
@@ -32,7 +34,7 @@ export default function App() {
   const [menuNotice, setMenuNotice] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [setupName, setSetupName] = useState('');
-  const [setupEmployer, setSetupEmployer] = useState<EmployerId>('rrc');
+  const [setupHub, setSetupHub] = useState<HubId>(defaultHubId());
   const [nameError, setNameError] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const saveExists = Boolean(activeSave) || hasSave();
@@ -79,7 +81,9 @@ export default function App() {
     const save: SaveGame = {
       version: 1,
       savedAt: new Date().toISOString(),
-      employerId: setupEmployer,
+      employerId: 'rrc',
+      homeHubId: setupHub,
+      unlockedTier: 1,
       career: {
         displayName: name,
         roleLabel: 'Disponent / Disponentin',
@@ -134,17 +138,20 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
 
-  /* ---------- MAIN MENU ---------- */
   if (gameState === 'MAIN_MENU') {
+    const hub = activeSave ? hubById(activeSave.homeHubId) : null;
+    const tierMeta = activeSave
+      ? CORRIDOR_TIER_META.find((t) => t.tier === activeSave.unlockedTier)
+      : null;
     return (
       <div className="mm-root">
         <div className="mm-scanlines" aria-hidden />
         <div className="mm-panel">
           <header className="mm-header">
             <p className="mm-eyebrow">EVU Operational Terminal</p>
-            <h1>Rhein-Ruhr Cargo</h1>
+            <h1>{RRC.legalName}</h1>
             <p className="mm-sub">Operational Workstation v2.4</p>
-            <p className="mm-meta">Disponenten-Leitstelle · Lokal gespeicherte Karriere</p>
+            <p className="mm-meta">Disponenten-Leitstelle · Freie Hub-Wahl · Lokal gespeichert</p>
           </header>
 
           {menuNotice && <p className="mm-notice">{menuNotice}</p>}
@@ -228,14 +235,14 @@ export default function App() {
             }}
           />
 
-          {activeSave && (
+          {activeSave && hub && (
             <footer className="mm-footer">
               <span>
                 {activeSave.career.displayName || '—'} · {RANK_META[activeSave.career.rank].label}
               </span>
               <span>
-                {EMPLOYERS.find((e) => e.id === activeSave.employerId)?.shortName} · EXP {activeSave.career.exp} ·{' '}
-                {activeSave.career.shiftsCompleted} Schichten
+                {hub.name} · Tier {activeSave.unlockedTier} {tierMeta?.label ?? ''} · EXP{' '}
+                {activeSave.career.exp}
               </span>
             </footer>
           )}
@@ -252,16 +259,15 @@ export default function App() {
     );
   }
 
-  /* ---------- CAREER SETUP ---------- */
   if (gameState === 'CAREER_SETUP') {
     return (
       <div className="mm-root">
         <div className="mm-scanlines" aria-hidden />
         <div className="mm-panel mm-panel-wide">
           <header className="mm-header">
-            <p className="mm-eyebrow">Karriere-Setup</p>
+            <p className="mm-eyebrow">{RRC.legalName}</p>
             <h1>Neues Spiel</h1>
-            <p className="mm-sub">Name · Start-EVU · Start als Junior-Disponent</p>
+            <p className="mm-sub">Name · Operations-Hub · Start als Junior-Disponent</p>
           </header>
 
           <label className="mm-field">
@@ -279,28 +285,26 @@ export default function App() {
             {nameError && <em>Bitte Namen eintragen.</em>}
           </label>
 
-          <p className="mm-label">Start-EVU</p>
+          <p className="mm-label">Start-Hub (Operations-Standort)</p>
           <div className="mm-employer-grid">
-            {EMPLOYERS.map((e) => (
+            {HUBS.map((h) => (
               <button
-                key={e.id}
+                key={h.id}
                 type="button"
-                className={`mm-employer ${setupEmployer === e.id ? 'is-on' : ''}`}
-                style={{ ['--mm-accent' as string]: e.accent }}
-                onClick={() => setSetupEmployer(e.id)}
+                className={`mm-employer ${setupHub === h.id ? 'is-on' : ''}`}
+                style={{ ['--mm-accent' as string]: RRC.accent }}
+                onClick={() => setSetupHub(h.id)}
               >
-                <span>{e.shortName}</span>
-                <strong>{e.legalName}</strong>
-                <small>
-                  {e.hqCity} · {e.regionHint}
-                </small>
+                <span>{h.city}</span>
+                <strong>{h.name}</strong>
+                <small>{h.regionHint}</small>
               </button>
             ))}
           </div>
 
           <p className="mm-hint">
-            Einstieg: <strong>{RANK_META[1].label}</strong> — höhere Ränge nur durch Schichten, EXP und
-            Beförderung.
+            Einstieg: <strong>{RANK_META[1].label}</strong> am Hub {hubById(setupHub).name} — Korridore
+            erweitern sich durch Pünktlichkeit und Schichten.
           </p>
 
           <div className="mm-actions">
@@ -316,7 +320,6 @@ export default function App() {
     );
   }
 
-  /* ---------- RUNTIME (Briefing / Shift / Summary) ---------- */
   if (gameState === 'SHIFT_BRIEFING' || gameState === 'ACTIVE_SHIFT' || gameState === 'SHIFT_SUMMARY') {
     if (!activeSave) return null;
     const phase = gameState as RuntimePhase;
@@ -366,7 +369,7 @@ function SettingsModal({
         </header>
         <div className="mm-modal-body space-y-4">
           <label className="mm-field">
-            <span>TTS-Stimme · Lautstärke ({Math.round(settings.ttsVolume * 100)} %)</span>
+            <span>Funkstimme · Lautstärke ({Math.round(settings.ttsVolume * 100)} %)</span>
             <input
               type="range"
               min={0}
@@ -389,7 +392,7 @@ function SettingsModal({
           </label>
           <label className="mm-field">
             <span>Zeitraffer beim Schichtstart</span>
-            <div className="mm-rank-row">
+            <div className="mm-actions" style={{ marginTop: '0.5rem', justifyContent: 'flex-start' }}>
               {([0, 1, 2, 5] as const).map((s) => (
                 <button
                   key={s}
@@ -402,11 +405,7 @@ function SettingsModal({
               ))}
             </div>
           </label>
-          <button
-            type="button"
-            className="mm-link"
-            onClick={() => onChange({ ...DEFAULT_SETTINGS })}
-          >
+          <button type="button" className="mm-link" onClick={() => onChange({ ...DEFAULT_SETTINGS })}>
             Auf Standard zurücksetzen
           </button>
         </div>

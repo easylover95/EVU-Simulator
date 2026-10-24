@@ -1,19 +1,14 @@
 /**
  * Feste Microsoft Edge Neural-Voice-IDs pro Triebfahrzeugführer.
- * Kein Browser-SpeechSynthesis — nur Voice-Zuweisung für den GSM-R-Proxy.
  */
 
 import type { Driver, DriverGender } from '@/vectra/types';
 
 export type VoiceGender = DriverGender;
 
-/** Jung / dynamisch */
 export const VOICE_KILLIAN = 'de-DE-KillianNeural';
-/** Erfahren / tief */
 export const VOICE_CONRAD = 'de-DE-ConradNeural';
-/** Klassisch */
 export const VOICE_RALF = 'de-DE-RalfNeural';
-/** Weiblich */
 export const VOICE_KATJA = 'de-DE-KatjaNeural';
 
 export const MALE_NEURAL_IDS = [VOICE_KILLIAN, VOICE_CONRAD, VOICE_RALF] as const;
@@ -43,20 +38,17 @@ export function normalizeDriverGender(driver: Driver): Driver {
   return {
     ...driver,
     gender,
-    ttsVoiceId: driver.ttsVoiceId ?? null,
+    voiceId: driver.voiceId ?? null,
+    qualifications: driver.qualifications?.length ? driver.qualifications : ['E-Lok'],
   };
 }
 
-/**
- * Weist einem Tf fest eine Neural-Voice-ID zu.
- * Einmal gesetzt, bleibt sie über den gesamten Spielverlauf gleich.
- */
 export function assignDriverVoiceId(driver: Driver): Driver {
   const normalized = normalizeDriverGender(driver);
-  if (normalized.ttsVoiceId) return normalized;
+  if (normalized.voiceId) return normalized;
   return {
     ...normalized,
-    ttsVoiceId: pickNeuralVoiceId(normalized.gender, `${normalized.id}|${normalized.name}`),
+    voiceId: pickNeuralVoiceId(normalized.gender, `${normalized.id}|${normalized.name}`),
   };
 }
 
@@ -64,9 +56,8 @@ export function ensureDriversHaveVoices(drivers: Driver[]): Driver[] {
   return drivers.map(assignDriverVoiceId);
 }
 
-/** @deprecated — Stimmen kommen vom Edge-Proxy; Warmup ist optional. */
 export function warmGsmrVoiceCache(): void {
-  /* no-op: Neural-Audio läuft über /api/gsmr-tts */
+  /* Edge-Neural on-demand */
 }
 
 export function inferDriverGender(name: string): DriverGender {

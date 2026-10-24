@@ -35,6 +35,13 @@ export function computePunctuality(trains: TrainRun[]): number {
   return Math.round((onTime / active.length) * 100);
 }
 
+function estimateSpeedKmH(train: TrainRun): number {
+  const base = train.dangerousGoods ? 75 : 90;
+  if (train.delayMinutes > 20) return Math.max(40, base - 25);
+  if (train.delayMinutes > 5) return Math.max(55, base - 12);
+  return base;
+}
+
 export function delayColor(delay: number, status: TrainRun['status']): 'green' | 'yellow' | 'red' {
   if (status === 'gestoert' || status === 'halt') return 'red';
   if (delay >= 15) return 'red';
@@ -58,6 +65,8 @@ export function advanceSimulation(
   openIncidentCount: number,
   gameMin: number,
   rank: DispatcherRank = 1,
+  homeHubId: string = 'duisburg-ruhrort',
+  unlockedTier: 1 | 2 | 3 | 4 | 5 = 1,
 ): TickResult {
   const meta = RANK_META[rank];
   let nextTrains = trains.map((t) => ({ ...t }));
@@ -71,6 +80,8 @@ export function advanceSimulation(
     const progressDelta = (deltaMin / train.plannedDurationMin) * speedFactor;
     train.progress = Math.min(1, train.progress + progressDelta);
     train.elapsedMin += deltaMin;
+    const kmPerMin = (estimateSpeedKmH(train) / 60) * speedFactor;
+    train.currentSpeedKmH = Math.round(kmPerMin * 60);
 
     const expectedProgress = train.elapsedMin / train.plannedDurationMin;
     if (expectedProgress > train.progress + 0.02) {
@@ -85,6 +96,7 @@ export function advanceSimulation(
     if (train.progress >= 1) {
       train.status = 'ankunft';
       train.progress = 1;
+      train.currentSpeedKmH = 0;
       if (driver) {
         driver.status = 'bereit';
         driver.assignedTrainId = null;
@@ -104,8 +116,21 @@ export function advanceSimulation(
     }
   }
 
+  for (const train of nextTrains) {
+    if (train.status === 'halt' || train.status === 'gestoert' || train.status === 'ankunft' || train.status === 'geplant') {
+      train.currentSpeedKmH = 0;
+    }
+  }
+
   // Nach Ankünften: Flotte wieder auf Rang-Soll auffüllen
-  nextTrains = refillTrainsToRank(nextTrains, nextDrivers, nextLocos, rank);
+  nextTrains = refillTrainsToRank(
+    nextTrains,
+    nextDrivers,
+    nextLocos,
+    rank,
+    homeHubId as import('@/vectra/hubs').HubId,
+    unlockedTier,
+  );
 
   let newIncident: Incident | null = null;
   if (openIncidentCount < meta.maxOpenIncidents && Math.random() < meta.incidentRate * deltaMin) {

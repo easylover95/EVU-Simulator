@@ -1,11 +1,11 @@
-/** Disponenten-Leitstelle — Start-EVU wählbar (RRC / SFR / TAL). */
+/** Disponenten-Leitstelle — Rhein-Ruhr Cargo, freie Hub-Wahl. */
 
 export type ShiftKind = 'frueh' | 'spaet' | 'nacht';
 export type ClockSpeed = 0 | 1 | 2 | 5;
 export type DispatcherRank = 1 | 2 | 3;
 export type Grade = 'S' | 'A' | 'B' | 'C';
 
-export type DriverStatus = 'in_fahrt' | 'pause' | 'bereit' | 'krank';
+export type DriverStatus = 'in_fahrt' | 'pause' | 'bereit' | 'krank' | 'halt';
 export type LocoModel = 'Vectron MS' | 'TRAXX F140' | 'EuroDual';
 export type LocoStatus = 'bereit' | 'in_fahrt' | 'wartung';
 export type TrainRunStatus = 'geplant' | 'unterwegs' | 'halt' | 'gestoert' | 'ankunft';
@@ -15,6 +15,7 @@ export const DRIVER_STATUS_LABEL: Record<DriverStatus, string> = {
   pause: 'Pause',
   bereit: 'Bereit',
   krank: 'Krank',
+  halt: 'Halt',
 };
 
 export const LOCO_STATUS_LABEL: Record<LocoStatus, string> = {
@@ -36,13 +37,10 @@ export type DriverGender = 'male' | 'female';
 export interface Driver {
   id: string;
   name: string;
-  /** Bestimmt die GSM-R-KI-Stimme (männlich/weiblich). */
   gender: DriverGender;
-  /**
-   * Feste Microsoft-Neural-Voice-ID für diesen Tf (z. B. de-DE-ConradNeural).
-   * Einmal zugewiesen, bleibt sie über den gesamten Spielverlauf erhalten.
-   */
-  ttsVoiceId: string | null;
+  /** Feste Microsoft-Neural-Voice-ID (z. B. de-DE-ConradNeural). */
+  voiceId: string | null;
+  qualifications: string[];
   remainingDutyMinutes: number;
   maxDutyMinutes: number;
   status: DriverStatus;
@@ -62,6 +60,8 @@ export interface TrainRun {
   id: string;
   trainNumber: string;
   cargo: string;
+  /** Netto-Tonnage in t */
+  tonnageT: number;
   origin: string;
   destination: string;
   /** 0–1 along corridor path */
@@ -74,6 +74,7 @@ export interface TrainRun {
   status: TrainRunStatus;
   corridorId: string;
   dangerousGoods: boolean;
+  currentSpeedKmH: number;
 }
 
 export interface IncidentOption {
@@ -164,6 +165,9 @@ export interface ShiftReport {
   promoted: boolean;
   handoverNotes: HandoverNote[];
   nextShift: ShiftKind;
+  /** Freigeschalteter Korridor-Tier nach dieser Schicht (falls neu). */
+  corridorUnlockMessage: string | null;
+  unlockedTierAfter: 1 | 2 | 3 | 4 | 5;
 }
 
 export type AppScreen = 'employer' | 'desk' | 'briefing' | 'leitstelle' | 'akte' | 'fuhrpark';
@@ -181,4 +185,12 @@ export interface Corridor {
   to: string;
   /** SVG path length approx for progress */
   lengthKm: number;
+}
+
+export interface HubRuntime {
+  id: string;
+  name: string;
+  city: string;
+  assignedLocoIds: string[];
+  assignedDriverIds: string[];
 }
